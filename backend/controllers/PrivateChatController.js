@@ -1,4 +1,4 @@
-const PrivateChat = require("./../models/PrivateChatSchema");
+const PrivateChat = require("./../models/privateChatSchema");
 const User = require("./../models/UserSchema"); 
 const openPrivateChat = async (req, res) => {
 
@@ -33,7 +33,7 @@ const openPrivateChat = async (req, res) => {
 
 
 
-const PrivateMessage = require("./../models/PrivateMessageSchema");
+const PrivateMessage = require("../models/privateMessageSchema");
 
 const getPrivateMessages = async (req, res) => {
   try {
