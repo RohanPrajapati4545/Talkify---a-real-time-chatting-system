@@ -1,7 +1,7 @@
 const GroupSchema = require("../models/GroupSchema");
 const User = require("../models/UserSchema");
 const Message = require("../models/MessageSchema");
-const PrivateChat = require("./../models/privateChatSchema");
+const PrivateChat = require("./../models/PrivateChatSchema");
 const { v4: uuidv4 } = require("uuid");
 
 const createGroup = async (req, res) => {

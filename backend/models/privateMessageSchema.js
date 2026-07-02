@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const privateMessageSchema = new mongoose.Schema(
+const PrivateMessageSchema = new mongoose.Schema(
   {
     chatId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -65,4 +65,4 @@ seenAt: {
 
 module.exports =
   mongoose.models.PrivateMessage ||
-  mongoose.model("PrivateMessage", privateMessageSchema);
+  mongoose.model("PrivateMessage", PrivateMessageSchema);
