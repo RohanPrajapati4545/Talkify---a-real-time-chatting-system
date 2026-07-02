@@ -33,7 +33,7 @@ const openPrivateChat = async (req, res) => {
 
 
 
-const PrivateMessage = require("../models/PrivateMessageSchema");
+const PrivateMessage = require("./../models/PrivateMessageSchema");
 
 const getPrivateMessages = async (req, res) => {
   try {

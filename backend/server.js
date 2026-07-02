@@ -6,7 +6,7 @@ const express = require("express");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const mongoose = require("mongoose");
-const PrivateMessage =require("./models/PrivateMessageSchema")
+const PrivateMessage =require("./../models/PrivateMessageSchema")
 require("./config/db");
 
 const app = express();

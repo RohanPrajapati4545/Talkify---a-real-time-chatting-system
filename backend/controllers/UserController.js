@@ -1,5 +1,5 @@
-const User = require("../models/UserSchema");
-const groupSchema=require("../models/GroupSchema")
+const User = require("./../models/UserSchema");
+const groupSchema=require("./../models/GroupSchema")
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.find(
