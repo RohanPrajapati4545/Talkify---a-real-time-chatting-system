@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const messageSchema = new mongoose.Schema(
+const MessageSchema = new mongoose.Schema(
   {
      groupId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -52,5 +52,5 @@ replyTo: {
 
 module.exports = mongoose.model(
   "Message",
-  messageSchema
+  MessageSchema
 );

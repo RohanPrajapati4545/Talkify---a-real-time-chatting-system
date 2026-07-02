@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const { v4: uuidv4 } = require("uuid");
-const groupSchema = new mongoose.Schema(
+const GroupSchema = new mongoose.Schema(
   {
     groupName: {
       type: String,
@@ -35,4 +35,4 @@ const groupSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Group", groupSchema);
+module.exports = mongoose.model("Group", GroupSchema);
