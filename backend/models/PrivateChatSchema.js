@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const privateChatSchema = new mongoose.Schema(
+const PrivateChatSchema = new mongoose.Schema(
   {
     members: [
       {
@@ -19,5 +19,5 @@ const privateChatSchema = new mongoose.Schema(
 
 module.exports = mongoose.model(
   "PrivateChat",
-  privateChatSchema
+  PrivateChatSchema
 );
