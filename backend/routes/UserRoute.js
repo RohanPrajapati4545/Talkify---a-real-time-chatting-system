@@ -5,7 +5,7 @@ const {
   blockUser,
   unblockUser,
   getBlockedUsers,
-} = require("./../controllers/blockController");
+} = require("./../controllers/BlockController");
 const UserController=require("./../controllers/UserController")
 const AuthMiddleware=require("./../middlewares/authMiddleware")
 router.get("/all-users",AuthMiddleware, UserController.getAllUsers);
