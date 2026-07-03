@@ -1,6 +1,6 @@
 const dotenv = require("dotenv");
 dotenv.config();
-
+console.log("CLIENT_URL =", process.env.CLIENT_URL);
 const http = require("http");
 const express = require("express");
 const { Server } = require("socket.io");
@@ -17,7 +17,7 @@ const io = new Server(server, {
     origin: [
       "http://localhost:3000",
       "http://localhost:5173",
-      "https://talkify-a-real-time-chatting-system-2.onrender.com"
+      process.env.CLIENT_URL,
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
@@ -28,6 +28,7 @@ const corsOption = {
   origin: [
     "http://localhost:3000",
     "http://localhost:5173",
+     process.env.CLIENT_URL,
   ],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
