@@ -99,7 +99,7 @@ const Profile = () => {
             src={
               image
                 ? URL.createObjectURL(image)
-                : `${process.env.REACT_APP_API_URL}/uploads/${user?.image}`
+                : user?.image
             }
             alt=""
             className="cv-profile-image"

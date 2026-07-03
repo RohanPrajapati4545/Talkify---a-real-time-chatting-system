@@ -70,7 +70,7 @@ const SideBar = ({
 
       </div>
 
-      {/* 👇 LOGGED-IN USER INFO CARD */}
+      {/* LOGGED-IN USER INFO CARD */}
       {user && (
         <div
           className="cv-me-card"
@@ -139,7 +139,7 @@ const SideBar = ({
           sortedGroup.length > 0 ? (
             sortedGroup.map((group) => {
 
-              // 👇 NAYA — is group me koi typing kar raha hai?
+              // is group me koi typing kar raha hai?
               const isGroupTyping =
                 groupTypingUsers[group._id] &&
                 Object.keys(groupTypingUsers[group._id]).length > 0;
@@ -181,7 +181,7 @@ const SideBar = ({
         ) : sortedUsers.length > 0 ? (
           sortedUsers.map((u) => {
 
-            // 👇 NAYA — ye user abhi type kar raha hai?
+            //  ye user abhi type kar raha hai?
             const isUserTyping = Boolean(privateTypingStatus[u._id]);
 
             return (
