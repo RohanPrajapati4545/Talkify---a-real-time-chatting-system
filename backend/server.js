@@ -17,6 +17,7 @@ const io = new Server(server, {
     origin: [
       "http://localhost:3000",
       "http://localhost:5173",
+      "https://talkify-a-real-time-chatting-system-2.onrender.com"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
@@ -170,6 +171,8 @@ app.use("/api/user", GroupRoute);
 app.use("/api/users", UserRoute);
 app.use("/api/private", PrivateChatRoute);
 
-server.listen(5000, () => {
-  console.log("Server Running");
+const PORT = process.env.PORT || 5000;
+
+server.listen(PORT, () => {
+  console.log(`Server Running on ${PORT}`);
 });

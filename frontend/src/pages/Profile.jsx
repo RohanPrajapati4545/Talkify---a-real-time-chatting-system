@@ -38,7 +38,7 @@ const Profile = () => {
       }
 
       const res = await axios.put(
-        "http://localhost:5000/api/users/update-profile",
+        `${process.env.REACT_APP_API_URL}/api/users/update-profile`,
         formData,
         {
           headers: {
@@ -99,7 +99,7 @@ const Profile = () => {
             src={
               image
                 ? URL.createObjectURL(image)
-                : `http://localhost:5000/uploads/${user?.image}`
+                : `${process.env.REACT_APP_API_URL}/uploads/${user?.image}`
             }
             alt=""
             className="cv-profile-image"

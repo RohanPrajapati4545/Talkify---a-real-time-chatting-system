@@ -80,7 +80,7 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
   const getAllUsers = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/users/all-users",
+        `${process.env.REACT_APP_API_URL}/api/users/all-users`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -103,7 +103,7 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
   const getBlockedUsers = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/users/blocked-users",
+        `${process.env.REACT_APP_API_URL}/api/users/blocked-users`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -140,8 +140,8 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
 
       try {
         const url = blocked
-          ? `http://localhost:5000/api/users/unblock/${selectedUser._id}`
-          : `http://localhost:5000/api/users/block/${selectedUser._id}`;
+          ? `${process.env.REACT_APP_API_URL}/api/users/unblock/${selectedUser._id}`
+          : `${process.env.REACT_APP_API_URL}/api/users/block/${selectedUser._id}`;
 
         await axios.put(
           url,
@@ -170,7 +170,7 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
   const getPrivateMessages = async (chatId) => {
 
     const res = await axios.get(
-      `http://localhost:5000/api/private/private-messages/${chatId}`,
+      `${process.env.REACT_APP_API_URL}/api/private/private-messages/${chatId}`,
       {
         headers: { Authorization: `Bearer ${token}` }
       }
@@ -192,7 +192,7 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
     setPreviewImage(null);
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/private/open-chat",
+        `${process.env.REACT_APP_API_URL}/api/private/open-chat`,
         { userId: user._id },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -404,7 +404,7 @@ useEffect(() => {
 
       if (forwardingMsg.media) {
         const mediaRes = await fetch(
-          `http://localhost:5000/uploads/${forwardingMsg.media}`
+          `${process.env.REACT_APP_API_URL}/uploads/${forwardingMsg.media}`
         );
         const blob = await mediaRes.blob();
         mediaFile = new File([blob], forwardingMsg.media, {
@@ -429,7 +429,7 @@ useEffect(() => {
           formData.append("groupId", target.id);
 
           const res = await axios.post(
-            "http://localhost:5000/api/user/send-message",
+            `${process.env.REACT_APP_API_URL}/api/user/send-message`,
             formData,
             {
               headers: { Authorization: `Bearer ${token}` },
@@ -446,7 +446,7 @@ useEffect(() => {
         } else {
 
           const chatRes = await axios.post(
-            "http://localhost:5000/api/private/open-chat",
+            `${process.env.REACT_APP_API_URL}/api/private/open-chat`,
             { userId: target.id },
             {
               headers: { Authorization: `Bearer ${token}` },
@@ -457,7 +457,7 @@ useEffect(() => {
           formData.append("receiverId", target.id);
 
           const res = await axios.post(
-            "http://localhost:5000/api/private/send-private-message",
+            `${process.env.REACT_APP_API_URL}/api/private/send-private-message`,
             formData,
             {
               headers: { Authorization: `Bearer ${token}` },
@@ -566,7 +566,7 @@ useEffect(() => {
   const addUserToGroup = async () => {
     try {
       const res = await axios.put(
-        "http://localhost:5000/api/users/add-user",
+        `${process.env.REACT_APP_API_URL}/api/users/add-user`,
         {
           groupId: selectedGroup._id,
           userId: selectedUser,
@@ -608,7 +608,7 @@ useEffect(() => {
   const deleteMessage = async (id) => {
 
     const res = await axios.delete(
-      `http://localhost:5000/api/private/delete-message/${id}`,
+      `${process.env.REACT_APP_API_URL}/api/private/delete-message/${id}`,
       {
         headers: {
           Authorization: `Bearer ${token}`
@@ -644,7 +644,7 @@ useEffect(() => {
   const deleteGroupMessage = async (id) => {
 
     const res = await axios.delete(
-      `http://localhost:5000/api/user/delete-message/${id}`,
+      `${process.env.REACT_APP_API_URL}/api/user/delete-message/${id}`,
       {
         headers: {
           Authorization: `Bearer ${token}`
@@ -679,7 +679,7 @@ useEffect(() => {
   const leaveGroup = async () => {
     try {
       const res = await axios.put(
-        "http://localhost:5000/api/users/leave-group",
+        `${process.env.REACT_APP_API_URL}/api/users/leave-group`,
         {
           groupId: selectedGroup._id,
         },
@@ -730,7 +730,7 @@ useEffect(() => {
 const deleteChat = async () => {
   try {
     const res = await axios.delete(
-      `http://localhost:5000/api/private/delete-chat/${privateChat._id}`,
+      `${process.env.REACT_APP_API_URL}/api/private/delete-chat/${privateChat._id}`,
       {
         headers: { Authorization: `Bearer ${token}` },
       }
@@ -770,7 +770,7 @@ const handleClearGroupChat = () => {
 
     try {
       const res = await axios.delete(
-        `http://localhost:5000/api/user/clear-group-chat/${selectedGroup._id}`,
+        `${process.env.REACT_APP_API_URL}/api/user/clear-group-chat/${selectedGroup._id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -812,7 +812,7 @@ const handleDeleteChat = () => {
     try {
 
       const res = await axios.put(
-        "http://localhost:5000/api/users/remove-member",
+        `${process.env.REACT_APP_API_URL}/api/users/remove-member`,
         {
           groupId: selectedGroup._id,
           userId: memberId,
@@ -880,7 +880,7 @@ const handleDeleteChat = () => {
   const deleteGroup = async () => {
     try {
       const res = await axios.delete(
-        `http://localhost:5000/api/user/delete-group/${selectedGroup._id}`,
+        `${process.env.REACT_APP_API_URL}/api/user/delete-group/${selectedGroup._id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -962,7 +962,7 @@ const handleDeleteChat = () => {
       }
 
       const res = await axios.post(
-        "http://localhost:5000/api/user/create-group",
+        `${process.env.REACT_APP_API_URL}/api/user/create-group`,
         formData,
         {
           headers: {
@@ -1002,7 +1002,7 @@ const handleDeleteChat = () => {
     setJoiningGroup(true);
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/user/join-group",
+        `${process.env.REACT_APP_API_URL}/api/user/join-group`,
         { inviteCode: joinCode.trim() },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -1044,7 +1044,7 @@ const handleDeleteChat = () => {
       setRegenLoading(true);
       try {
         const res = await axios.put(
-          `http://localhost:5000/api/user/regenerate-code/${selectedGroup._id}`,
+          `${process.env.REACT_APP_API_URL}/api/user/regenerate-code/${selectedGroup._id}`,
           {},
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -1100,7 +1100,7 @@ const updateGroupProfile = async () => {
     }
 
     const res = await axios.put(
-      `http://localhost:5000/api/user/update-group/${selectedGroup._id}`,
+      `${process.env.REACT_APP_API_URL}/api/user/update-group/${selectedGroup._id}`,
       formData,
       {
         headers: {
@@ -1137,7 +1137,7 @@ const updateGroupProfile = async () => {
   const getMyGroups = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/user/get-my-group",
+        `${process.env.REACT_APP_API_URL}/api/user/get-my-group`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -1163,7 +1163,7 @@ const updateGroupProfile = async () => {
       if (!selectedGroup) return;
 
       const res = await axios.get(
-        `http://localhost:5000/api/user/messages/${selectedGroup._id}`,
+        `${process.env.REACT_APP_API_URL}/api/user/messages/${selectedGroup._id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -1184,7 +1184,7 @@ const updateGroupProfile = async () => {
     if (editingMessage) {
 
       const res = await axios.put(
-        `http://localhost:5000/api/user/update-message/${editingMessage._id}`,
+        `${process.env.REACT_APP_API_URL}/api/user/update-message/${editingMessage._id}`,
         {
           message
         },
@@ -1232,7 +1232,7 @@ const updateGroupProfile = async () => {
 
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/user/send-message",
+        `${process.env.REACT_APP_API_URL}/api/user/send-message`,
         formData,
         {
           headers: {
@@ -1272,7 +1272,7 @@ setGroupLastActivity((prev) => ({
     if (editingMessage) {
 
       const res = await axios.put(
-        `http://localhost:5000/api/private/update-message/${editingMessage._id}`,
+        `${process.env.REACT_APP_API_URL}/api/private/update-message/${editingMessage._id}`,
         {
           message
         },
@@ -1333,7 +1333,7 @@ setGroupLastActivity((prev) => ({
     try {
 
       const res = await axios.post(
-        "http://localhost:5000/api/private/send-private-message",
+        `${process.env.REACT_APP_API_URL}/api/private/send-private-message`,
         formData,
         {
           headers: {
@@ -1673,12 +1673,12 @@ const sortedUsers = useMemo(() => {
 
                     <div className="cv-avatar-wrap cv-avatar-wrap-lg">
                       <img
-                        src={`http://localhost:5000/uploads/${selectedUser.image}`}
+                        src={`${process.env.REACT_APP_API_URL}/uploads/${selectedUser.image}`}
                         className="cv-info-avatar"
                         alt=""
                         onClick={() =>
                           setPreviewImage(
-                            `http://localhost:5000/uploads/${selectedUser.image}`
+                            `${process.env.REACT_APP_API_URL}/uploads/${selectedUser.image}`
                           )
                         }
                       />
@@ -1758,11 +1758,11 @@ const sortedUsers = useMemo(() => {
                                 {msg.mediaType === "image" ? (
 
                                   <img
-                                    src={`http://localhost:5000/uploads/${msg.media}`}
+                                    src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
                                     alt=""
                                     onClick={() =>
                                       setPreviewImage(
-                                        `http://localhost:5000/uploads/${msg.media}`
+                                        `${process.env.REACT_APP_API_URL}/uploads/${msg.media}`
                                       )
                                     }
                                   />
@@ -1771,7 +1771,7 @@ const sortedUsers = useMemo(() => {
 
                                   <video
                                     controls
-                                    src={`http://localhost:5000/uploads/${msg.media}`}
+                                    src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
                                   />
 
                                 )}
@@ -1804,7 +1804,7 @@ const sortedUsers = useMemo(() => {
 
                       <div className="cv-avatar-wrap"   >
                         <img  
-                          src={`http://localhost:5000/uploads/${selectedUser.image}`}
+                          src={`${process.env.REACT_APP_API_URL}/uploads/${selectedUser.image}`}
                           alt=""
                           className="cv-thread-avatar"
                         />
@@ -1869,7 +1869,7 @@ const sortedUsers = useMemo(() => {
                             {!isMe && (
                               <div className="cv-bubble-avatar-wrap">
                                 <img
-                                  src={`http://localhost:5000/uploads/${msg.sender?.image}`}
+                                  src={`${process.env.REACT_APP_API_URL}/uploads/${msg.sender?.image}`}
                                   alt=""
                                   className="cv-bubble-avatar"
                                 />
@@ -1936,16 +1936,16 @@ const sortedUsers = useMemo(() => {
                                 <>
                                   {msg.mediaType === "image" ? (
                                     <img
-                                      src={`http://localhost:5000/uploads/${msg.media}`}
+                                      src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
                                       className="cv-media"
                                       alt=""
                                       onClick={() =>
-                                        setPreviewImage(`http://localhost:5000/uploads/${msg.media}`)
+                                        setPreviewImage(`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`)
                                       }
                                     />
                                   ) : (
                                     <video
-                                      src={`http://localhost:5000/uploads/${msg.media}`}
+                                      src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
                                       className="cv-media"
                                       controls
                                     />
@@ -2081,11 +2081,11 @@ const sortedUsers = useMemo(() => {
                 <div className="cv-info-top">
 
                   <img
-                    src={`http://localhost:5000/uploads/${selectedGroup.groupImage}`}
+                    src={`${process.env.REACT_APP_API_URL}/uploads/${selectedGroup.groupImage}`}
                     alt=""
                     className="cv-info-avatar"
                     onClick={() =>
-                      setPreviewImage(`http://localhost:5000/uploads/${selectedGroup.groupImage}`)
+                      setPreviewImage(`${process.env.REACT_APP_API_URL}/uploads/${selectedGroup.groupImage}`)
                     }
                   />
 
@@ -2207,13 +2207,13 @@ const sortedUsers = useMemo(() => {
                           .map((msg) => (
                             <div key={msg._id}>
                               {msg.media.match(/\.(mp4|mov|avi|mkv|webm)$/i) ? (
-                                <video controls src={`http://localhost:5000/uploads/${msg.media}`} />
+                                <video controls src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`} />
                               ) : (
                                 <img
-                                  src={`http://localhost:5000/uploads/${msg.media}`}
+                                  src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
                                   alt=""
                                   onClick={() =>
-                                    setPreviewImage(`http://localhost:5000/uploads/${msg.media}`)
+                                    setPreviewImage(`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`)
                                   }
                                 />
                               )}
@@ -2264,7 +2264,7 @@ const sortedUsers = useMemo(() => {
             src={
               editGroupImage
                 ? URL.createObjectURL(editGroupImage)
-                : `http://localhost:5000/uploads/${selectedGroup?.groupImage}`
+                : `${process.env.REACT_APP_API_URL}/uploads/${selectedGroup?.groupImage}`
             }
             alt="Group preview"
             style={{
@@ -2338,7 +2338,7 @@ const sortedUsers = useMemo(() => {
                       <div key={member._id} className="cv-member-row">
 
                         <div className="cv-member-left">
-                          <img src={`http://localhost:5000/uploads/${member.image}`} alt="" />
+                          <img src={`${process.env.REACT_APP_API_URL}/uploads/${member.image}`} alt="" />
                           <span>{member.name}</span>
                         </div>
 
@@ -2377,7 +2377,7 @@ const sortedUsers = useMemo(() => {
                     ></i>
 
                     <img 
-                      src={`http://localhost:5000/uploads/${selectedGroup.groupImage}`}
+                      src={`${process.env.REACT_APP_API_URL}/uploads/${selectedGroup.groupImage}`}
                       alt=""
                       className="cv-thread-avatar"
                     />
@@ -2428,7 +2428,7 @@ const sortedUsers = useMemo(() => {
                         {!isMe && (
                           <div className="cv-bubble-avatar-wrap">
                             <img
-                              src={`http://localhost:5000/uploads/${msg.sender?.image}`}
+                              src={`${process.env.REACT_APP_API_URL}/uploads/${msg.sender?.image}`}
                               alt=""
                               className="cv-bubble-avatar"
                             />
@@ -2491,16 +2491,16 @@ const sortedUsers = useMemo(() => {
                             <>
                               {msg.mediaType === "image" ? (
                                 <img
-                                  src={`http://localhost:5000/uploads/${msg.media}`}
+                                  src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
                                   alt=""
                                   className="cv-media"
                                   onClick={() =>
-                                    setPreviewImage(`http://localhost:5000/uploads/${msg.media}`)
+                                    setPreviewImage(`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`)
                                   }
                                 />
                               ) : (
                                 <video
-                                  src={`http://localhost:5000/uploads/${msg.media}`}
+                                  src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
                                   controls
                                   className="cv-media"
                                 />
@@ -2862,7 +2862,7 @@ const sortedUsers = useMemo(() => {
                           onClick={() => toggleForwardTarget("group", g._id)}
                         >
                           <img
-                            src={`http://localhost:5000/uploads/${g.groupImage}`}
+                            src={`${process.env.REACT_APP_API_URL}/uploads/${g.groupImage}`}
                             alt=""
                           />
                           <div className="flex-grow-1">
@@ -2902,7 +2902,7 @@ const sortedUsers = useMemo(() => {
                           onClick={() => toggleForwardTarget("user", u._id)}
                         >
                           <img
-                            src={`http://localhost:5000/uploads/${u.image}`}
+                            src={`${process.env.REACT_APP_API_URL}/uploads/${u.image}`}
                             alt=""
                           />
                           <div className="flex-grow-1">

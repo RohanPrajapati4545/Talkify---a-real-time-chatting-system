@@ -16,9 +16,9 @@ const SideBar = ({
   handleLogout,
   menuRef,
   isOnline,
-  user, // 👈 logged-in user
-  groupTypingUsers = {}, // 👈 NAYA
-  privateTypingStatus = {}, // 👈 NAYA
+  user, //
+  groupTypingUsers = {}, // 
+  privateTypingStatus = {}, //
 }) => {
   const navigate = useNavigate();
 
@@ -78,7 +78,7 @@ const SideBar = ({
           title="View profile"
         >
           <img
-            src={`http://localhost:5000/uploads/${user.image}`}
+            src={`${process.env.REACT_APP_API_URL}/uploads/${user.image}`}
             alt=""
             className="cv-me-avatar"
           />
@@ -157,7 +157,7 @@ const SideBar = ({
                   }}
                 >
                   <img
-                    src={`http://localhost:5000/uploads/${group.groupImage}`}
+                    src={`${process.env.REACT_APP_API_URL}/uploads/${group.groupImage}`}
                     className="cv-row-avatar"
                     alt=""
                   />
@@ -192,7 +192,7 @@ const SideBar = ({
               >
                 <div className="cv-avatar-wrap">
                   <img
-                    src={`http://localhost:5000/uploads/${u.image}`}
+                    src={`${process.env.REACT_APP_API_URL}/uploads/${u.image}`}
                     className="cv-row-avatar"
                     alt=""
                   />
