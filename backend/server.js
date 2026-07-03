@@ -1,6 +1,6 @@
 const dotenv = require("dotenv");
 dotenv.config();
-console.log("CLIENT_URL =", process.env.CLIENT_URL);
+
 const http = require("http");
 const express = require("express");
 const { Server } = require("socket.io");

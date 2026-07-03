@@ -403,9 +403,7 @@ useEffect(() => {
       let mediaFile = null;
 
       if (forwardingMsg.media) {
-        const mediaRes = await fetch(
-          `${process.env.REACT_APP_API_URL}/uploads/${forwardingMsg.media}`
-        );
+        const mediaRes = await fetch(forwardingMsg.media);
         const blob = await mediaRes.blob();
         mediaFile = new File([blob], forwardingMsg.media, {
           type: blob.type,
@@ -1673,13 +1671,11 @@ const sortedUsers = useMemo(() => {
 
                     <div className="cv-avatar-wrap cv-avatar-wrap-lg">
                       <img
-                        src={`${process.env.REACT_APP_API_URL}/uploads/${selectedUser.image}`}
+                        src={selectedUser.image}
                         className="cv-info-avatar"
                         alt=""
                         onClick={() =>
-                          setPreviewImage(
-                            `${process.env.REACT_APP_API_URL}/uploads/${selectedUser.image}`
-                          )
+                          setPreviewImage(selectedUser.image)
                         }
                       />
                       {isOnline(selectedUser._id) && (
@@ -1758,12 +1754,10 @@ const sortedUsers = useMemo(() => {
                                 {msg.mediaType === "image" ? (
 
                                   <img
-                                    src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
+                                    src={msg.media}
                                     alt=""
                                     onClick={() =>
-                                      setPreviewImage(
-                                        `${process.env.REACT_APP_API_URL}/uploads/${msg.media}`
-                                      )
+                                      setPreviewImage(msg.media)
                                     }
                                   />
 
@@ -1771,7 +1765,7 @@ const sortedUsers = useMemo(() => {
 
                                   <video
                                     controls
-                                    src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
+                                    src={msg.media}
                                   />
 
                                 )}
@@ -1804,7 +1798,7 @@ const sortedUsers = useMemo(() => {
 
                       <div className="cv-avatar-wrap"   >
                         <img  
-                          src={`${process.env.REACT_APP_API_URL}/uploads/${selectedUser.image}`}
+                          src={selectedUser.image}
                           alt=""
                           className="cv-thread-avatar"
                         />
@@ -1869,7 +1863,7 @@ const sortedUsers = useMemo(() => {
                             {!isMe && (
                               <div className="cv-bubble-avatar-wrap">
                                 <img
-                                  src={`${process.env.REACT_APP_API_URL}/uploads/${msg.sender?.image}`}
+                                  src={msg.sender?.image}
                                   alt=""
                                   className="cv-bubble-avatar"
                                 />
@@ -1936,16 +1930,16 @@ const sortedUsers = useMemo(() => {
                                 <>
                                   {msg.mediaType === "image" ? (
                                     <img
-                                      src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
+                                      src={msg.media}
                                       className="cv-media"
                                       alt=""
                                       onClick={() =>
-                                        setPreviewImage(`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`)
+                                        setPreviewImage(msg.media)
                                       }
                                     />
                                   ) : (
                                     <video
-                                      src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
+                                      src={msg.media}
                                       className="cv-media"
                                       controls
                                     />
@@ -2081,11 +2075,11 @@ const sortedUsers = useMemo(() => {
                 <div className="cv-info-top">
 
                   <img
-                    src={`${process.env.REACT_APP_API_URL}/uploads/${selectedGroup.groupImage}`}
+                    src={selectedGroup.groupImage}
                     alt=""
                     className="cv-info-avatar"
                     onClick={() =>
-                      setPreviewImage(`${process.env.REACT_APP_API_URL}/uploads/${selectedGroup.groupImage}`)
+                      setPreviewImage(selectedGroup.groupImage)
                     }
                   />
 
@@ -2207,13 +2201,13 @@ const sortedUsers = useMemo(() => {
                           .map((msg) => (
                             <div key={msg._id}>
                               {msg.media.match(/\.(mp4|mov|avi|mkv|webm)$/i) ? (
-                                <video controls src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`} />
+                                <video controls src={msg.media} />
                               ) : (
                                 <img
-                                  src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
+                                  src={msg.media}
                                   alt=""
                                   onClick={() =>
-                                    setPreviewImage(`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`)
+                                    setPreviewImage(msg.media)
                                   }
                                 />
                               )}
@@ -2264,7 +2258,7 @@ const sortedUsers = useMemo(() => {
             src={
               editGroupImage
                 ? URL.createObjectURL(editGroupImage)
-                : `${process.env.REACT_APP_API_URL}/uploads/${selectedGroup?.groupImage}`
+                : selectedGroup?.groupImage
             }
             alt="Group preview"
             style={{
@@ -2338,7 +2332,7 @@ const sortedUsers = useMemo(() => {
                       <div key={member._id} className="cv-member-row">
 
                         <div className="cv-member-left">
-                          <img src={`${process.env.REACT_APP_API_URL}/uploads/${member.image}`} alt="" />
+                          <img src={member.image} alt="" />
                           <span>{member.name}</span>
                         </div>
 
@@ -2377,7 +2371,7 @@ const sortedUsers = useMemo(() => {
                     ></i>
 
                     <img 
-                      src={`${process.env.REACT_APP_API_URL}/uploads/${selectedGroup.groupImage}`}
+                      src={selectedGroup.groupImage}
                       alt=""
                       className="cv-thread-avatar"
                     />
@@ -2428,7 +2422,7 @@ const sortedUsers = useMemo(() => {
                         {!isMe && (
                           <div className="cv-bubble-avatar-wrap">
                             <img
-                              src={`${process.env.REACT_APP_API_URL}/uploads/${msg.sender?.image}`}
+                              src={msg.sender?.image}
                               alt=""
                               className="cv-bubble-avatar"
                             />
@@ -2491,16 +2485,16 @@ const sortedUsers = useMemo(() => {
                             <>
                               {msg.mediaType === "image" ? (
                                 <img
-                                  src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
+                                  src={msg.media}
                                   alt=""
                                   className="cv-media"
                                   onClick={() =>
-                                    setPreviewImage(`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`)
+                                    setPreviewImage(msg.media)
                                   }
                                 />
                               ) : (
                                 <video
-                                  src={`${process.env.REACT_APP_API_URL}/uploads/${msg.media}`}
+                                  src={msg.media}
                                   controls
                                   className="cv-media"
                                 />
@@ -2862,7 +2856,7 @@ const sortedUsers = useMemo(() => {
                           onClick={() => toggleForwardTarget("group", g._id)}
                         >
                           <img
-                            src={`${process.env.REACT_APP_API_URL}/uploads/${g.groupImage}`}
+                            src={g.groupImage}
                             alt=""
                           />
                           <div className="flex-grow-1">
@@ -2902,7 +2896,7 @@ const sortedUsers = useMemo(() => {
                           onClick={() => toggleForwardTarget("user", u._id)}
                         >
                           <img
-                            src={`${process.env.REACT_APP_API_URL}/uploads/${u.image}`}
+                            src={u.image}
                             alt=""
                           />
                           <div className="flex-grow-1">

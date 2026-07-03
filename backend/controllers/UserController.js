@@ -161,7 +161,7 @@ const updateProfile = async (
       req.body.email || user.email;
 
     if (req.file) {
-      user.image = req.file.filename;
+      user.image = req.file.path;
     }
 
     await user.save();

@@ -5,7 +5,7 @@ const register=async (req,res)=>{
 
     try {
         const {name, email, password,confirm_password, contact}=req.body;
-        const image=req.file?.filename;
+        const image=req.file?.path;
 
         const userExists=await userSchema.findOne({email}) 
         

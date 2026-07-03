@@ -28,7 +28,7 @@ const createGroup = async (req, res) => {
 
  const group = await GroupSchema.create({
   groupName,
-  groupImage: req.file ? req.file.filename : "",
+  groupImage: req.file ? req.file.path : "",
   members: [...memberIds, req.user.id],
   createdBy: req.user.id,
 });
@@ -88,7 +88,7 @@ const sendMessage = async (req, res) => {
     let mediaType = "";
 
     if (req.file) {
-      media = req.file.filename;
+      media = req.file.path;
 
       if (req.file.mimetype.startsWith("image")) {
         mediaType = "image";
@@ -411,7 +411,7 @@ const updateGroup = async (req, res) => {
     }
 
     if (req.file) {
-      group.groupImage = req.file.filename;
+      group.groupImage = req.file.path;
     }
 
     await group.save();

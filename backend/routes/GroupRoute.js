@@ -29,7 +29,8 @@ router.get(
 
 router.post(
   "/send-message",
-  AuthMiddleware,   upload.single("media"),
+  upload.single("media"),
+  AuthMiddleware,   
   GroupController.sendMessage
 );
 
@@ -60,8 +61,9 @@ router.delete(
 
 router.put(
   "/update-group/:groupId",
+    upload.single("groupImage"),
   AuthMiddleware,        
-  upload.single("groupImage"),
+
   GroupController.updateGroup
 );
 
