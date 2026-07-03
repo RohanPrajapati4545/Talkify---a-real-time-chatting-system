@@ -1614,7 +1614,22 @@ const sortedUsers = useMemo(() => {
   const isPrivateUserTyping = Boolean(
     selectedUser && privateTypingStatus[selectedUser._id]
   );
+useEffect(() => {
+  const setVH = () => {
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty("--vh", `${vh}px`);
+  };
 
+  setVH();
+
+  window.visualViewport?.addEventListener("resize", setVH);
+  window.addEventListener("resize", setVH);
+
+  return () => {
+    window.visualViewport?.removeEventListener("resize", setVH);
+    window.removeEventListener("resize", setVH);
+  };
+}, []);
   return (<>
 
     <div className="container-fluid px-2 px-md-3 px-lg-4 mt-md-5 mt-2 cv-page-container">

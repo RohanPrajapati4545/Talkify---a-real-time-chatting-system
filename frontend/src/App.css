@@ -1910,3 +1910,36 @@ body {
   font-weight: 600;
 }
 
+/* Non-mobile / base rules */
+.cv-grid {
+  min-height: 82vh;   /* ye theek hai, non-mobile ke liye rehne do */
+  max-height: 86vh;
+}
+
+.cv-sidebar {
+  height: 86vh;   /* isko bhi 86dvh kar sakte ho agar chahen */
+}
+
+.cv-main {
+  height: 86vh;   /* same */
+}
+
+.cv-info {
+  height: 86vh;
+}
+@media (max-width: 768px) {
+  .cv-shell {
+    border-radius: 0;
+  }
+
+  .cv-grid {
+    min-height: 100dvh;   /* vh se dvh kiya */
+    max-height: 100dvh;
+  }
+
+  .cv-sidebar,
+  .cv-main,
+  .cv-info {
+    height: 100dvh;        /* vh se dvh kiya */
+  }
+}
