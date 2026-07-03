@@ -8,6 +8,7 @@ import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import { logout } from "./../../../frontend/src/pages/redux/AuthSlice";
 import SideBar from "./../components/SideBar";
+import Loader from "./../components/Loader";
 import "./../App.css";
 
 const MyGroups = () => {
@@ -931,9 +932,22 @@ const handleDeleteChat = () => {
 
   const [members, setMembers] = useState([]);
   const [memberEmail, setMemberEmail] = useState("");
+  const [creatingGroup, setCreatingGroup] = useState(false);
 
 
   const createGroup = async () => {
+
+    if (!groupName || !groupImage) {
+      return toast.error("All fields are required")
+    }
+    if (members.length === 0) {
+      return toast.error(
+        "Please select at least one member"
+      );
+    }
+
+    setCreatingGroup(true);
+
     try {
       const formData = new FormData();
 
@@ -947,14 +961,6 @@ const handleDeleteChat = () => {
           )
         )
       );
-      if (!groupName || !groupImage) {
-        return toast.error("All fields are required")
-      }
-      if (members.length === 0) {
-        return toast.error(
-          "Please select at least one member"
-        );
-      }
       if (groupImage) {
         formData.append("groupImage", groupImage);
       }
@@ -990,6 +996,8 @@ const handleDeleteChat = () => {
           error.response?.data?.message ||
           "Something went wrong",
       });
+    } finally {
+      setCreatingGroup(false);
     }
   };
   const joinGroup = async () => {
@@ -2603,7 +2611,9 @@ const sortedUsers = useMemo(() => {
 
     <div className="modal fade" id="createGroupModal" tabIndex="-1">
       <div className="modal-dialog modal-dialog-centered">
-        <div className="modal-content cv-modal-content">
+        <div className="modal-content cv-modal-content" style={{ position: "relative" }}>
+
+          {creatingGroup && <Loader />}
 
           <div className="modal-header cv-modal-header">
             <h5 className="modal-title">
@@ -2702,9 +2712,20 @@ const sortedUsers = useMemo(() => {
           </div>
 
           <div className="modal-footer border-0">
-            <button className="cv-btn-ghost" data-bs-dismiss="modal">Cancel</button>
-            <button className="cv-btn-primary"onClick={createGroup}>
-              Create group
+            <button className="cv-btn-ghost" data-bs-dismiss="modal" disabled={creatingGroup}>Cancel</button>
+            <button
+              className="cv-btn-primary"
+              onClick={createGroup}
+              disabled={creatingGroup}
+            >
+              {creatingGroup ? (
+                <>
+                  <i className="fa-solid fa-circle-notch fa-spin me-2"></i>
+                  Creating…
+                </>
+              ) : (
+                "Create group"
+              )}
             </button>
           </div>
 
