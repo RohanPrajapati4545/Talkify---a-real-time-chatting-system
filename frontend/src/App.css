@@ -1943,3 +1943,22 @@ body {
     height: 100dvh;        /* vh se dvh kiya */
   }
 }
+
+/* ============== UNREAD MESSAGE BADGE (NAYA) ============== */
+
+.cv-unread-badge {
+  background: var(--amber);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}

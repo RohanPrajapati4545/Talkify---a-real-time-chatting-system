@@ -8,6 +8,8 @@ const SideBar = ({
   setSelectedGroup,
   setSelectedUser,
   openPrivateChat,
+  onSelectGroup, // 👈 NAYA — group open karne ka helper (unread reset karta hai)
+  unreadCounts = { groups: {}, users: {} }, // 👈 NAYA
   setShowGroupInfo,
   setShowMedia,
   setPreviewImage,
@@ -144,16 +146,24 @@ const SideBar = ({
                 groupTypingUsers[group._id] &&
                 Object.keys(groupTypingUsers[group._id]).length > 0;
 
+              // 👇 NAYA — is group ka unread count
+              const unreadCount = unreadCounts?.groups?.[group._id] || 0;
+
               return (
                 <div
                   key={group._id}
                   className="cv-row"
                   onClick={() => {
-                    setShowGroupInfo(false);
-                    setShowMedia(false);
-                    setPreviewImage(null);
-                    setSelectedGroup(group);
-                    setSelectedUser(null);
+                    if (onSelectGroup) {
+                      onSelectGroup(group);
+                    } else {
+                      // fallback agar onSelectGroup pass nahi hua ho
+                      setShowGroupInfo(false);
+                      setShowMedia(false);
+                      setPreviewImage(null);
+                      setSelectedGroup(group);
+                      setSelectedUser(null);
+                    }
                   }}
                 >
                   <img
@@ -171,7 +181,13 @@ const SideBar = ({
                     </div>
                   </div>
 
-                  <i className="fa-solid fa-chevron-right cv-row-chevron"></i>
+                  {unreadCount > 0 ? (
+                    <span className="cv-unread-badge">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  ) : (
+                    <i className="fa-solid fa-chevron-right cv-row-chevron"></i>
+                  )}
                 </div>
               );
             })
@@ -183,6 +199,9 @@ const SideBar = ({
 
             //  ye user abhi type kar raha hai?
             const isUserTyping = Boolean(privateTypingStatus[u._id]);
+
+            // 👇 NAYA — is user se aaye unread messages ka count
+            const unreadCount = unreadCounts?.users?.[u._id] || 0;
 
             return (
               <div
@@ -208,7 +227,13 @@ const SideBar = ({
                   </div>
                 </div>
 
-                <i className="fa-solid fa-chevron-right cv-row-chevron"></i>
+                {unreadCount > 0 ? (
+                  <span className="cv-unread-badge">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                ) : (
+                  <i className="fa-solid fa-chevron-right cv-row-chevron"></i>
+                )}
               </div>
             );
           })

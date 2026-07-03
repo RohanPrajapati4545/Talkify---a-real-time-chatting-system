@@ -43,4 +43,7 @@ router.delete(
   AuthMiddleware,
 PrivateChatController.deleteChat);
 
+
+
+router.get("/my-chats", AuthMiddleware, PrivateChatController.getMyChats);
 module.exports = router;

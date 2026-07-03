@@ -31,6 +31,23 @@ const openPrivateChat = async (req, res) => {
   }
 };
 
+// 👇 NAYA — logged-in user ke saare private chats laane ke liye
+// (unread badge feature ke liye app load hote hi socket rooms join karne ke kaam aata hai)
+const getMyChats = async (req, res) => {
+  try {
+    const chats = await PrivateChat.find({
+      members: req.user.id,
+    }).populate("members", "name image email");
+
+    res.status(200).json(chats);
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Something went wrong",
+    });
+  }
+};
+
 
 
 const PrivateMessage = require("../models/PrivateMessageSchema");
@@ -119,7 +136,7 @@ const { chatId, receiverId, message, replyTo } = req.body;
         message: "You cannot message this user",
       });
     }
-    const media = req.file ? req.file.filename : "";
+    const media = req.file ? req.file.path : "";
 
     const msg = await PrivateMessage.create({
       chatId,
@@ -281,5 +298,6 @@ const deleteChat = async (req, res) => {
   }
 };
 module.exports = {
-  openPrivateChat,getPrivateMessages, sendPrivateMessage,deleteMessage,updateMessage,deleteChat
+  openPrivateChat,getPrivateMessages, sendPrivateMessage,deleteMessage,updateMessage,deleteChat,
+  getMyChats, 
 };
