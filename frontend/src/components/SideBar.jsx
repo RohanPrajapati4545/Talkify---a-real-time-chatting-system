@@ -78,7 +78,7 @@ const SideBar = ({
           title="View profile"
         >
           <img
-            src={`${process.env.REACT_APP_API_URL}/uploads/${user.image}`}
+            src={user.image}
             alt=""
             className="cv-me-avatar"
           />
@@ -157,7 +157,7 @@ const SideBar = ({
                   }}
                 >
                   <img
-                    src={`${process.env.REACT_APP_API_URL}/uploads/${group.groupImage}`}
+                    src={group.groupImage}
                     className="cv-row-avatar"
                     alt=""
                   />
@@ -192,7 +192,7 @@ const SideBar = ({
               >
                 <div className="cv-avatar-wrap">
                   <img
-                    src={`${process.env.REACT_APP_API_URL}/uploads/${u.image}`}
+                    src={u.image}
                     className="cv-row-avatar"
                     alt=""
                   />
