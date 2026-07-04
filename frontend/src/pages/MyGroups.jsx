@@ -20,7 +20,7 @@ const MyGroups = () => {
   const [privateChat, setPrivateChat] = useState(null);
   const [privateMessages, setPrivateMessages] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
-  const selectedUserRef = useRef(null); // 👈 NAYA
+  const selectedUserRef = useRef(null);
   const [showUserInfo, setShowUserInfo] = useState(false)
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
@@ -65,20 +65,18 @@ const [userLastActivity, setUserLastActivity] = useState({});
   const [regenLoading, setRegenLoading] = useState(false);
 
   
-  const [groupTypingUsers, setGroupTypingUsers] = useState({}); // { groupId: { userId: userName } }
-  const [privateTypingStatus, setPrivateTypingStatus] = useState({}); // { otherUserId: userName }
+  const [groupTypingUsers, setGroupTypingUsers] = useState({});
+  const [privateTypingStatus, setPrivateTypingStatus] = useState({});
   const typingTimeoutRef = useRef(null);
-// 👇 NAYA — EDIT GROUP STATES
+
 const [showEditGroupModal, setShowEditGroupModal] = useState(false);
 const [editGroupName, setEditGroupName] = useState("");
 const [editGroupImage, setEditGroupImage] = useState(null);
 const [editGroupLoading, setEditGroupLoading] = useState(false);
 
-  // 👇 NAYA — UNREAD COUNT STATES
   const [unreadCounts, setUnreadCounts] = useState({ groups: {}, users: {} });
-  const [privateChatMap, setPrivateChatMap] = useState({}); // { otherUserId: chatId }
+  const [privateChatMap, setPrivateChatMap] = useState({});
 
-  // selectedUser ka latest value ref me sync karo taaki socket listener (jo mount time pe register hota hai) stale na ho
   useEffect(() => {
     selectedUserRef.current = selectedUser;
   }, [selectedUser]);
@@ -192,8 +190,7 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
   }, [privateChat]);
 
 
-  // 👇 NAYA — apne saare private chats fetch karo taaki background me bhi
-  // un chats ke socket rooms join ho jayein aur unread count aa sake
+
   const getMyPrivateChats = async () => {
     try {
       const res = await axios.get(
@@ -204,15 +201,49 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
       );
 
       const map = {};
+      const activityMap = {};
+
       res.data.forEach((chat) => {
         const other = chat.members.find((m) => m._id !== user._id);
         if (other) {
           map[other._id] = chat._id;
           socket.emit("joinPrivateChat", chat._id);
+
+          activityMap[other._id] = new Date(
+            chat.updatedAt || chat.createdAt || 0
+          ).getTime();
         }
       });
 
       setPrivateChatMap(map);
+      setUserLastActivity((prev) => ({ ...activityMap, ...prev }));
+
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  useEffect(() => {
+    if (user?._id) {
+      getMyPrivateChats();
+    }
+  }, [user?._id]);
+
+  // 👇 NAYA — page load / refresh hote hi backend se unread counts laao
+  // taaki refresh ke baad bhi unread badge sahi dikhe
+  const getUnreadCounts = async () => {
+    try {
+      const res = await axios.get(
+        `${process.env.REACT_APP_API_URL}/api/private/unread-counts`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      // res.data ka format: { "<senderId>": count, ... }
+      setUnreadCounts((prev) => ({
+        ...prev,
+        users: { ...prev.users, ...res.data },
+      }));
 
     } catch (error) {
       console.log(error);
@@ -221,12 +252,10 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
 
   useEffect(() => {
     if (user?._id) {
-      getMyPrivateChats();
+      getUnreadCounts();
     }
   }, [user?._id]);
 
-  // 👇 NAYA — jab groups list mile, saare group rooms join karo
-  // taaki band chat ka bhi "receiveMessage" event mil sake (unread count ke liye)
   useEffect(() => {
     groups.forEach((g) => {
       socket.emit("joinGroup", g._id);
@@ -250,20 +279,14 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
       setSelectedUser(user);
       setSelectedGroup(null);
 
-      setPrivateChat(res.data); // IMPORTANT
-      getPrivateMessages(res.data._id); // IMPORTANT
-        if (res.data?.updatedAt) {
-      setUserLastActivity((prev) => ({
-        ...prev,
-        [user._id]: new Date(res.data.updatedAt).getTime(),
-      }));
-    }
+      setPrivateChat(res.data);
+      getPrivateMessages(res.data._id);
+
       socket.emit(
         "joinPrivateChat",
         res.data._id
       );
 
-      // 👇 NAYA — is user ka unread count clear karo
       setUnreadCounts((prev) => ({
         ...prev,
         users: { ...prev.users, [user._id]: 0 },
@@ -274,7 +297,6 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
     }
   };
 
-  // 👇 NAYA — group select karne ka helper, unread count clear karta hai
   const openGroupChat = (group) => {
     setShowGroupInfo(false);
     setShowMedia(false);
@@ -319,7 +341,6 @@ const otherId =
       (msg.sender?._id === selectedUserRef.current._id ||
         msg.sender === selectedUserRef.current._id);
 
-    // 👇 NAYA — agar mujhe mila hai aur chat khuli nahi hai to unread badhao
     if (otherId && !isMine && !chatIsOpen) {
       setUnreadCounts((prev) => ({
         ...prev,
@@ -393,7 +414,6 @@ const otherId =
   }, []);
 
 
-  //  jab doosra user chat delete kare to yaha bhi turant clear ho jaaye
 useEffect(() => {
   socket.on("privateChatDeleted", ({ chatId }) => {
     if (privateChat?._id === chatId) {
@@ -411,7 +431,6 @@ useEffect(() => {
 }, [privateChat]);
 
 
-  // TYPING INDICATOR LISTENERS
   useEffect(() => {
 
     socket.on("userTyping", ({ groupId, userId, userName }) => {
@@ -580,7 +599,6 @@ useEffect(() => {
     }
   };
 
-  //GROUP TYPING
   const handleGroupTyping = (value) => {
     setMessage(value);
 
@@ -602,7 +620,6 @@ useEffect(() => {
     }, 1000);
   };
 
-  // PRIVATE TYPING
   const handlePrivateTyping = (value) => {
     setMessage(value);
 
@@ -626,7 +643,7 @@ useEffect(() => {
     }, 1000);
   };
 
-  const MAX_MEDIA_SIZE = 10 * 1024 * 1024; // 10 MB
+  const MAX_MEDIA_SIZE = 10 * 1024 * 1024;
 
   const handleMediaUpload = (e) => {
     const file = e.target.files[0];
@@ -806,7 +823,6 @@ useEffect(() => {
   };
 
 
-// DELETE PRIVATE CHAT
 const deleteChat = async () => {
   try {
     const res = await axios.delete(
@@ -818,7 +834,6 @@ const deleteChat = async () => {
 
     toast.success(res.data.message);
 
-    // sidebar list se turant activity clear karo
     setUserLastActivity((prev) => {
       const copy = { ...prev };
       delete copy[selectedUser._id];
@@ -1164,7 +1179,6 @@ const handleDeleteChat = () => {
   };
 
 
-  // 👇 NAYA — EDIT GROUP PROFILE
 const openEditGroupModal = () => {
   setEditGroupName(selectedGroup.groupName);
   setEditGroupImage(null);
@@ -1330,10 +1344,6 @@ const updateGroupProfile = async () => {
 
       socket.emit("sendMessage", res.data);
 
-      // 
-      // 
-      // 
-      //  — message bhejte hi typing turant band karo
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       socket.emit("stopTyping", {
         groupId: selectedGroup._id,
@@ -1387,7 +1397,6 @@ setGroupLastActivity((prev) => ({
       return;
     }
 
-    // SEND NEW MESSAGE
     if (!message.trim() && !media) return;
 
     if (!privateChat?._id) {
@@ -1431,7 +1440,6 @@ setGroupLastActivity((prev) => ({
 
       socket.emit("sendPrivateMessage", res.data);
 
-      // 👇 NAYA — message bhejte hi typing turant band karo
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       socket.emit("stopTypingPrivate", {
         chatId: privateChat._id,
@@ -1461,7 +1469,7 @@ setGroupLastActivity((prev) => ({
       }
       sendPrivateMessage();
     } else {
-      sendMessage(); // group wala as it is
+      sendMessage();
     }
   };
   useEffect(() => {
@@ -1500,7 +1508,6 @@ setGroupLastActivity((prev) => ({
     if (gId) {
       setGroupLastActivity((prev) => ({ ...prev, [gId]: Date.now() }));
 
-      // 👇 NAYA — agar chat khuli nahi hai aur message meri taraf se nahi hai, to unread badhao
       if (!isMine && selectedGroup?._id !== gId) {
         setUnreadCounts((prev) => ({
           ...prev,

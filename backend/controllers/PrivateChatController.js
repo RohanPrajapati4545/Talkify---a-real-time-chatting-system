@@ -1,5 +1,7 @@
+const mongoose = require("mongoose"); // 👈 NAYA — aggregate ke liye chahiye
 const PrivateChat = require("./../models/PrivateChatSchema");
-const User = require("./../models/UserSchema"); 
+const User = require("./../models/UserSchema");
+
 const openPrivateChat = async (req, res) => {
 
   try {
@@ -31,8 +33,7 @@ const openPrivateChat = async (req, res) => {
   }
 };
 
-// 👇 NAYA — logged-in user ke saare private chats laane ke liye
-// (unread badge feature ke liye app load hote hi socket rooms join karne ke kaam aata hai)
+// logged-in user ke saare private chats laane ke liye
 const getMyChats = async (req, res) => {
   try {
     const chats = await PrivateChat.find({
@@ -42,6 +43,43 @@ const getMyChats = async (req, res) => {
     res.status(200).json(chats);
 
   } catch (error) {
+    res.status(500).json({
+      message: "Something went wrong",
+    });
+  }
+};
+
+// 👇 NAYA — logged-in user ke liye har sender se aaye unseen messages ka count
+// response format: { "<senderId>": count, "<senderId2>": count, ... }
+const getUnreadCounts = async (req, res) => {
+  try {
+
+    const myId = req.user.id || req.user._id; 
+    const counts = await PrivateMessage.aggregate([
+      {
+        $match: {
+          receiver: new mongoose.Types.ObjectId(req.user.id),
+          seen: false,
+        },
+      },
+      {
+        $group: {
+          _id: "$sender",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const result = {};
+    counts.forEach((c) => {
+      result[c._id.toString()] = c.count;
+    });
+
+    res.status(200).json(result);
+
+  } catch (error) {
+     console.log("getUnreadCounts error:", error); 
+    console.log(error);
     res.status(500).json({
       message: "Something went wrong",
     });
@@ -106,31 +144,31 @@ const getPrivateMessages = async (req, res) => {
 
 
 const sendPrivateMessage = async (req, res) => {
-;
-  try {
-const { chatId, receiverId, message, replyTo } = req.body;
 
-     const sender = await User.findById(req.user.id);
+  try {
+    const { chatId, receiverId, message, replyTo } = req.body;
+
+    const sender = await User.findById(req.user.id);
     const receiver = await User.findById(receiverId);
- 
+
     if (!receiver) {
       return res.status(404).json({ message: "Receiver not found" });
     }
- 
+
     const senderBlockedReceiver = sender.blockedUsers.some(
       (id) => id.toString() === receiverId
     );
- 
+
     const receiverBlockedSender = receiver.blockedUsers.some(
       (id) => id.toString() === req.user.id
     );
- 
+
     if (senderBlockedReceiver) {
       return res.status(403).json({
         message: "You have blocked this user. Unblock to send a message.",
       });
     }
- 
+
     if (receiverBlockedSender) {
       return res.status(403).json({
         message: "You cannot message this user",
@@ -145,20 +183,22 @@ const { chatId, receiverId, message, replyTo } = req.body;
       message: message || "",
       media,
       mediaType: media ? "image" : "",
-       replyTo: replyTo || null
+      replyTo: replyTo || null
     });
 
+    await PrivateChat.findByIdAndUpdate(chatId, { updatedAt: new Date() });
+
     const populated = await PrivateMessage.findById(msg._id)
-.populate("sender","name image")
-.populate("receiver","name image")
-.populate({
-    path:"replyTo",
-    populate:{
-        path:"sender",
-        select:"name image"
-    }
-});
-console.log(populated);
+      .populate("sender", "name image")
+      .populate("receiver", "name image")
+      .populate({
+        path: "replyTo",
+        populate: {
+          path: "sender",
+          select: "name image"
+        }
+      });
+
     res.status(201).json(populated);
   } catch (error) {
     console.log(error);
@@ -247,8 +287,6 @@ io.to(updated.chatId.toString()).emit(
 
 res.json(updated);
 
-    res.json(updated);
-
   } catch (err) {
 
     res.status(500).json({
@@ -298,6 +336,6 @@ const deleteChat = async (req, res) => {
   }
 };
 module.exports = {
-  openPrivateChat,getPrivateMessages, sendPrivateMessage,deleteMessage,updateMessage,deleteChat,
-  getMyChats, 
+  openPrivateChat, getPrivateMessages, sendPrivateMessage, deleteMessage, updateMessage, deleteChat,
+  getMyChats, getUnreadCounts, 
 };

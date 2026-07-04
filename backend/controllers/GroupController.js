@@ -82,7 +82,7 @@ const getMyGroup = async (req, res) => {
 
 const sendMessage = async (req, res) => {
   try {
-  const { groupId, message, replyTo } = req.body;
+    const { groupId, message, replyTo } = req.body;
 
     let media = "";
     let mediaType = "";
@@ -111,17 +111,21 @@ const sendMessage = async (req, res) => {
       message,
       media,
       mediaType,
-        replyTo: replyTo || null
+      replyTo: replyTo || null
     });
-const populatedMsg = await Message.findById(msg._id)
-.populate("sender","name image")
-.populate({
-    path:"replyTo",
-    populate:{
-        path:"sender",
-        select:"name image"
-    }
-});
+
+
+    await GroupSchema.findByIdAndUpdate(groupId, { updatedAt: new Date() });
+
+    const populatedMsg = await Message.findById(msg._id)
+      .populate("sender", "name image")
+      .populate({
+        path: "replyTo",
+        populate: {
+          path: "sender",
+          select: "name image"
+        }
+      });
 
     res.status(201).json(populatedMsg);
   } catch (err) {
