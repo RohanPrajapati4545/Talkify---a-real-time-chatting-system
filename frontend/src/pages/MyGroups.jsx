@@ -11,6 +11,24 @@ import SideBar from "./../components/SideBar";
 import Loader from "./../components/Loader";
 import "./../App.css";
 
+
+const EMOJI_LIST = [
+  "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇",
+  "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚",
+  "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🥸",
+  "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️",
+  "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡",
+  "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓",
+  "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄",
+  "😯", "😮", "😲", "🥱", "😴", "🤤", "😪", "🥴", "🤢", "🤮",
+  "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👍", "👎",
+  "👏", "🙌", "🙏", "👋", "🤝", "💪", "❤️", "🧡", "💛", "💚",
+  "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💞", "💓",
+  "💗", "💖", "💘", "💝", "🔥", "✨", "🎉", "🎂", "🎁", "☕",
+  "🍕", "🍔", "🍟", "🍎", "⚽", "🏀", "🎮", "📱", "💻", "✅",
+  "❌", "⭐",
+];
+
 const MyGroups = () => {
 
   const [groups, setGroups] = useState([]);
@@ -21,6 +39,8 @@ const MyGroups = () => {
   const [privateMessages, setPrivateMessages] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const selectedUserRef = useRef(null);
+
+  const privateChatRef = useRef(null);
   const [showUserInfo, setShowUserInfo] = useState(false)
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
@@ -41,6 +61,10 @@ const [userLastActivity, setUserLastActivity] = useState({});
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [showMsgMenu, setShowMsgMenu] = useState(null);
+
+  // 👇 NAYA — emoji picker toggle + outside-click-close ke liye ref
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef(null);
 
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState([]);
@@ -80,6 +104,11 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
   useEffect(() => {
     selectedUserRef.current = selectedUser;
   }, [selectedUser]);
+
+  // 👇 NAYA — jab bhi privateChat state badle, ref ko sync rakho
+  useEffect(() => {
+    privateChatRef.current = privateChat;
+  }, [privateChat]);
 
   const getAllUsers = async () => {
     try {
@@ -228,8 +257,7 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
     }
   }, [user?._id]);
 
-  // 👇 NAYA — page load / refresh hote hi backend se unread counts laao
-  // taaki refresh ke baad bhi unread badge sahi dikhe
+  
   const getUnreadCounts = async () => {
     try {
       const res = await axios.get(
@@ -267,6 +295,7 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
     setShowUserInfo(false);
     setShowMedia(false);
     setPreviewImage(null);
+    setShowEmojiPicker(false);
     try {
       const res = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/private/open-chat`,
@@ -301,6 +330,7 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
     setShowGroupInfo(false);
     setShowMedia(false);
     setPreviewImage(null);
+    setShowEmojiPicker(false);
     setSelectedGroup(group);
     setSelectedUser(null);
 
@@ -318,46 +348,54 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
       "receivePrivateMessage",
       (msg) => {
 
-        setPrivateMessages(prev => [
-          ...prev,
-          msg
-        ]);
-const otherId =
-      msg.sender?._id === user?._id
-        ? msg.receiver?._id || msg.receiver
-        : msg.sender?._id || msg.sender;
+        const isMine = (msg.sender?._id || msg.sender) === user?._id;
 
-    const isMine = (msg.sender?._id || msg.sender) === user?._id;
+        const otherId =
+          isMine
+            ? msg.receiver?._id || msg.receiver
+            : msg.sender?._id || msg.sender;
 
-    if (otherId) {
-      setUserLastActivity((prev) => ({ ...prev, [otherId]: Date.now() }));
-    }
+        // 👇 FIX — pehle sirf sender ko selectedUser se compare karte the, jisse
+        // apne khud ke bheje messages (jaha sender = me) kabhi match nahi hote the
+        // aur kisi bhi doosre user ka private message currently open chat me
+        // ghus jaata tha. Ab chatId se match karte hain — ye reliable hai
+        // dono direction (mine / theirs) ke liye.
+        const chatIsOpen =
+          privateChatRef.current &&
+          msg.chatId &&
+          msg.chatId.toString() === privateChatRef.current._id?.toString();
 
-    const isReceiver =
-      msg.receiver?._id === user?._id || msg.receiver === user?._id;
+        if (chatIsOpen) {
+          setPrivateMessages(prev => [
+            ...prev,
+            msg
+          ]);
+        }
 
-    const chatIsOpen =
-      selectedUserRef.current &&
-      (msg.sender?._id === selectedUserRef.current._id ||
-        msg.sender === selectedUserRef.current._id);
+        if (otherId) {
+          setUserLastActivity((prev) => ({ ...prev, [otherId]: Date.now() }));
+        }
 
-    if (otherId && !isMine && !chatIsOpen) {
-      setUnreadCounts((prev) => ({
-        ...prev,
-        users: {
-          ...prev.users,
-          [otherId]: (prev.users[otherId] || 0) + 1,
-        },
-      }));
-    }
+        const isReceiver =
+          msg.receiver?._id === user?._id || msg.receiver === user?._id;
 
-    if (isReceiver && chatIsOpen) {
-      socket.emit("markPrivateMessageSeen", {
-        chatId: msg.chatId,
-        messageId: msg._id,
-        seenBy: user._id,
-      });
-    }
+        if (otherId && !isMine && !chatIsOpen) {
+          setUnreadCounts((prev) => ({
+            ...prev,
+            users: {
+              ...prev.users,
+              [otherId]: (prev.users[otherId] || 0) + 1,
+            },
+          }));
+        }
+
+        if (isReceiver && chatIsOpen) {
+          socket.emit("markPrivateMessageSeen", {
+            chatId: msg.chatId,
+            messageId: msg._id,
+            seenBy: user._id,
+          });
+        }
       }
     )
     return () => {
@@ -641,6 +679,18 @@ useEffect(() => {
         receiverId: selectedUser._id,
       });
     }, 1000);
+  };
+
+  // 👇 NAYA — emoji ko message box me append karo, jis chat me hain us hisaab se
+  // sahi typing handler call karo (single emoji bhi normal message ki tarah
+  // send button / Enter se chala jayega, koi extra code nahi chahiye send ke liye)
+  const appendEmoji = (emoji) => {
+    const newText = message + emoji;
+    if (selectedUser) {
+      handlePrivateTyping(newText);
+    } else {
+      handleGroupTyping(newText);
+    }
   };
 
   const MAX_MEDIA_SIZE = 10 * 1024 * 1024;
@@ -1358,6 +1408,7 @@ setGroupLastActivity((prev) => ({
       setMessage("");
       setMedia(null);
       setReplyingTo(null);
+      setShowEmojiPicker(false);
     } catch (error) {
       console.log(error);
       toast.error("Message failed");
@@ -1455,6 +1506,7 @@ setGroupLastActivity((prev) => ({
       setMessage("");
       setMedia(null);
       setReplyingTo(null);
+      setShowEmojiPicker(false);
 
     } catch (error) {
       console.log(error);
@@ -1638,6 +1690,27 @@ setGroupLastActivity((prev) => ({
     };
   }, []);
 
+  // 👇 NAYA — emoji picker ke bahar click karne pe wo band ho jaye
+  useEffect(() => {
+    const handleOutsideEmojiClick = (e) => {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(e.target)
+      ) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideEmojiClick);
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideEmojiClick
+      );
+    };
+  }, []);
+
   const formatTime = (createdAt) =>
     createdAt
       ? new Date(createdAt).toLocaleTimeString([], {
@@ -1692,6 +1765,7 @@ setGroupLastActivity((prev) => ({
     setShowUserInfo(false);
     setShowMedia(false);
     setPreviewImage(null);
+    setShowEmojiPicker(false);
   };
 
   const sortedGroups = useMemo(() => {
@@ -2158,6 +2232,58 @@ useEffect(() => {
                         accept="image/*,video/*"
                         onChange={handleMediaUpload}
                       />
+
+                      {/* 👇 NAYA — emoji button + picker panel */}
+                      <div
+                        ref={emojiPickerRef}
+                        style={{ position: "relative", display: "flex", alignItems: "center" }}
+                      >
+                        <div
+                          className="cv-attach"
+                          onClick={() => setShowEmojiPicker((prev) => !prev)}
+                        >
+                          <i className="fa-solid fa-face-smile"></i>
+                        </div>
+
+                        {showEmojiPicker && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              bottom: "48px",
+                              left: 0,
+                              width: "260px",
+                              maxHeight: "220px",
+                              overflowY: "auto",
+                              background: "#fff",
+                              border: "1px solid #e0e0e0",
+                              borderRadius: "10px",
+                              boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+                              padding: "8px",
+                              display: "grid",
+                              gridTemplateColumns: "repeat(7, 1fr)",
+                              gap: "4px",
+                              zIndex: 20,
+                            }}
+                          >
+                            {EMOJI_LIST.map((emoji, i) => (
+                              <span
+                                key={i}
+                                onClick={() => appendEmoji(emoji)}
+                                style={{
+                                  fontSize: "20px",
+                                  cursor: "pointer",
+                                  textAlign: "center",
+                                  lineHeight: "28px",
+                                  borderRadius: "6px",
+                                }}
+                                onMouseDown={(e) => e.preventDefault()}
+                              >
+                                {emoji}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
                       <input
                         type="text"
@@ -2699,6 +2825,58 @@ useEffect(() => {
                     accept="image/*,video/*"
                     onChange={handleMediaUpload}
                   />
+
+                  {/* 👇 NAYA — emoji button + picker panel */}
+                  <div
+                    ref={emojiPickerRef}
+                    style={{ position: "relative", display: "flex", alignItems: "center" }}
+                  >
+                    <div
+                      className="cv-attach"
+                      onClick={() => setShowEmojiPicker((prev) => !prev)}
+                    >
+                      <i className="fa-solid fa-face-smile"></i>
+                    </div>
+
+                    {showEmojiPicker && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: "48px",
+                          left: 0,
+                          width: "260px",
+                          maxHeight: "220px",
+                          overflowY: "auto",
+                          background: "#fff",
+                          border: "1px solid #e0e0e0",
+                          borderRadius: "10px",
+                          boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+                          padding: "8px",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(7, 1fr)",
+                          gap: "4px",
+                          zIndex: 20,
+                        }}
+                      >
+                        {EMOJI_LIST.map((emoji, i) => (
+                          <span
+                            key={i}
+                            onClick={() => appendEmoji(emoji)}
+                            style={{
+                              fontSize: "20px",
+                              cursor: "pointer",
+                              textAlign: "center",
+                              lineHeight: "28px",
+                              borderRadius: "6px",
+                            }}
+                            onMouseDown={(e) => e.preventDefault()}
+                          >
+                            {emoji}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
                   <input
                     type="text"
