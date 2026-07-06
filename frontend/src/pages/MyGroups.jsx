@@ -101,6 +101,20 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({ groups: {}, users: {} });
   const [privateChatMap, setPrivateChatMap] = useState({});
 
+  
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // 👇 NAYA — send button ke liye alag loading state, taaki bar-bar click
+  // karne par multiple messages na ja sakein. Jab tak ek message ka
+  // request complete nahi hota, button disabled rahega + spinner dikhega.
+  const [sendingMessage, setSendingMessage] = useState(false);
+
+  // 👇 NAYA — chat ke andar (group + private dono) messages search karne ke liye
+  const [showMsgSearch, setShowMsgSearch] = useState(false);
+  const [msgSearchTerm, setMsgSearchTerm] = useState("");
+  const [currentMatchPos, setCurrentMatchPos] = useState(0);
+  const messageRefs = useRef({});
+
   useEffect(() => {
     selectedUserRef.current = selectedUser;
   }, [selectedUser]);
@@ -171,6 +185,7 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
     }).then(async (result) => {
       if (!result.isConfirmed) return;
 
+      setActionLoading(true);
       try {
         const url = blocked
           ? `${process.env.REACT_APP_API_URL}/api/users/unblock/${selectedUser._id}`
@@ -196,20 +211,26 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
         toast.error(
           error.response?.data?.message || "Something went wrong"
         );
+      } finally {
+        setActionLoading(false);
       }
     });
   };
 
   const getPrivateMessages = async (chatId) => {
+    setActionLoading(true);
+    try {
+      const res = await axios.get(
+        `${process.env.REACT_APP_API_URL}/api/private/private-messages/${chatId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
 
-    const res = await axios.get(
-      `${process.env.REACT_APP_API_URL}/api/private/private-messages/${chatId}`,
-      {
-        headers: { Authorization: `Bearer ${token}` }
-      }
-    );
-
-    setPrivateMessages(res.data);
+      setPrivateMessages(res.data);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -296,6 +317,7 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
     setShowMedia(false);
     setPreviewImage(null);
     setShowEmojiPicker(false);
+    setActionLoading(true);
     try {
       const res = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/private/open-chat`,
@@ -309,7 +331,7 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
       setSelectedGroup(null);
 
       setPrivateChat(res.data);
-      getPrivateMessages(res.data._id);
+      await getPrivateMessages(res.data._id);
 
       socket.emit(
         "joinPrivateChat",
@@ -323,6 +345,8 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
 
     } catch (err) {
       console.log(err);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -711,6 +735,7 @@ useEffect(() => {
   };
 
   const addUserToGroup = async () => {
+    setActionLoading(true);
     try {
       const res = await axios.put(
         `${process.env.REACT_APP_API_URL}/api/users/add-user`,
@@ -750,6 +775,8 @@ useEffect(() => {
           ?.message ||
         "Something went wrong"
       );
+    } finally {
+      setActionLoading(false);
     }
   };
   const deleteMessage = async (id) => {
@@ -824,6 +851,7 @@ useEffect(() => {
   };
 
   const leaveGroup = async () => {
+    setActionLoading(true);
     try {
       const res = await axios.put(
         `${process.env.REACT_APP_API_URL}/api/users/leave-group`,
@@ -854,6 +882,8 @@ useEffect(() => {
         error.response?.data?.message ||
         "Something went wrong"
       );
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -874,6 +904,7 @@ useEffect(() => {
 
 
 const deleteChat = async () => {
+  setActionLoading(true);
   try {
     const res = await axios.delete(
       `${process.env.REACT_APP_API_URL}/api/private/delete-chat/${privateChat._id}`,
@@ -899,6 +930,8 @@ const deleteChat = async () => {
     toast.error(
       error.response?.data?.message || "Could not delete chat"
     );
+  } finally {
+    setActionLoading(false);
   }
 };
 
@@ -913,6 +946,7 @@ const handleClearGroupChat = () => {
   }).then(async (result) => {
     if (!result.isConfirmed) return;
 
+    setActionLoading(true);
     try {
       const res = await axios.delete(
         `${process.env.REACT_APP_API_URL}/api/user/clear-group-chat/${selectedGroup._id}`,
@@ -925,6 +959,8 @@ const handleClearGroupChat = () => {
 
     } catch (error) {
       toast.error(error.response?.data?.message || "Could not clear chat");
+    } finally {
+      setActionLoading(false);
     }
   });
 };
@@ -954,6 +990,7 @@ const handleDeleteChat = () => {
 };
 
   const removeMember = async (memberId) => {
+    setActionLoading(true);
     try {
 
       const res = await axios.put(
@@ -997,6 +1034,8 @@ const handleDeleteChat = () => {
           "Something went wrong",
       });
 
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -1023,6 +1062,7 @@ const handleDeleteChat = () => {
 
 
   const deleteGroup = async () => {
+    setActionLoading(true);
     try {
       const res = await axios.delete(
         `${process.env.REACT_APP_API_URL}/api/user/delete-group/${selectedGroup._id}`,
@@ -1052,6 +1092,8 @@ const handleDeleteChat = () => {
       toast.error(
         error.response?.data?.message
       );
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -1313,6 +1355,8 @@ const updateGroupProfile = async () => {
     try {
       if (!selectedGroup) return;
 
+      setActionLoading(true);
+
       const res = await axios.get(
         `${process.env.REACT_APP_API_URL}/api/user/messages/${selectedGroup._id}`,
         {
@@ -1325,6 +1369,8 @@ const updateGroupProfile = async () => {
       setMessages(res.data);
     } catch (error) {
       console.log(error);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -1332,30 +1378,40 @@ const updateGroupProfile = async () => {
 
   const sendMessage = async () => {
 
+    if (sendingMessage) return;
+
     if (editingMessage) {
 
-      const res = await axios.put(
-        `${process.env.REACT_APP_API_URL}/api/user/update-message/${editingMessage._id}`,
-        {
-          message
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
+      setSendingMessage(true);
+      try {
+        const res = await axios.put(
+          `${process.env.REACT_APP_API_URL}/api/user/update-message/${editingMessage._id}`,
+          {
+            message
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
           }
-        }
-      );
+        );
 
-      setMessages(prev =>
-        prev.map(m =>
-          m._id === editingMessage._id
-            ? res.data
-            : m
-        )
-      );
+        setMessages(prev =>
+          prev.map(m =>
+            m._id === editingMessage._id
+              ? res.data
+              : m
+          )
+        );
 
-      setEditingMessage(null);
-      setMessage("");
+        setEditingMessage(null);
+        setMessage("");
+      } catch (error) {
+        console.log(error);
+        toast.error("Could not update message");
+      } finally {
+        setSendingMessage(false);
+      }
 
       return;
     }
@@ -1381,6 +1437,7 @@ const updateGroupProfile = async () => {
       formData.append("media", media);
     }
 
+    setSendingMessage(true);
     try {
       const res = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/user/send-message`,
@@ -1412,38 +1469,51 @@ setGroupLastActivity((prev) => ({
     } catch (error) {
       console.log(error);
       toast.error("Message failed");
+    } finally {
+      setSendingMessage(false);
     }
   };
 
+
   const sendPrivateMessage = async () => {
+
+    if (sendingMessage) return;
 
     if (editingMessage) {
 
-      const res = await axios.put(
-        `${process.env.REACT_APP_API_URL}/api/private/update-message/${editingMessage._id}`,
-        {
-          message
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
+      setSendingMessage(true);
+      try {
+        const res = await axios.put(
+          `${process.env.REACT_APP_API_URL}/api/private/update-message/${editingMessage._id}`,
+          {
+            message
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
           }
-        }
-      );
+        );
 
 
-      setPrivateMessages(prev =>
-        prev.map(m =>
-          m._id === editingMessage._id
-            ? res.data
-            : m
-        )
-      );
+        setPrivateMessages(prev =>
+          prev.map(m =>
+            m._id === editingMessage._id
+              ? res.data
+              : m
+          )
+        );
 
-      setEditingMessage(null);
-      setMessage("");
-      setMedia(null);
-      setShowMsgMenu(null);
+        setEditingMessage(null);
+        setMessage("");
+        setMedia(null);
+        setShowMsgMenu(null);
+      } catch (error) {
+        console.log(error);
+        toast.error("Could not update message");
+      } finally {
+        setSendingMessage(false);
+      }
 
       return;
     }
@@ -1477,6 +1547,7 @@ setGroupLastActivity((prev) => ({
       formData.append("media", media);
     }
 
+    setSendingMessage(true);
     try {
 
       const res = await axios.post(
@@ -1511,9 +1582,13 @@ setGroupLastActivity((prev) => ({
     } catch (error) {
       console.log(error);
       toast.error("Private message failed");
+    } finally {
+      setSendingMessage(false);
     }
   };
   const handleSend = () => {
+
+    if (sendingMessage) return;
 
     if (selectedUser) {
       if (isUserBlocked(selectedUser._id)) {
@@ -1540,11 +1615,14 @@ setGroupLastActivity((prev) => ({
       socket.off("onlineUsers");
     };
   }, []);
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
-  }, [messages]);
+  // 👇 FIX — pehle yahan ek extra effect tha jo `messagesEndRef.current?.scrollIntoView({behavior:"smooth"})`
+  // call karta tha. scrollIntoView() sirf uss div ko scroll nahi karta jisme wo hai — agar us waqt
+  // container ka layout thoda bhi unstable ho (jaisa group switch karte waqt hota hai, kyunki
+  // sidebar hide/show hoti hai aur DOM reflow hota hai), to browser POORI PAGE ko scroll kar deta
+  // hai taaki wo element visible ho jaye — isi wajah se aap seedha page ke footer tak scroll ho jaate the.
+  // Neeche wala effect (messagesContainerRef.scrollTop = scrollHeight) already yehi kaam sahi tarike
+  // se karta hai — sirf chat box ke andar scroll karta hai, poori window ko touch nahi karta.
+  // Isliye ye duplicate/buggy effect hata diya gaya hai.
   useEffect(() => {
     getMyGroups();
   }, []);
@@ -1661,11 +1739,13 @@ setGroupLastActivity((prev) => ({
       confirmButtonColor: "#d33",
     }).then((result) => {
       if (result.isConfirmed) {
+        setActionLoading(true);
         if (user?._id) {
           socket.emit("userOffline", user._id);
         }
         dispatch(logout());
         navigate("/");
+        setActionLoading(false);
       }
     });
   };
@@ -1768,6 +1848,9 @@ setGroupLastActivity((prev) => ({
     setShowEmojiPicker(false);
   };
 
+
+  
+
   const sortedGroups = useMemo(() => {
   return [...groups].sort((a, b) => {
     const ta = groupLastActivity[a._id] || new Date(a.createdAt || 0).getTime();
@@ -1783,6 +1866,176 @@ const sortedUsers = useMemo(() => {
     return tb - ta;
   });
 }, [users, userLastActivity]);
+
+  // 👇 NAYA — chat ke andar search: active thread (group ya private) ke
+  // messages, aur unme se search term match karne wale messages ki id list
+  const activeThreadMessages = selectedUser ? privateMessages : messages;
+
+  const escapeRegExp = (str) =>
+    str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const msgSearchMatches = useMemo(() => {
+    const term = msgSearchTerm.trim().toLowerCase();
+    if (!term) return [];
+    return activeThreadMessages
+      .filter(
+        (m) =>
+          !m.isDeleted &&
+          m.message &&
+          m.message.toLowerCase().includes(term)
+      )
+      .map((m) => m._id);
+  }, [activeThreadMessages, msgSearchTerm]);
+
+  // naya search term type hote hi pehle match par wapas aa jao
+  useEffect(() => {
+    setCurrentMatchPos(0);
+  }, [msgSearchTerm]);
+
+  // group/user badalte hi is chat ka search band kar do
+  useEffect(() => {
+    setShowMsgSearch(false);
+    setMsgSearchTerm("");
+    setCurrentMatchPos(0);
+    messageRefs.current = {};
+  }, [selectedGroup?._id, selectedUser?._id]);
+
+  // current match wale message tak smooth scroll
+  useEffect(() => {
+    if (msgSearchMatches.length === 0) return;
+    const safeIndex = Math.min(currentMatchPos, msgSearchMatches.length - 1);
+    const id = msgSearchMatches[safeIndex];
+    const el = messageRefs.current[id];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [currentMatchPos, msgSearchMatches]);
+
+  const goToNextMatch = () => {
+    if (msgSearchMatches.length === 0) return;
+    setCurrentMatchPos((prev) => (prev + 1) % msgSearchMatches.length);
+  };
+
+  const goToPrevMatch = () => {
+    if (msgSearchMatches.length === 0) return;
+    setCurrentMatchPos(
+      (prev) => (prev - 1 + msgSearchMatches.length) % msgSearchMatches.length
+    );
+  };
+
+  // message text ke andar search term ko highlight karne ke liye — current
+  // active match amber solid color me, baaki matches halke amber me dikhte hain
+  const highlightText = (text, msgId) => {
+    const term = msgSearchTerm.trim();
+    if (!term || !text) return text;
+
+    const lowerTerm = term.toLowerCase();
+    const regex = new RegExp(`(${escapeRegExp(term)})`, "gi");
+    const parts = text.split(regex);
+    const isActive = msgSearchMatches[currentMatchPos] === msgId;
+
+    return parts.map((part, i) =>
+      part.toLowerCase() === lowerTerm ? (
+        <mark
+          key={i}
+          style={{
+            background: isActive ? "var(--amber)" : "var(--amber-soft)",
+            color: isActive ? "var(--ink)" : "inherit",
+            borderRadius: "3px",
+            padding: "0 1px",
+          }}
+        >
+          {part}
+        </mark>
+      ) : (
+        <React.Fragment key={i}>{part}</React.Fragment>
+      )
+    );
+  };
+
+  // 👇 NAYA — chat ke andar search bar ka reusable UI (group + private dono me use hoga)
+  const renderMsgSearchBar = () => (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        padding: "10px 18px",
+        borderBottom: "1px solid var(--hairline)",
+        background: "var(--panel-2)",
+      }}
+    >
+      <i
+        className="fa-solid fa-magnifying-glass"
+        style={{ color: "var(--muted)", fontSize: "13px" }}
+      ></i>
+
+      <input
+        type="text"
+        autoFocus
+        placeholder="Search in this chat…"
+        value={msgSearchTerm}
+        onChange={(e) => setMsgSearchTerm(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.shiftKey ? goToPrevMatch() : goToNextMatch();
+          }
+          if (e.key === "Escape") {
+            setShowMsgSearch(false);
+            setMsgSearchTerm("");
+          }
+        }}
+        style={{
+          flex: 1,
+          background: "transparent",
+          border: "none",
+          outline: "none",
+          color: "var(--paper)",
+          fontSize: "13px",
+          fontFamily: "var(--font-body)",
+        }}
+      />
+
+      {msgSearchTerm && (
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "11px",
+            color: "var(--muted)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {msgSearchMatches.length > 0
+            ? `${currentMatchPos + 1}/${msgSearchMatches.length}`
+            : "0/0"}
+        </span>
+      )}
+
+      <i
+        className="fa-solid fa-chevron-up"
+        onClick={goToPrevMatch}
+        title="Previous match"
+        style={{ color: "var(--muted)", fontSize: "12px", cursor: "pointer" }}
+      ></i>
+
+      <i
+        className="fa-solid fa-chevron-down"
+        onClick={goToNextMatch}
+        title="Next match"
+        style={{ color: "var(--muted)", fontSize: "12px", cursor: "pointer" }}
+      ></i>
+
+      <i
+        className="fa-solid fa-xmark"
+        onClick={() => {
+          setShowMsgSearch(false);
+          setMsgSearchTerm("");
+        }}
+        title="Close search"
+        style={{ color: "var(--muted)", fontSize: "14px", cursor: "pointer" }}
+      ></i>
+    </div>
+  );
 
 
   const currentGroupTypingNames = selectedGroup
@@ -1810,7 +2063,10 @@ useEffect(() => {
 }, []);
   return (<>
 
-    <div className="container-fluid px-2 px-md-3 px-lg-4 mt-md-5 mt-2 cv-page-container">
+ 
+    {actionLoading && <Loader />}
+
+    <div className="  cv-page-container">
 
       <div className="cv-shell">
 
@@ -1842,6 +2098,7 @@ useEffect(() => {
               user={user}
               groupTypingUsers={groupTypingUsers}
               privateTypingStatus={privateTypingStatus}
+             
             />
           </div>
 
@@ -2026,6 +2283,11 @@ useEffect(() => {
                     </div>
 
                     <div className="cv-thread-actions">
+                      <i
+                        className="fa-solid fa-magnifying-glass"
+                        onClick={() => setShowMsgSearch((prev) => !prev)}
+                        title="Search messages"
+                      ></i>
                       <i className="fa-solid fa-phone"></i>
                       <i className="fa-solid fa-video"></i>
                       <i
@@ -2035,6 +2297,9 @@ useEffect(() => {
                     </div>
 
                   </div>
+
+                  {/* 🔍 MESSAGE SEARCH BAR — private chat */}
+                  {showMsgSearch && renderMsgSearchBar()}
 
                   {/* MESSAGES */}
                   <div className="cv-thread" ref={privateMessagesRef}>
@@ -2061,7 +2326,10 @@ useEffect(() => {
                             </div>
                           )}
 
-                          <div className={`cv-msg-row ${side}`}>
+                          <div
+                            className={`cv-msg-row ${side}`}
+                            ref={(el) => (messageRefs.current[msg._id] = el)}
+                          >
 
                             {!isMe && (
                               <div className="cv-bubble-avatar-wrap">
@@ -2122,7 +2390,7 @@ useEffect(() => {
 
                               {msg.message && (
                                 <div className={`cv-msg-text ${msg.isDeleted ? "deleted" : ""}`}>
-                                  {msg.message}
+                                  {msg.isDeleted ? msg.message : highlightText(msg.message, msg._id)}
                                   {msg.isEdited && !msg.isDeleted && (
                                     <div className="cv-edited-tag">edited</div>
                                   )}
@@ -2295,8 +2563,19 @@ useEffect(() => {
                         }}
                       />
 
-                      <button className="cv-send" onClick={handleSend}>
-                        <i className="fa-solid fa-paper-plane"></i>
+                      {/*  jab tak message send ho raha hai button disabled
+                          rahega aur spinner ke saath "Sending" dikhega */}
+                      <button
+                        type="button"
+                        className="cv-send"
+                        onClick={handleSend}
+                        disabled={sendingMessage}
+                      >
+                        {sendingMessage ? (
+                          <i className="fa-solid fa-circle-notch fa-spin"></i>
+                        ) : (
+                          <i className="fa-solid fa-paper-plane"></i>
+                        )}
                       </button>
 
                     </div>
@@ -2415,6 +2694,7 @@ useEffect(() => {
 
                       <div className="cv-invite-code-actions">
                         <button
+                          type="button"
                           className="cv-code-btn"
                           onClick={copyInviteCode}
                           title="Copy code"
@@ -2423,6 +2703,7 @@ useEffect(() => {
                         </button>
 
                         <button
+                          type="button"
                           className="cv-code-btn cv-code-btn-danger"
                           onClick={regenerateCode}
                           disabled={regenLoading}
@@ -2481,7 +2762,7 @@ useEffect(() => {
                       <img src={previewImage} alt="" />
                       <div className="cv-lightbox-actions">
                         <a href={previewImage} download><i className="fa-solid fa-download"></i></a>
-                        <button onClick={() => setPreviewImage(null)}><i className="fa-solid fa-xmark"></i></button>
+                        <button type="button" onClick={() => setPreviewImage(null)}><i className="fa-solid fa-xmark"></i></button>
                       </div>
                     </div>
                   </div>
@@ -2547,6 +2828,7 @@ useEffect(() => {
 
       <div className="modal-footer border-0">
         <button
+          type="button"
           className="cv-btn-ghost"
           onClick={() => setShowEditGroupModal(false)}
         >
@@ -2554,6 +2836,7 @@ useEffect(() => {
         </button>
 
         <button
+          type="button"
           className="cv-btn-primary"
           onClick={updateGroupProfile}
           disabled={editGroupLoading}
@@ -2643,12 +2926,20 @@ useEffect(() => {
                   </div>
 
                   <div className="cv-thread-actions">
+                    <i
+                      className="fa-solid fa-magnifying-glass"
+                      onClick={() => setShowMsgSearch((prev) => !prev)}
+                      title="Search messages"
+                    ></i>
                     <i className="fa-solid fa-phone"></i>
                     <i className="fa-solid fa-video"></i>
                     <i className="fa-solid fa-circle-info" onClick={() => setShowGroupInfo(true)}></i>
                   </div>
 
                 </div>
+
+                {/* 🔍 MESSAGE SEARCH BAR — group chat */}
+                {showMsgSearch && renderMsgSearchBar()}
 
                 <div className="cv-thread" ref={messagesContainerRef}>
 
@@ -2672,7 +2963,10 @@ useEffect(() => {
                         </div>
                       )}
 
-                      <div className={`cv-msg-row ${side}`}>
+                      <div
+                        className={`cv-msg-row ${side}`}
+                        ref={(el) => (messageRefs.current[msg._id] = el)}
+                      >
 
                         {!isMe && (
                           <div className="cv-bubble-avatar-wrap">
@@ -2729,7 +3023,7 @@ useEffect(() => {
 
                           {msg.message && (
                             <div className={`cv-msg-text ${msg.isDeleted ? "deleted" : ""}`}>
-                              {msg.message}
+                              {msg.isDeleted ? msg.message : highlightText(msg.message, msg._id)}
                               {msg.isEdited && !msg.isDeleted && (
                                 <div className="cv-edited-tag">edited</div>
                               )}
@@ -2886,8 +3180,18 @@ useEffect(() => {
                     onKeyDown={handleKeyPress}
                   />
 
-                  <button className="cv-send" onClick={sendMessage}>
-                    <i className="fa-solid fa-paper-plane"></i>
+                 
+                  <button
+                    type="button"
+                    className="cv-send"
+                    onClick={sendMessage}
+                    disabled={sendingMessage}
+                  >
+                    {sendingMessage ? (
+                      <i className="fa-solid fa-circle-notch fa-spin"></i>
+                    ) : (
+                      <i className="fa-solid fa-paper-plane"></i>
+                    )}
                   </button>
 
                 </div>
@@ -3011,8 +3315,9 @@ useEffect(() => {
           </div>
 
           <div className="modal-footer border-0">
-            <button className="cv-btn-ghost" data-bs-dismiss="modal" disabled={creatingGroup}>Cancel</button>
+            <button type="button" className="cv-btn-ghost" data-bs-dismiss="modal" disabled={creatingGroup}>Cancel</button>
             <button
+              type="button"
               className="cv-btn-primary"
               onClick={createGroup}
               disabled={creatingGroup}
@@ -3040,7 +3345,9 @@ useEffect(() => {
       tabIndex="-1"
     >
       <div className="modal-dialog modal-dialog-centered">
-        <div className="modal-content cv-modal-content">
+        <div className="modal-content cv-modal-content" style={{ position: "relative" }}>
+
+          {joiningGroup && <Loader />}
 
           <div className="modal-header cv-modal-header">
             <h5 className="modal-title">
@@ -3081,6 +3388,7 @@ useEffect(() => {
 
           <div className="modal-footer border-0">
             <button
+              type="button"
               className="cv-btn-ghost"
               data-bs-dismiss="modal"
               onClick={() => setJoinCode("")}
@@ -3089,6 +3397,7 @@ useEffect(() => {
             </button>
 
             <button
+              type="button"
               className="cv-btn-primary"
               onClick={joinGroup}
               disabled={joiningGroup || joinCode.trim().length < 1}
@@ -3115,11 +3424,14 @@ useEffect(() => {
 
       <div className="modal-dialog modal-dialog-centered">
 
-        <div className="modal-content cv-modal-content">
+        <div className="modal-content cv-modal-content" style={{ position: "relative" }}>
+
+          {forwarding && <Loader />}
 
           <div className="modal-header cv-modal-header">
             <h5>Forward message</h5>
             <button
+              type="button"
               className="btn-close"
               onClick={() => {
                 setShowForwardModal(false);
@@ -3245,6 +3557,7 @@ useEffect(() => {
           <div className="modal-footer border-0">
 
             <button
+              type="button"
               className="cv-btn-ghost"
               onClick={() => {
                 setShowForwardModal(false);
@@ -3256,6 +3569,7 @@ useEffect(() => {
             </button>
 
             <button
+              type="button"
               className="cv-btn-primary"
               onClick={sendForward}
               disabled={forwarding || forwardTargets.length === 0}
@@ -3279,11 +3593,13 @@ useEffect(() => {
 
       <div className="modal-dialog modal-dialog-centered">
 
-        <div className="modal-content cv-modal-content">
+        <div className="modal-content cv-modal-content" style={{ position: "relative" }}>
+
+          {actionLoading && <Loader />}
 
           <div className="modal-header cv-modal-header">
             <h5>Add member</h5>
-            <button className="btn-close" onClick={() => setShowAddUserModal(false)}></button>
+            <button type="button" className="btn-close" onClick={() => setShowAddUserModal(false)}></button>
           </div>
 
           <div className="modal-body">
@@ -3307,8 +3623,9 @@ useEffect(() => {
           </div>
 
           <div className="modal-footer border-0">
-            <button className="cv-btn-ghost" onClick={() => setShowAddUserModal(false)}>Cancel</button>
+            <button type="button" className="cv-btn-ghost" onClick={() => setShowAddUserModal(false)}>Cancel</button>
             <button
+              type="button"
               className="cv-btn-primary"
               onClick={async () => {
                 await addUserToGroup();
@@ -3333,8 +3650,8 @@ useEffect(() => {
             <a href={previewImage} download target="_blank" rel="noreferrer">
               <i className="fa-solid fa-download"></i>
             </a>
-            <button onClick={() => setPreviewImage(null)}>
-              <i className="fa-solid fa-xmark"></i>
+            <button type="button" onClick={() => setPreviewImage(null)}>
+              <i className="fa-solid fa-xmark"></ i>
             </button>
           </div>
         </div>

@@ -1,60 +1,94 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-
-
-import Login from "./../../pages/auth/Login";
-import Register from "./../../pages/auth/Register";
-
-import MyGroups from "../MyGroups";
 import { useSelector } from "react-redux";
+
+import Login from "../../pages/auth/Login";
+import Register from "../../pages/auth/Register";
+import Home from "../Home";
+import About from "../About";
+import MyGroups from "../MyGroups";
 import Profile from "../Profile";
+import Layout from "./Layout";
 
 const AllRoutes = () => {
-    const { isAuth } = useSelector((state) => state.auth);
+  const { isAuth } = useSelector((state) => state.auth);
+
   return (
     <BrowserRouter>
       <Routes>
-     
 
-        
+        {/* Public Pages */}
         <Route
-          path="/register"
+          path="/"
           element={
-         
-                  <Register />
-          
-          
-           
+            <Layout>
+              <Home />
+            </Layout>
           }
         />
 
+        <Route
+          path="/about"
+          element={
+            <Layout>
+              <About />
+            </Layout>
+          }
+        />
+
+        {/* Login/Register */}
         <Route
           path="/login"
           element={
-            !isAuth ?   <Login /> : <Navigate to="/" />
-            
-              
-          
+            isAuth ? (
+              <Navigate to="/chat" replace />
+            ) : (
+              <Layout>
+                <Login />
+              </Layout>
+            )
           }
-        />
-        
-          <Route
-          path="/"
-          element={
-           
-         
-  isAuth ? <MyGroups /> : <Navigate to="/login" />}          
         />
 
-         <Route
-          path="/profile"
+        <Route
+          path="/register"
           element={
-           isAuth ?  <Profile /> : <Navigate to="/login" />
-            
-               
-          
+            isAuth ? (
+              <Navigate to="/chat" replace />
+            ) : (
+              <Register />
+            )
           }
         />
+
+        {/* Protected Routes */}
+        <Route
+          path="/chat"
+          element={
+            isAuth ? (
+              <Layout>
+                <MyGroups />
+              </Layout>
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            isAuth ? (
+              <Layout>
+                <Profile />
+              </Layout>
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

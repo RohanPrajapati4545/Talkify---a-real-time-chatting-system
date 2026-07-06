@@ -150,6 +150,9 @@ io.on("connection", (socket) => {
       console.log(err);
     }
   });
+  socket.on("groupSystemMessage", ({ groupId, message }) => {
+  socket.to(groupId).emit("groupSystemMessage", { groupId, message });
+});
 
   // ── DISCONNECT ─────────────────────────────────────────────
   socket.on("disconnect", () => {

@@ -1,15 +1,16 @@
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 const SideBar = ({
   activeTab,
   setActiveTab,
-    sortedGroup,  
+  sortedGroup,
   sortedUsers,
   setSelectedGroup,
   setSelectedUser,
   openPrivateChat,
-  onSelectGroup, // 👈 NAYA — group open karne ka helper (unread reset karta hai)
-  unreadCounts = { groups: {}, users: {} }, // 👈 NAYA
+  onSelectGroup,
+  unreadCounts = { groups: {}, users: {} },
   setShowGroupInfo,
   setShowMedia,
   setPreviewImage,
@@ -19,10 +20,46 @@ const SideBar = ({
   menuRef,
   isOnline,
   user, //
-  groupTypingUsers = {}, // 
+  groupTypingUsers = {}, //
   privateTypingStatus = {}, //
+
 }) => {
   const navigate = useNavigate();
+
+  // 🔍 search states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedTerm, setDebouncedTerm] = useState("");
+
+  // debounce: 300ms baad hi actual search apply hoga
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedTerm(searchTerm.trim().toLowerCase());
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // tab change hote hi search reset kar do
+  useEffect(() => {
+    setSearchTerm("");
+    setDebouncedTerm("");
+  }, [activeTab]);
+
+  // groups list filter (groupName pr search)
+  const filteredGroups = useMemo(() => {
+    if (!debouncedTerm) return sortedGroup;
+    return sortedGroup.filter((group) =>
+      group.groupName?.toLowerCase().includes(debouncedTerm)
+    );
+  }, [sortedGroup, debouncedTerm]);
+
+  // users list filter (name pr search)
+  const filteredUsers = useMemo(() => {
+    if (!debouncedTerm) return sortedUsers;
+    return sortedUsers.filter((u) =>
+      u.name?.toLowerCase().includes(debouncedTerm)
+    );
+  }, [sortedUsers, debouncedTerm]);
 
   return (
     <div className="cv-sidebar">
@@ -30,18 +67,11 @@ const SideBar = ({
       {/* HEADER */}
       <div className="cv-sidebar-top">
 
-        <div className="cv-brand">
-          <span className="cv-brand-mark">Talkify</span>
-        </div>
+
 
         <div className="cv-menu-wrapper" ref={menuRef}>
 
-          <div
-            className="cv-avatar-btn"
-            onClick={() => setShowMenu(!showMenu)}
-          >
-            <i className="fa-solid fa-ellipsis-vertical"></i>
-          </div>
+
 
           {showMenu && (
             <div className="cv-profile-menu">
@@ -49,7 +79,7 @@ const SideBar = ({
               <div
                 className="cv-profile-item"
                 onClick={() => {
-                  navigate("/profile");
+
                   setShowMenu(false);
                 }}
               >
@@ -76,7 +106,7 @@ const SideBar = ({
       {user && (
         <div
           className="cv-me-card"
-          onClick={() => navigate("/profile")}
+         onClick={()=>{navigate("/profile")}}
           title="View profile"
         >
           <img
@@ -97,15 +127,23 @@ const SideBar = ({
       {/* TABS */}
       <div className="cv-dial">
         <button
+          type="button"
           className={activeTab === "groups" ? "active" : ""}
-          onClick={() => setActiveTab("groups")}
+          onClick={(e) => {
+            e.preventDefault();
+            setActiveTab("groups");
+          }}
         >
           Groups
         </button>
 
         <button
+          type="button"
           className={activeTab === "chats" ? "active" : ""}
-          onClick={() => setActiveTab("chats")}
+          onClick={(e) => {
+            e.preventDefault();
+            setActiveTab("chats");
+          }}
         >
           Chats
         </button>
@@ -115,6 +153,7 @@ const SideBar = ({
       {activeTab === "groups" && (
         <div className="cv-fab-row">
           <button
+            type="button"
             className="cv-fab cv-fab-half"
             data-bs-toggle="modal"
             data-bs-target="#createGroupModal"
@@ -124,6 +163,7 @@ const SideBar = ({
           </button>
 
           <button
+            type="button"
             className="cv-fab cv-fab-half cv-fab-ghost"
             data-bs-toggle="modal"
             data-bs-target="#joinGroupModal"
@@ -134,12 +174,32 @@ const SideBar = ({
         </div>
       )}
 
+      {/* 🔍 SEARCH BAR */}
+      <div className="cv-search-wrapper">
+        <i className="fa-solid fa-magnifying-glass cv-search-icon"></i>
+        <input
+          type="text"
+          className="cv-search-input"
+          placeholder={
+            activeTab === "groups" ? "Search groups..." : "Search chats..."
+          }
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        {searchTerm && (
+          <i
+            className="fa-solid fa-xmark cv-search-clear"
+            onClick={() => setSearchTerm("")}
+          ></i>
+        )}
+      </div>
+
       {/* LIST */}
       <div className="cv-list">
 
         {activeTab === "groups" ? (
-          sortedGroup.length > 0 ? (
-            sortedGroup.map((group) => {
+          filteredGroups.length > 0 ? (
+            filteredGroups.map((group) => {
 
               // is group me koi typing kar raha hai?
               const isGroupTyping =
@@ -192,10 +252,12 @@ const SideBar = ({
               );
             })
           ) : (
-            <div className="cv-empty-list">No groups yet</div>
+            <div className="cv-empty-list">
+              {debouncedTerm ? "No groups found" : "No groups yet"}
+            </div>
           )
-        ) : sortedUsers.length > 0 ? (
-          sortedUsers.map((u) => {
+        ) : filteredUsers.length > 0 ? (
+          filteredUsers.map((u) => {
 
             //  ye user abhi type kar raha hai?
             const isUserTyping = Boolean(privateTypingStatus[u._id]);
@@ -238,7 +300,9 @@ const SideBar = ({
             );
           })
         ) : (
-          <div className="cv-empty-list">No users found</div>
+          <div className="cv-empty-list">
+            {debouncedTerm ? "No users found" : "No users found"}
+          </div>
         )}
 
       </div>

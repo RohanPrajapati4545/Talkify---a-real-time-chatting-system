@@ -44,6 +44,11 @@ replyTo: {
   ref: "Message",
   default: null
 },
+
+isSystem: {
+  type: Boolean,
+  default: false,
+},
   },
   {
     timestamps: true,

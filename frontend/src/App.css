@@ -703,17 +703,17 @@ body {
   color: var(--amber);
 }
 
+/* 👇 UPDATED — full width (pehle max-width: 1100px tha) */
 .cv-page-container {
-  max-width: 1100px;
+  max-width: 100%;
 }
 
 /* ============== SHELL ============== */
 
 .cv-shell {
   background: var(--panel);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-  border: 1px solid var(--hairline);
+   box-shadow: var(--shadow);
+  
   overflow: hidden;
 }
 
@@ -737,7 +737,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 18px 14px;
+  padding: 10px 18px 1px;
 }
 
 .cv-brand {
@@ -1882,7 +1882,81 @@ body {
   border-radius: 999px;
   border: 1px solid var(--hairline);
 }
+/* 🔍 SIDEBAR SEARCH BAR */
+.cv-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 10px 14px 12px;
+  background: #f0f2f5;
+  border-radius: 20px;
+  padding: 8px 12px;
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
 
+.cv-search-wrapper:focus-within {
+  background: #ffffff;
+  box-shadow: 0 0 0 1.5px #128c7e33, 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.cv-search-icon {
+  font-size: 13px;
+  color: #8696a0;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.cv-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: #111b21;
+  width: 100%;
+}
+
+.cv-search-input::placeholder {
+  color: #8696a0;
+}
+
+.cv-search-clear {
+  font-size: 13px;
+  color: #8696a0;
+  cursor: pointer;
+  padding: 4px;
+  margin-left: 6px;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+
+.cv-search-clear:hover {
+  color: #3b4a54;
+}
+
+/* dark mode support agar tumhare app me dark theme class hai */
+.dark .cv-search-wrapper,
+[data-theme="dark"] .cv-search-wrapper {
+  background: #202c33;
+}
+
+.dark .cv-search-wrapper:focus-within,
+[data-theme="dark"] .cv-search-wrapper:focus-within {
+  background: #2a3942;
+  box-shadow: 0 0 0 1.5px #00a88433;
+}
+
+.dark .cv-search-input,
+[data-theme="dark"] .cv-search-input {
+  color: #e9edef;
+}
+
+.dark .cv-search-icon,
+.dark .cv-search-clear,
+[data-theme="dark"] .cv-search-icon,
+[data-theme="dark"] .cv-search-clear {
+  color: #8696a0;
+}
 
 /* ============== READ RECEIPT TICKS (single/double) ============== */
 
@@ -1963,3 +2037,396 @@ body {
   line-height: 1;
 }
 
+
+
+/* ============== GLOBAL LOADER ============== */
+
+.loader-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 17, 13, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+.loader {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid rgba(242, 236, 226, 0.18);
+  border-top-color: var(--amber, #e8a33d);
+  animation: cv-spin 0.8s linear infinite;
+}
+
+@keyframes cv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============== HEADER ============== */
+
+.cv-header {
+  position: sticky;
+  top: 0;
+  z-index: 500;
+  background: var(--panel, #1c1812);
+  border-bottom: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
+}
+
+/* 👇 UPDATED — full width (pehle max-width: 1100px tha) */
+.cv-header-inner {
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  gap: 12px;
+}
+
+.cv-header-brand {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* 👇 NAYA — nav + profile icon ka group; ye poore header ko right side
+   par push karta hai (center nahi), aur nav profile icon ke bilkul
+   bagal (left side) me rehta hai */
+.cv-header-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-left: auto;
+}
+
+.cv-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.cv-header-link {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted, #9c9282);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  white-space: nowrap;
+}
+
+.cv-header-link i {
+  font-size: 13px;
+}
+
+.cv-header-link:hover {
+  color: var(--amber, #e8a33d);
+}
+
+.cv-header-profile-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* 👇 NAYA — hamburger toggle: desktop par hidden, mobile par "Talkify" ki jagah dikhega */
+.cv-header-toggle {
+  display: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted, #9c9282);
+  font-size: 18px;
+  cursor: pointer;
+  border: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
+  background: var(--panel-3, #2a2419);
+  transition: color 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.cv-header-toggle:hover {
+  color: var(--amber, #e8a33d);
+  border-color: var(--amber, #e8a33d);
+}
+
+/* 👇 NAYA — off-canvas mobile nav sidebar */
+.cv-mobile-nav-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 5, 0.6);
+  z-index: 900;
+  display: flex;
+}
+
+.cv-mobile-nav-sidebar {
+  width: 78%;
+  max-width: 300px;
+  height: 100%;
+  background: var(--panel, #1c1812);
+  border-right: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
+  box-shadow: var(--shadow, 0 12px 32px rgba(0, 0, 0, 0.45));
+  display: flex;
+  flex-direction: column;
+  animation: cv-slide-in 0.2s ease;
+}
+
+@keyframes cv-slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.cv-mobile-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
+}
+
+.cv-mobile-nav-header i {
+  color: var(--muted, #9c9282);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.cv-mobile-nav-header i:hover {
+  color: var(--amber, #e8a33d);
+}
+
+.cv-mobile-nav-links {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0;
+}
+
+.cv-mobile-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 22px;
+  color: var(--paper, #f2ece2);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cv-mobile-nav-link i {
+  width: 18px;
+  color: var(--amber, #e8a33d);
+  font-size: 16px;
+}
+
+.cv-mobile-nav-link:hover {
+  background: var(--amber-soft, rgba(232, 163, 61, 0.14));
+}
+
+.cv-header-profile-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
+  background: var(--panel-3, #2a2419);
+  color: var(--muted, #9c9282);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 20px;
+  transition: border-color 0.15s ease, color 0.15s ease;
+  overflow: hidden;
+}
+
+.cv-header-profile-btn:hover {
+  border-color: var(--amber, #e8a33d);
+  color: var(--amber, #e8a33d);
+}
+
+.cv-header-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.cv-header-dropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  z-index: 30;
+  background: var(--panel-2, #221c14);
+  border: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  min-width: 170px;
+  overflow: hidden;
+}
+
+.cv-header-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  font-size: 13px;
+  color: var(--paper, #f2ece2);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cv-header-dropdown-item i {
+  width: 14px;
+  color: var(--muted, #9c9282);
+}
+
+.cv-header-dropdown-item:hover {
+  background: var(--amber-soft, rgba(232, 163, 61, 0.14));
+}
+
+.cv-header-dropdown-item.danger {
+  color: var(--danger, #d9594c);
+  border-top: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
+}
+
+.cv-header-dropdown-item.danger i {
+  color: var(--danger, #d9594c);
+}
+
+/* ============== FOOTER ============== */
+
+.cv-footer {
+  background: var(--panel-2, #221c14);
+  border-top: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
+  margin-top: auto;
+}
+
+/* 👇 UPDATED — full width (pehle max-width: 1100px tha) */
+.cv-footer-inner {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 30px 20px 18px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.cv-footer-brand p {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--muted, #9c9282);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 4px 0 0;
+}
+
+.cv-footer-links {
+  display: flex;
+  gap: 24px;
+}
+
+.cv-footer-links span {
+  color: var(--muted, #9c9282);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.cv-footer-links span:hover {
+  color: var(--amber, #e8a33d);
+}
+
+.cv-footer-social {
+  display: flex;
+  gap: 16px;
+  color: var(--muted, #9c9282);
+  font-size: 16px;
+}
+
+.cv-footer-social i {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.cv-footer-social i:hover {
+  color: var(--amber, #e8a33d);
+}
+
+.cv-footer-bottom {
+  text-align: center;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted, #9c9282);
+  padding: 12px 20px 20px;
+  border-top: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
+}
+
+/* ============== RESPONSIVE ============== */
+
+@media (max-width: 768px) {
+  .cv-header-inner {
+    padding: 12px 14px;
+  }
+
+  /* 👇 NAYA — mobile par "Talkify" brand chhup jaata hai, hamburger toggle uski jagah aata hai */
+  .cv-header-brand {
+    display: none;
+  }
+
+  .cv-header-toggle {
+    display: flex;
+  }
+
+  /* 👇 NAYA — horizontal nav links ab sidebar me chale gaye, isliye yahan hide */
+  .cv-header-nav {
+    display: none;
+  }
+
+  .cv-header-right {
+    gap: 12px;
+  }
+
+  .cv-footer-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .cv-header-inner {
+    padding: 10px 12px;
+  }
+
+  .cv-header-right {
+    gap: 8px;
+  }
+
+  .cv-header-profile-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 17px;
+  }
+
+  .cv-header-toggle {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+}
