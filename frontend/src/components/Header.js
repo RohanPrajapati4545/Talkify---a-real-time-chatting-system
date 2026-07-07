@@ -75,8 +75,8 @@ const Header = () => {
     <>
       {loading && <Loader />}
 
-      <header className="cv-header">
-        <div className="cv-header-inner">
+      <header className=" cv-header">
+        <div className="  cv-header-inner">
 
           {/* Desktop/tablet par brand dikhta hai */}
           <div className="cv-header-brand" onClick={() => goTo("/")}>

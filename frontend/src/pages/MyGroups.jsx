@@ -379,11 +379,7 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
             ? msg.receiver?._id || msg.receiver
             : msg.sender?._id || msg.sender;
 
-        // 👇 FIX — pehle sirf sender ko selectedUser se compare karte the, jisse
-        // apne khud ke bheje messages (jaha sender = me) kabhi match nahi hote the
-        // aur kisi bhi doosre user ka private message currently open chat me
-        // ghus jaata tha. Ab chatId se match karte hain — ye reliable hai
-        // dono direction (mine / theirs) ke liye.
+       
         const chatIsOpen =
           privateChatRef.current &&
           msg.chatId &&
@@ -1615,14 +1611,7 @@ setGroupLastActivity((prev) => ({
       socket.off("onlineUsers");
     };
   }, []);
-  // 👇 FIX — pehle yahan ek extra effect tha jo `messagesEndRef.current?.scrollIntoView({behavior:"smooth"})`
-  // call karta tha. scrollIntoView() sirf uss div ko scroll nahi karta jisme wo hai — agar us waqt
-  // container ka layout thoda bhi unstable ho (jaisa group switch karte waqt hota hai, kyunki
-  // sidebar hide/show hoti hai aur DOM reflow hota hai), to browser POORI PAGE ko scroll kar deta
-  // hai taaki wo element visible ho jaye — isi wajah se aap seedha page ke footer tak scroll ho jaate the.
-  // Neeche wala effect (messagesContainerRef.scrollTop = scrollHeight) already yehi kaam sahi tarike
-  // se karta hai — sirf chat box ke andar scroll karta hai, poori window ko touch nahi karta.
-  // Isliye ye duplicate/buggy effect hata diya gaya hai.
+
   useEffect(() => {
     getMyGroups();
   }, []);
@@ -2654,7 +2643,7 @@ useEffect(() => {
   {selectedGroup?.createdBy?._id === user?._id && (
   <div className="cv-action danger" onClick={handleClearGroupChat}>
     <div className="cv-action-circle">
-      <i className="fa-solid fa-broom"></i>
+     <i class="fa-solid fa-trash"></i>
     </div>
     <p>Clear Chat</p>
   </div>

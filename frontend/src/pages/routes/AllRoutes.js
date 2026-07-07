@@ -70,7 +70,7 @@ const AllRoutes = () => {
                 <MyGroups />
               </Layout>
             ) : (
-              <Navigate to="/" replace />
+              <Navigate to="/login" replace />
             )
           }
         />
