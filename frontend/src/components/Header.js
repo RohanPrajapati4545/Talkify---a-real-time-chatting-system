@@ -5,12 +5,6 @@ import Swal from "sweetalert2";
 import { logout } from "./../../../frontend/src/pages/redux/AuthSlice";
 import Loader from "./Loader";
 
-
-// 👇 NAYA — Header: Home, About, Chat links + profile icon.
-// Login ke baad profile icon par user ki image dikhti hai, click karne par
-// dropdown me Profile aur Logout ka option milta hai. Logged-out state me
-// profile icon click karne par seedha Login page par chale jaate hain
-// (koi dropdown nahi khulta).
 const Header = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,8 +12,6 @@ const Header = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // 👇 NAYA — mobile par "Talkify" ki jagah aane wala hamburger toggle,
-  // jo Home/About/Chat links ko sidebar (off-canvas) me kholta hai
   const [showMobileNav, setShowMobileNav] = useState(false);
   const mobileNavRef = useRef(null);
 
@@ -62,13 +54,9 @@ const Header = () => {
     });
   };
 
-  // 👇 NAYA — logged-in ho to menu toggle karo, logged-out ho to seedha login bhej do
+  // Sirf logged-in state me hi ye function chalega ab (profile icon sirf tab dikhta hai)
   const handleProfileIconClick = () => {
-    if (token) {
-      setShowMenu((prev) => !prev);
-    } else {
-      goTo("/login");
-    }
+    setShowMenu((prev) => !prev);
   };
 
   return (
@@ -78,12 +66,10 @@ const Header = () => {
       <header className=" cv-header">
         <div className="  cv-header-inner">
 
-          {/* Desktop/tablet par brand dikhta hai */}
           <div className="cv-header-brand" onClick={() => goTo("/")}>
             <span className="cv-brand-mark">Talkify</span>
           </div>
 
-          {/* 👇 NAYA — mobile par brand ki jagah ye hamburger toggle dikhta hai */}
           <div
             className="cv-header-toggle"
             onClick={() => setShowMobileNav(true)}
@@ -94,7 +80,7 @@ const Header = () => {
           <div className="cv-header-right">
 
             <nav className="cv-header-nav">
-              <span className="cv-header-link me-2" onClick={() => goTo("/")}>
+              <span className="cv-header-link me-3" onClick={() => goTo("/")}>
                 <i className="fa-solid fa-house"></i>
                 <span>Home</span>
               </span>
@@ -104,29 +90,41 @@ const Header = () => {
                 <span>About</span>
               </span>
 
-              <span className="cv-header-link me-5" onClick={() => goTo("/chat")}>
-                <i className="fa-solid fa-comments"></i>
-                <span>Chat</span>
-              </span>
+              {token && (
+                <span className="cv-header-link me-3" onClick={() => goTo("/chat")}>
+                  <i className="fa-solid fa-comments "></i>
+                  <span>Chat</span>
+                </span>
+              )}
             </nav>
 
             <div className="cv-header-profile-wrap" ref={menuRef}>
 
-              <div
-                className="cv-header-profile-btn"
-                onClick={handleProfileIconClick}
-              >
-                {token && user?.image ? (
-                  <img src={user.image} alt="" className="cv-header-avatar" />
-                ) : (
-                  <i className="fa-solid fa-circle-user"></i>
-                )}
-              </div>
+              {/* 👇 Login hai to profile icon, warna Sign In button */}
+              {token ? (
+                <div
+                  className="cv-header-profile-btn"
+                  onClick={handleProfileIconClick}
+                >
+                  {user?.image ? (
+                    <img src={user.image} alt="" className="cv-header-avatar" />
+                  ) : (
+                    <i className="fa-solid fa-circle-user"></i>
+                  )}
+                </div>
+              ) : (
+                <button
+                  className="cv-btn-primary cv-cta-shine ms-3"
+                  onClick={() => goTo("/login")}
+                >
+                  Sign In
+                </button>
+              )}
 
               {token && showMenu && (
-                <div className="cv-header-dropdown">
-                  <div className="cv-header-dropdown-item" onClick={() => goTo("/profile")}>
-                    <i className="fa-solid fa-user"></i>
+                <div className="cv-header-dropdown ">
+                  <div className="cv-header-dropdown-item " onClick={() => goTo("/profile")}>
+                    <i className="fa-solid fa-user "></i>
                     Profile
                   </div>
                   <div className="cv-header-dropdown-item danger" onClick={handleLogout}>
@@ -143,8 +141,6 @@ const Header = () => {
         </div>
       </header>
 
-      {/* 👇 NAYA — mobile nav sidebar (off-canvas). Sirf mobile breakpoint par
-          hamburger click karne se dikhta hai, overlay ya cross click karne se band ho jaata hai */}
       {showMobileNav && (
         <div
           className="cv-mobile-nav-overlay"
@@ -174,10 +170,13 @@ const Header = () => {
                 <span>About</span>
               </span>
 
-              <span className="cv-mobile-nav-link" onClick={() => goTo("/chat")}>
-                <i className="fa-solid fa-comments"></i>
-                <span>Chat</span>
-              </span>
+             
+              {token && (
+                <span className="cv-mobile-nav-link" onClick={() => goTo("/chat")}>
+                  <i className="fa-solid fa-comments"></i>
+                  <span>Chat</span>
+                </span>
+              )}
             </div>
           </div>
         </div>
