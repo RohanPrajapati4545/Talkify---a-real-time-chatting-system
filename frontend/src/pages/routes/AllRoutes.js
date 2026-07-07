@@ -56,7 +56,10 @@ const AllRoutes = () => {
             isAuth ? (
               <Navigate to="/chat" replace />
             ) : (
-              <Register />
+               <Layout>
+                <Register />
+               </Layout>
+              
             )
           }
         />
