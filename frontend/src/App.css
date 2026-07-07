@@ -760,12 +760,6 @@ body {
   margin-bottom: 6px;
 }
 
-.cv-dash-form-footer {
-  border-top: 1px solid var(--hairline);
-  padding-top: 20px;
-  display: flex;
-  justify-content: flex-end;
-}
 
 .cv-dash-submit {
   padding: 11px 28px;
@@ -2437,78 +2431,6 @@ body {
   color: var(--danger, #d9594c);
 }
 
-/* ============== FOOTER ============== */
-
-.cv-footer {
-  background: var(--panel-2, #221c14);
-  border-top: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
-  margin-top: auto;
-}
-
-/* 👇 UPDATED — full width (pehle max-width: 1100px tha) */
-.cv-footer-inner {
-  max-width: 100%;
-  margin: 0 auto;
-  padding: 30px 20px 18px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.cv-footer-brand p {
-  font-family: var(--font-mono, monospace);
-  font-size: 11px;
-  color: var(--muted, #9c9282);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 4px 0 0;
-}
-
-.cv-footer-links {
-  display: flex;
-  gap: 24px;
-}
-
-.cv-footer-links span {
-  color: var(--muted, #9c9282);
-  font-size: 13px;
-  cursor: pointer;
-  transition: color 0.15s ease;
-}
-
-.cv-footer-links span:hover {
-  color: var(--amber, #e8a33d);
-}
-
-.cv-footer-social {
-  display: flex;
-  gap: 16px;
-  color: var(--muted, #9c9282);
-  font-size: 16px;
-}
-
-.cv-footer-social i {
-  cursor: pointer;
-  transition: color 0.15s ease;
-}
-
-.cv-footer-social i:hover {
-  color: var(--amber, #e8a33d);
-}
-
-.cv-footer-bottom {
-  text-align: center;
-  font-family: var(--font-mono, monospace);
-  font-size: 10px;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: var(--muted, #9c9282);
-  padding: 12px 20px 20px;
-  border-top: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
-}
-
 /* ============== RESPONSIVE ============== */
 
 @media (max-width: 768px) {
@@ -2534,11 +2456,7 @@ body {
     gap: 12px;
   }
 
-  .cv-footer-inner {
-    flex-direction: column;
-    align-items: flex-start;
-    text-align: left;
-  }
+  
 }
 
 @media (max-width: 480px) {
@@ -2762,28 +2680,6 @@ body {
   }
 }
 
-.cv-footer-inner {
-  max-width: 100%;
-  margin: 0 auto;
-  padding: 30px 20px 18px;
-  display: flex;
-  flex-direction: column;   /* was: row via default flex + space-between */
-  align-items: center;
-  text-align: center;
-  gap: 18px;
-}
-
-.cv-footer-links {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 24px;
-}
-
-.cv-footer-social {
-  display: flex;
-  gap: 16px;
-}
 /* ============== ABOUT PAGE ============== */
 
 .cv-about {
@@ -2973,5 +2869,186 @@ body {
   }
   .cv-about-stats {
     gap: 36px;
+  }
+}
+
+/* ============== FOOTER (multi-column, newsletter style) ============== */
+
+.cv-footer {
+  background: var(--panel-2, #221c14);
+  border-top: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
+  margin-top: auto;
+}
+
+.cv-footer-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 44px 24px 28px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 160px)) 1fr;
+  gap: 32px;
+}
+
+.cv-footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cv-footer-col-title {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--amber, #e8a33d);
+  margin-bottom: 2px;
+}
+
+.cv-footer-col span:not(.cv-footer-col-title) {
+  color: var(--muted, #9c9282);
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  width: fit-content;
+}
+
+.cv-footer-col span:not(.cv-footer-col-title):hover {
+  color: var(--paper, #f2ece2);
+}
+
+/* --- newsletter block --- */
+
+.cv-footer-newsletter {
+  gap: 10px;
+}
+
+.cv-footer-newsletter-sub {
+  font-size: 13px;
+  color: var(--paper, #f2ece2);
+  margin: 0 0 4px;
+}
+
+.cv-footer-subscribe {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.cv-footer-subscribe-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--panel-3, #2a2419);
+  border: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
+  border-radius: var(--radius-sm, 7px);
+  padding: 10px 13px;
+  color: var(--paper, #f2ece2);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.cv-footer-subscribe-input::placeholder {
+  color: var(--muted, #9c9282);
+}
+
+.cv-footer-subscribe-input:focus {
+  border-color: var(--amber, #e8a33d);
+}
+
+.cv-footer-subscribe-btn {
+  background: var(--amber, #e8a33d);
+  color: var(--ink, #14110d);
+  border: none;
+  border-radius: var(--radius-sm, 7px);
+  padding: 0 16px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s ease;
+}
+
+.cv-footer-subscribe-btn:hover {
+  filter: brightness(1.08);
+}
+
+.cv-footer-follow-title {
+  margin-top: 4px;
+}
+
+.cv-footer-social {
+  display: flex;
+  gap: 10px;
+}
+
+.cv-footer-social a {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--paper, #f2ece2);
+  font-size: 13px;
+  text-decoration: none;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.cv-footer-social a:nth-child(1) { background: #3b5998; }
+.cv-footer-social a:nth-child(2) { background: #1da1f2; }
+.cv-footer-social a:nth-child(3) { background: linear-gradient(135deg, #f58529, #dd2a7b, #8134af, #515bd4); }
+
+.cv-footer-social a:hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+}
+
+/* --- bottom strip --- */
+
+.cv-footer-bottom {
+  text-align: center;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted, #9c9282);
+  padding: 16px 20px 22px;
+  border-top: 1px solid var(--hairline, rgba(242, 236, 226, 0.08));
+}
+.cv-auth-dial {
+  margin: 4px 0 20px;
+  width: 100%;
+}
+/* ============== RESPONSIVE ============== */
+
+@media (max-width: 900px) {
+  .cv-footer-inner {
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: 32px;
+  }
+
+  .cv-footer-newsletter {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 560px) {
+  .cv-footer-inner {
+    grid-template-columns: 1fr;
+    padding: 36px 20px 24px;
+  }
+
+  .cv-footer-newsletter {
+    grid-column: span 1;
+  }
+
+  .cv-footer-subscribe {
+    flex-direction: column;
+  }
+
+  .cv-footer-subscribe-btn {
+    padding: 10px 0;
   }
 }

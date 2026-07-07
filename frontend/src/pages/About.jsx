@@ -6,7 +6,7 @@ const About = () => {
 
   return (
     <div className="cv-about">
-      {/* ============== INTRO ============== */}
+      
       <section className="cv-about-hero">
         <span className="cv-home-eyebrow">
           <i className="fa-solid fa-file-lines"></i> ABOUT THE LINE
@@ -24,7 +24,7 @@ const About = () => {
         </p>
       </section>
 
-      {/* ============== TIMELINE (real chronology, so numbering earns its place) ============== */}
+
       <section className="cv-about-timeline">
         <h2 className="cv-about-section-title">The dispatch log</h2>
 
@@ -63,7 +63,7 @@ const About = () => {
         </div>
       </section>
 
-      {/* ============== VALUES ============== */}
+      
       <section className="cv-about-values">
         <h2 className="cv-about-section-title">What the line runs on</h2>
         <div className="cv-about-values-grid">
@@ -85,7 +85,7 @@ const About = () => {
         </div>
       </section>
 
-      {/* ============== STATS STRIP ============== */}
+ 
       <section className="cv-about-stats">
         <div className="cv-about-stat">
           <span className="cv-about-stat-num">10k+</span>
@@ -101,7 +101,7 @@ const About = () => {
         </div>
       </section>
 
-      {/* ============== CLOSING CTA ============== */}
+  
       <section className="cv-home-closer">
         <h2>Ready to open your own line?</h2>
         <p>It takes less than a minute to send your first message.</p>

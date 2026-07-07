@@ -26,11 +26,11 @@ const SideBar = ({
 }) => {
   const navigate = useNavigate();
 
-  // 🔍 search states
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedTerm, setDebouncedTerm] = useState("");
 
-  // debounce: 300ms baad hi actual search apply hoga
+  
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedTerm(searchTerm.trim().toLowerCase());
@@ -39,13 +39,12 @@ const SideBar = ({
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // tab change hote hi search reset kar do
   useEffect(() => {
     setSearchTerm("");
     setDebouncedTerm("");
   }, [activeTab]);
 
-  // groups list filter (groupName pr search)
+ 
   const filteredGroups = useMemo(() => {
     if (!debouncedTerm) return sortedGroup;
     return sortedGroup.filter((group) =>
@@ -53,7 +52,6 @@ const SideBar = ({
     );
   }, [sortedGroup, debouncedTerm]);
 
-  // users list filter (name pr search)
   const filteredUsers = useMemo(() => {
     if (!debouncedTerm) return sortedUsers;
     return sortedUsers.filter((u) =>
@@ -64,7 +62,6 @@ const SideBar = ({
   return (
     <div className="cv-sidebar">
 
-      {/* HEADER */}
       <div className="cv-sidebar-top">
 
 
@@ -102,7 +99,7 @@ const SideBar = ({
 
       </div>
 
-      {/* LOGGED-IN USER INFO CARD */}
+     
       {user && (
         <div
           className="cv-me-card"
@@ -124,7 +121,6 @@ const SideBar = ({
 
       <p className="cv-brand-tag cv-sidebar-subtitle">Your private spaces</p>
 
-      {/* TABS */}
       <div className="cv-dial">
         <button
           type="button"
@@ -149,7 +145,6 @@ const SideBar = ({
         </button>
       </div>
 
-      {/* NEW GROUP BUTTON */}
       {activeTab === "groups" && (
         <div className="cv-fab-row">
           <button
@@ -174,7 +169,6 @@ const SideBar = ({
         </div>
       )}
 
-      {/* 🔍 SEARCH BAR */}
       <div className="cv-search-wrapper">
         <i className="fa-solid fa-magnifying-glass cv-search-icon"></i>
         <input
@@ -194,7 +188,6 @@ const SideBar = ({
         )}
       </div>
 
-      {/* LIST */}
       <div className="cv-list">
 
         {activeTab === "groups" ? (
@@ -217,7 +210,7 @@ const SideBar = ({
                     if (onSelectGroup) {
                       onSelectGroup(group);
                     } else {
-                      // fallback agar onSelectGroup pass nahi hua ho
+                   
                       setShowGroupInfo(false);
                       setShowMedia(false);
                       setPreviewImage(null);
@@ -259,10 +252,9 @@ const SideBar = ({
         ) : filteredUsers.length > 0 ? (
           filteredUsers.map((u) => {
 
-            //  ye user abhi type kar raha hai?
             const isUserTyping = Boolean(privateTypingStatus[u._id]);
 
-            // 👇 NAYA — is user se aaye unread messages ka count
+         
             const unreadCount = unreadCounts?.users?.[u._id] || 0;
 
             return (

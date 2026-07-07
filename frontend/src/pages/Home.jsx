@@ -6,7 +6,7 @@ const Home = () => {
 
   return (
     <div className="cv-home">
-      {/* ============== HERO ============== */}
+    
       <section className="cv-home-hero">
         <div className="cv-home-hero-copy">
           <span className="cv-home-eyebrow">
@@ -32,7 +32,6 @@ const Home = () => {
           </div>
         </div>
 
-        {/* signature element: a live "wire" preview built from the app's own bubble styles */}
         <div className="cv-home-wire">
           <div className="cv-home-wire-head">
             <span>THREAD — “DESIGN CREW”</span>
@@ -61,7 +60,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ============== LOG ENTRIES (features) ============== */}
       <section className="cv-home-log">
         <h2 className="cv-home-log-title">The dispatch, entry by entry</h2>
         <div className="cv-home-log-grid">
@@ -91,8 +89,6 @@ const Home = () => {
           </div>
         </div>
       </section>
-
-      {/* ============== CLOSING CTA ============== */}
       <section className="cv-home-closer">
         <h2>Your line is open.</h2>
         <p>Create an account and send your first dispatch in under a minute.</p>
