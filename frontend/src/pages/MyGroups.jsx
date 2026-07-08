@@ -9,6 +9,7 @@ import Swal from "sweetalert2";
 import { logout } from "./../../../frontend/src/pages/redux/AuthSlice";
 import SideBar from "./../components/SideBar";
 import Loader from "./../components/Loader";
+import VoiceMessagePlayer from "./../components/VoiceMessagePlayer";
 import "./../App.css";
 
 const EMOJI_LIST = [
@@ -2243,7 +2244,7 @@ console.log("mediaKind =", mediaKind);
 
                                 ) : msg.mediaType === "audio" ? (
 
-                                  <audio controls src={msg.media} />
+                                  <VoiceMessagePlayer src={msg.media} isMine={msg.sender?._id === user?._id} />
 
                                 ) : (
 
@@ -2431,7 +2432,7 @@ console.log("mediaKind =", mediaKind);
         onClick={() => setPreviewImage(msg.media)}
       />
     ) : msg.mediaType === "audio" ? (
-      <audio controls src={msg.media} className="cv-voice-audio" />
+      <VoiceMessagePlayer src={msg.media} isMine={isMe} />
     ) : (
       <video
         src={msg.media}
@@ -2786,7 +2787,7 @@ console.log("mediaKind =", mediaKind);
                                   }
                                 />
                               ) : msg.mediaType === "audio" ? (
-                                <audio controls src={msg.media} />
+                                <VoiceMessagePlayer src={msg.media} isMine={msg.sender?._id === user?._id} />
                               ) : (
                                 <video controls src={msg.media} />
                               )}
@@ -3076,7 +3077,7 @@ console.log("mediaKind =", mediaKind);
     {msg.mediaType === "image" ? (
       <img src={msg.media} className="cv-media" alt="" onClick={() => setPreviewImage(msg.media)} />
     ) : msg.mediaType === "audio" ? (
-      <audio controls src={msg.media} className="cv-voice-audio" />
+      <VoiceMessagePlayer src={msg.media} isMine={isMe} />
     ) : (
       <video src={msg.media} className="cv-media" controls />
     )}
