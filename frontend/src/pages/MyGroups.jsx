@@ -1,4 +1,4 @@
-import React, { useEffect, useState,useMemo  } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -10,7 +10,6 @@ import { logout } from "./../../../frontend/src/pages/redux/AuthSlice";
 import SideBar from "./../components/SideBar";
 import Loader from "./../components/Loader";
 import "./../App.css";
-
 
 const EMOJI_LIST = [
   "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇",
@@ -53,7 +52,7 @@ const MyGroups = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showMedia, setShowMedia] = useState(false);
   const [groupLastActivity, setGroupLastActivity] = useState({});
-const [userLastActivity, setUserLastActivity] = useState({});
+  const [userLastActivity, setUserLastActivity] = useState({});
   const { token, user } = useSelector(
     (state) => state.auth
   );
@@ -62,7 +61,6 @@ const [userLastActivity, setUserLastActivity] = useState({});
   const [editingMessage, setEditingMessage] = useState(null);
   const [showMsgMenu, setShowMsgMenu] = useState(null);
 
-  // 👇 NAYA — emoji picker toggle + outside-click-close ke liye ref
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef(null);
 
@@ -88,38 +86,103 @@ const [userLastActivity, setUserLastActivity] = useState({});
   const [joiningGroup, setJoiningGroup] = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
 
-  
   const [groupTypingUsers, setGroupTypingUsers] = useState({});
   const [privateTypingStatus, setPrivateTypingStatus] = useState({});
   const typingTimeoutRef = useRef(null);
 
-const [showEditGroupModal, setShowEditGroupModal] = useState(false);
-const [editGroupName, setEditGroupName] = useState("");
-const [editGroupImage, setEditGroupImage] = useState(null);
-const [editGroupLoading, setEditGroupLoading] = useState(false);
+  const [showEditGroupModal, setShowEditGroupModal] = useState(false);
+  const [editGroupName, setEditGroupName] = useState("");
+  const [editGroupImage, setEditGroupImage] = useState(null);
+  const [editGroupLoading, setEditGroupLoading] = useState(false);
 
   const [unreadCounts, setUnreadCounts] = useState({ groups: {}, users: {} });
   const [privateChatMap, setPrivateChatMap] = useState({});
 
-  
+  // NAYA — voice message ko reliably track karne ke liye
+  const [mediaKind, setMediaKind] = useState(null); // "voice" | null
+
   const [actionLoading, setActionLoading] = useState(false);
 
-  // 👇 NAYA — send button ke liye alag loading state, taaki bar-bar click
-  // karne par multiple messages na ja sakein. Jab tak ek message ka
-  // request complete nahi hota, button disabled rahega + spinner dikhega.
   const [sendingMessage, setSendingMessage] = useState(false);
 
-  // 👇 NAYA — chat ke andar (group + private dono) messages search karne ke liye
   const [showMsgSearch, setShowMsgSearch] = useState(false);
   const [msgSearchTerm, setMsgSearchTerm] = useState("");
   const [currentMatchPos, setCurrentMatchPos] = useState(0);
   const messageRefs = useRef({});
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
+  const recordingStreamRef = useRef(null);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordingStreamRef.current = stream;
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/mp4";
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        const ext = mimeType.includes("webm") ? "webm" : "m4a";
+        const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: mimeType });
+        setMedia(file);
+        setMediaKind("voice"); // 👈 explicit flag — mimetype pe bharosa nahi karte
+        stream.getTracks().forEach((t) => t.stop());
+      };
+
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => setRecordingTime((t) => t + 1), 1000);
+    } catch (err) {
+      console.log(err);
+      toast.error("Microphone access denied");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(recordingTimerRef.current);
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.onstop = null; // don't attach file
+      mediaRecorderRef.current.stop();
+      recordingStreamRef.current?.getTracks().forEach((t) => t.stop());
+    }
+    setIsRecording(false);
+    clearInterval(recordingTimerRef.current);
+    setRecordingTime(0);
+    setMedia(null);
+    setMediaKind(null);
+  };
+
+  const formatRecordingTime = (secs) => {
+    const m = String(Math.floor(secs / 60)).padStart(2, "0");
+    const s = String(secs % 60).padStart(2, "0");
+    return `${m}:${s}`;
+  };
 
   useEffect(() => {
     selectedUserRef.current = selectedUser;
   }, [selectedUser]);
 
-  // 👇 NAYA — jab bhi privateChat state badle, ref ko sync rakho
   useEffect(() => {
     privateChatRef.current = privateChat;
   }, [privateChat]);
@@ -134,7 +197,6 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
           },
         }
       );
-      console.log("Users API:", res.data);
       setAllUsers(res.data);
       const filteredUsers = res.data.filter(
         (u) => u._id !== user._id
@@ -239,8 +301,6 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
     }
   }, [privateChat]);
 
-
-
   const getMyPrivateChats = async () => {
     try {
       const res = await axios.get(
@@ -278,7 +338,6 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
     }
   }, [user?._id]);
 
-  
   const getUnreadCounts = async () => {
     try {
       const res = await axios.get(
@@ -288,7 +347,6 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
         }
       );
 
-      // res.data ka format: { "<senderId>": count, ... }
       setUnreadCounts((prev) => ({
         ...prev,
         users: { ...prev.users, ...res.data },
@@ -310,7 +368,6 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
       socket.emit("joinGroup", g._id);
     });
   }, [groups]);
-
 
   const openPrivateChat = async (user) => {
     setShowUserInfo(false);
@@ -364,8 +421,6 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
     }));
   };
 
-
-
   useEffect(() => {
 
     socket.on(
@@ -379,7 +434,6 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
             ? msg.receiver?._id || msg.receiver
             : msg.sender?._id || msg.sender;
 
-       
         const chatIsOpen =
           privateChatRef.current &&
           msg.chatId &&
@@ -442,7 +496,6 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
     };
   }, []);
 
-
   useEffect(() => {
 
     socket.on("privateMessageUpdated", (msg) => {
@@ -466,28 +519,24 @@ const [editGroupLoading, setEditGroupLoading] = useState(false);
       socket.off("privateMessageUpdated");
       socket.off("privateMessageDeleted");
 
-
     };
 
   }, []);
 
+  useEffect(() => {
+    socket.on("privateChatDeleted", ({ chatId }) => {
+      if (privateChat?._id === chatId) {
+        setPrivateMessages([]);
+        setPrivateChat(null);
+        setSelectedUser(null);
+        setShowUserInfo(false);
+      }
+    });
 
-useEffect(() => {
-  socket.on("privateChatDeleted", ({ chatId }) => {
-    if (privateChat?._id === chatId) {
-      setPrivateMessages([]);
-      setPrivateChat(null);
-      setSelectedUser(null);
-      setShowUserInfo(false);
-   
-    }
-  });
-
-  return () => {
-    socket.off("privateChatDeleted");
-  };
-}, [privateChat]);
-
+    return () => {
+      socket.off("privateChatDeleted");
+    };
+  }, [privateChat]);
 
   useEffect(() => {
 
@@ -529,7 +578,6 @@ useEffect(() => {
 
   }, [user?._id]);
 
-
   const forwardMessage = (msg) => {
     setForwardingMsg(msg);
     setForwardTargets([]);
@@ -548,6 +596,8 @@ useEffect(() => {
     });
   };
 
+  // ✅ FIX — pehle "if (media)" tha (galat, current composer ka media),
+  // ab "if (mediaFile)" hai jo forwardingMsg se fetch kiya gaya blob hai
   const sendForward = async () => {
     if (!forwardingMsg) return;
 
@@ -560,6 +610,7 @@ useEffect(() => {
     try {
 
       let mediaFile = null;
+      let forwardIsVoice = false;
 
       if (forwardingMsg.media) {
         const mediaRes = await fetch(forwardingMsg.media);
@@ -567,6 +618,7 @@ useEffect(() => {
         mediaFile = new File([blob], forwardingMsg.media, {
           type: blob.type,
         });
+        forwardIsVoice = forwardingMsg.mediaType === "audio";
       }
 
       for (const target of forwardTargets) {
@@ -579,6 +631,9 @@ useEffect(() => {
 
         if (mediaFile) {
           formData.append("media", mediaFile);
+          if (forwardIsVoice) {
+            formData.append("isVoice", "true");
+          }
         }
 
         if (target.type === "group") {
@@ -650,7 +705,6 @@ useEffect(() => {
     }
   };
 
-
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
       sendMessage();
@@ -701,9 +755,6 @@ useEffect(() => {
     }, 1000);
   };
 
-  // 👇 NAYA — emoji ko message box me append karo, jis chat me hain us hisaab se
-  // sahi typing handler call karo (single emoji bhi normal message ki tarah
-  // send button / Enter se chala jayega, koi extra code nahi chahiye send ke liye)
   const appendEmoji = (emoji) => {
     const newText = message + emoji;
     if (selectedUser) {
@@ -724,10 +775,12 @@ useEffect(() => {
       toast.error("File too large. Please select a file under 10 MB");
       e.target.value = "";
       setMedia(null);
+      setMediaKind(null);
       return;
     }
 
     setMedia(file);
+    setMediaKind(null); // 👈 file-picker se aaya hai, voice nahi
   };
 
   const addUserToGroup = async () => {
@@ -822,7 +875,6 @@ useEffect(() => {
       }
     );
 
-    console.log(res.data);
     setMessages(prev =>
       prev.map(m =>
         m._id === id
@@ -833,8 +885,6 @@ useEffect(() => {
 
     setShowMsgMenu(null);
   };
-
-
 
   const updateGroupMessage = (msg) => {
 
@@ -898,92 +948,90 @@ useEffect(() => {
     });
   };
 
-
-const deleteChat = async () => {
-  setActionLoading(true);
-  try {
-    const res = await axios.delete(
-      `${process.env.REACT_APP_API_URL}/api/private/delete-chat/${privateChat._id}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-
-    toast.success(res.data.message);
-
-    setUserLastActivity((prev) => {
-      const copy = { ...prev };
-      delete copy[selectedUser._id];
-      return copy;
-    });
-
-    setPrivateMessages([]);
-    setPrivateChat(null);
-    setSelectedUser(null);
-    setShowUserInfo(false);
-
-  } catch (error) {
-    toast.error(
-      error.response?.data?.message || "Could not delete chat"
-    );
-  } finally {
-    setActionLoading(false);
-  }
-};
-
-const handleClearGroupChat = () => {
-  Swal.fire({
-    title: "Clear Chat?",
-    text: "All messages in this group will be permanently deleted.",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    confirmButtonText: "Clear Chat",
-  }).then(async (result) => {
-    if (!result.isConfirmed) return;
-
+  const deleteChat = async () => {
     setActionLoading(true);
     try {
       const res = await axios.delete(
-        `${process.env.REACT_APP_API_URL}/api/user/clear-group-chat/${selectedGroup._id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        `${process.env.REACT_APP_API_URL}/api/private/delete-chat/${privateChat._id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
 
-      setMessages([]);
       toast.success(res.data.message);
-      
+
+      setUserLastActivity((prev) => {
+        const copy = { ...prev };
+        delete copy[selectedUser._id];
+        return copy;
+      });
+
+      setPrivateMessages([]);
+      setPrivateChat(null);
+      setSelectedUser(null);
+      setShowUserInfo(false);
 
     } catch (error) {
-      toast.error(error.response?.data?.message || "Could not clear chat");
+      toast.error(
+        error.response?.data?.message || "Could not delete chat"
+      );
     } finally {
       setActionLoading(false);
     }
-  });
-};
-useEffect(() => {
-  socket.on("groupChatCleared", ({ groupId }) => {
-    if (selectedGroup?._id === groupId) {
-      setMessages([]);
-    }
-  });
+  };
 
-  return () => socket.off("groupChatCleared");
-}, [selectedGroup]);
+  const handleClearGroupChat = () => {
+    Swal.fire({
+      title: "Clear Chat?",
+      text: "All messages in this group will be permanently deleted.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      confirmButtonText: "Clear Chat",
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
 
-const handleDeleteChat = () => {
-  Swal.fire({
-    title: "Delete Chat?",
-    text: "All messages will be permanently deleted for both of you.",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#d33",
-    confirmButtonText: "Delete Chat",
-  }).then((result) => {
-    if (result.isConfirmed) {
-      deleteChat();
-    }
-  });
-};
+      setActionLoading(true);
+      try {
+        const res = await axios.delete(
+          `${process.env.REACT_APP_API_URL}/api/user/clear-group-chat/${selectedGroup._id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setMessages([]);
+        toast.success(res.data.message);
+
+      } catch (error) {
+        toast.error(error.response?.data?.message || "Could not clear chat");
+      } finally {
+        setActionLoading(false);
+      }
+    });
+  };
+  useEffect(() => {
+    socket.on("groupChatCleared", ({ groupId }) => {
+      if (selectedGroup?._id === groupId) {
+        setMessages([]);
+      }
+    });
+
+    return () => socket.off("groupChatCleared");
+  }, [selectedGroup]);
+
+  const handleDeleteChat = () => {
+    Swal.fire({
+      title: "Delete Chat?",
+      text: "All messages will be permanently deleted for both of you.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      confirmButtonText: "Delete Chat",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        deleteChat();
+      }
+    });
+  };
 
   const removeMember = async (memberId) => {
     setActionLoading(true);
@@ -1035,7 +1083,6 @@ const handleDeleteChat = () => {
     }
   };
 
-
   const handleRemoveMember = (
     member
   ) => {
@@ -1055,7 +1102,6 @@ const handleDeleteChat = () => {
       }
     });
   };
-
 
   const deleteGroup = async () => {
     setActionLoading(true);
@@ -1093,7 +1139,6 @@ const handleDeleteChat = () => {
     }
   };
 
-
   const handleDeleteGroup = () => {
     Swal.fire({
       title: "Delete Group?",
@@ -1110,14 +1155,12 @@ const handleDeleteChat = () => {
     });
   };
 
-
   const [groupName, setGroupName] = useState("");
   const [groupImage, setGroupImage] = useState(null);
 
   const [members, setMembers] = useState([]);
   const [memberEmail, setMemberEmail] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
-
 
   const createGroup = async () => {
 
@@ -1159,9 +1202,8 @@ const handleDeleteChat = () => {
         }
       );
 
-      console.log(members)
       getMyGroups()
-  const modalEl = document.getElementById("createGroupModal");
+      const modalEl = document.getElementById("createGroupModal");
       const modal = window.bootstrap?.Modal?.getInstance(modalEl);
       modal?.hide();
       Swal.fire({
@@ -1266,57 +1308,56 @@ const handleDeleteChat = () => {
     });
   };
 
+  const openEditGroupModal = () => {
+    setEditGroupName(selectedGroup.groupName);
+    setEditGroupImage(null);
+    setShowEditGroupModal(true);
+  };
 
-const openEditGroupModal = () => {
-  setEditGroupName(selectedGroup.groupName);
-  setEditGroupImage(null);
-  setShowEditGroupModal(true);
-};
-
-const updateGroupProfile = async () => {
-  if (!editGroupName.trim()) {
-    return toast.error("Group name cannot be empty");
-  }
-
-  setEditGroupLoading(true);
-
-  try {
-    const formData = new FormData();
-    formData.append("groupName", editGroupName.trim());
-
-    if (editGroupImage) {
-      formData.append("groupImage", editGroupImage);
+  const updateGroupProfile = async () => {
+    if (!editGroupName.trim()) {
+      return toast.error("Group name cannot be empty");
     }
 
-    const res = await axios.put(
-      `${process.env.REACT_APP_API_URL}/api/user/update-group/${selectedGroup._id}`,
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+    setEditGroupLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("groupName", editGroupName.trim());
+
+      if (editGroupImage) {
+        formData.append("groupImage", editGroupImage);
       }
-    );
 
-    setSelectedGroup(res.data.group);
+      const res = await axios.put(
+        `${process.env.REACT_APP_API_URL}/api/user/update-group/${selectedGroup._id}`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-    setGroups((prev) =>
-      prev.map((g) =>
-        g._id === res.data.group._id ? res.data.group : g
-      )
-    );
+      setSelectedGroup(res.data.group);
 
-    toast.success(res.data.message);
-    setShowEditGroupModal(false);
+      setGroups((prev) =>
+        prev.map((g) =>
+          g._id === res.data.group._id ? res.data.group : g
+        )
+      );
 
-  } catch (error) {
-    toast.error(
-      error.response?.data?.message || "Could not update group"
-    );
-  } finally {
-    setEditGroupLoading(false);
-  }
-};
+      toast.success(res.data.message);
+      setShowEditGroupModal(false);
+
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Could not update group"
+      );
+    } finally {
+      setEditGroupLoading(false);
+    }
+  };
   const copyInviteCode = () => {
     if (!selectedGroup?.inviteCode) return;
     navigator.clipboard.writeText(selectedGroup.inviteCode);
@@ -1335,13 +1376,13 @@ const updateGroupProfile = async () => {
       );
 
       setGroups(res.data.groups);
-       const activityMap = {};
-    res.data.groups.forEach((g) => {
-      activityMap[g._id] = new Date(
-        g.updatedAt || g.createdAt || Date.now()
-      ).getTime();
-    });
-    setGroupLastActivity((prev) => ({ ...prev, ...activityMap }));
+      const activityMap = {};
+      res.data.groups.forEach((g) => {
+        activityMap[g._id] = new Date(
+          g.updatedAt || g.createdAt || Date.now()
+        ).getTime();
+      });
+      setGroupLastActivity((prev) => ({ ...prev, ...activityMap }));
     } catch (error) {
       console.log(error);
     }
@@ -1369,8 +1410,6 @@ const updateGroupProfile = async () => {
       setActionLoading(false);
     }
   };
-
-
 
   const sendMessage = async () => {
 
@@ -1431,6 +1470,11 @@ const updateGroupProfile = async () => {
 
     if (media) {
       formData.append("media", media);
+      console.log("media =", media);
+console.log("mediaKind =", mediaKind);
+      if (mediaKind === "voice") {          // ✅ FIX — reliable flag
+        formData.append("isVoice", "true");
+      }
     }
 
     setSendingMessage(true);
@@ -1453,13 +1497,14 @@ const updateGroupProfile = async () => {
         userId: user._id,
       });
 
-setGroupLastActivity((prev) => ({
-  ...prev,
-  [selectedGroup._id]: Date.now(),
-}));
+      setGroupLastActivity((prev) => ({
+        ...prev,
+        [selectedGroup._id]: Date.now(),
+      }));
 
       setMessage("");
       setMedia(null);
+      setMediaKind(null);        // ✅ FIX — pehle group send ke baad reset nahi hota tha
       setReplyingTo(null);
       setShowEmojiPicker(false);
     } catch (error) {
@@ -1469,7 +1514,6 @@ setGroupLastActivity((prev) => ({
       setSendingMessage(false);
     }
   };
-
 
   const sendPrivateMessage = async () => {
 
@@ -1490,7 +1534,6 @@ setGroupLastActivity((prev) => ({
             }
           }
         );
-
 
         setPrivateMessages(prev =>
           prev.map(m =>
@@ -1541,6 +1584,11 @@ setGroupLastActivity((prev) => ({
 
     if (media) {
       formData.append("media", media);
+      console.log("media =", media);
+console.log("mediaKind =", mediaKind);
+      if (mediaKind === "voice") {          // ✅ FIX — reliable flag
+        formData.append("isVoice", "true");
+      }
     }
 
     setSendingMessage(true);
@@ -1566,13 +1614,14 @@ setGroupLastActivity((prev) => ({
       });
 
       setUserLastActivity((prev) => ({
-  ...prev,
-  [selectedUser._id]: Date.now(),
-}));
+        ...prev,
+        [selectedUser._id]: Date.now(),
+      }));
 
       setMessage("");
       setMedia(null);
       setReplyingTo(null);
+      setMediaKind(null);
       setShowEmojiPicker(false);
 
     } catch (error) {
@@ -1617,28 +1666,27 @@ setGroupLastActivity((prev) => ({
   }, []);
   useEffect(() => {
     socket.on("receiveMessage", (msg) => {
-       const gId = msg.group?._id || msg.group || msg.groupId;
-       const isMine = (msg.sender?._id || msg.sender) === user?._id;
+      const gId = msg.group?._id || msg.group || msg.groupId;
+      const isMine = (msg.sender?._id || msg.sender) === user?._id;
 
-       if (selectedGroup?._id === gId) {
-         setMessages((prev) => [...prev, msg]);
-       }
-
-    if (gId) {
-      setGroupLastActivity((prev) => ({ ...prev, [gId]: Date.now() }));
-
-      if (!isMine && selectedGroup?._id !== gId) {
-        setUnreadCounts((prev) => ({
-          ...prev,
-          groups: {
-            ...prev.groups,
-            [gId]: (prev.groups[gId] || 0) + 1,
-          },
-        }));
+      if (selectedGroup?._id === gId) {
+        setMessages((prev) => [...prev, msg]);
       }
-    }
+
+      if (gId) {
+        setGroupLastActivity((prev) => ({ ...prev, [gId]: Date.now() }));
+
+        if (!isMine && selectedGroup?._id !== gId) {
+          setUnreadCounts((prev) => ({
+            ...prev,
+            groups: {
+              ...prev.groups,
+              [gId]: (prev.groups[gId] || 0) + 1,
+            },
+          }));
+        }
+      }
     });
-    
 
     return () => {
       socket.off("receiveMessage");
@@ -1662,7 +1710,6 @@ setGroupLastActivity((prev) => ({
         )
       );
     });
-
 
     return () => {
       socket.off("groupMessageUpdated");
@@ -1703,7 +1750,6 @@ setGroupLastActivity((prev) => ({
         setShowMenu(false);
       }
     };
-
 
     document.addEventListener(
       "mousedown",
@@ -1759,7 +1805,6 @@ setGroupLastActivity((prev) => ({
     };
   }, []);
 
-  // 👇 NAYA — emoji picker ke bahar click karne pe wo band ho jaye
   useEffect(() => {
     const handleOutsideEmojiClick = (e) => {
       if (
@@ -1837,27 +1882,22 @@ setGroupLastActivity((prev) => ({
     setShowEmojiPicker(false);
   };
 
-
-  
-
   const sortedGroups = useMemo(() => {
-  return [...groups].sort((a, b) => {
-    const ta = groupLastActivity[a._id] || new Date(a.createdAt || 0).getTime();
-    const tb = groupLastActivity[b._id] || new Date(b.createdAt || 0).getTime();
-    return tb - ta;
-  });
-}, [groups, groupLastActivity]);
+    return [...groups].sort((a, b) => {
+      const ta = groupLastActivity[a._id] || new Date(a.createdAt || 0).getTime();
+      const tb = groupLastActivity[b._id] || new Date(b.createdAt || 0).getTime();
+      return tb - ta;
+    });
+  }, [groups, groupLastActivity]);
 
-const sortedUsers = useMemo(() => {
-  return [...users].sort((a, b) => {
-    const ta = userLastActivity[a._id] || 0;
-    const tb = userLastActivity[b._id] || 0;
-    return tb - ta;
-  });
-}, [users, userLastActivity]);
+  const sortedUsers = useMemo(() => {
+    return [...users].sort((a, b) => {
+      const ta = userLastActivity[a._id] || 0;
+      const tb = userLastActivity[b._id] || 0;
+      return tb - ta;
+    });
+  }, [users, userLastActivity]);
 
-  // 👇 NAYA — chat ke andar search: active thread (group ya private) ke
-  // messages, aur unme se search term match karne wale messages ki id list
   const activeThreadMessages = selectedUser ? privateMessages : messages;
 
   const escapeRegExp = (str) =>
@@ -1876,12 +1916,10 @@ const sortedUsers = useMemo(() => {
       .map((m) => m._id);
   }, [activeThreadMessages, msgSearchTerm]);
 
-  // naya search term type hote hi pehle match par wapas aa jao
   useEffect(() => {
     setCurrentMatchPos(0);
   }, [msgSearchTerm]);
 
-  // group/user badalte hi is chat ka search band kar do
   useEffect(() => {
     setShowMsgSearch(false);
     setMsgSearchTerm("");
@@ -1889,7 +1927,6 @@ const sortedUsers = useMemo(() => {
     messageRefs.current = {};
   }, [selectedGroup?._id, selectedUser?._id]);
 
-  // current match wale message tak smooth scroll
   useEffect(() => {
     if (msgSearchMatches.length === 0) return;
     const safeIndex = Math.min(currentMatchPos, msgSearchMatches.length - 1);
@@ -1912,8 +1949,6 @@ const sortedUsers = useMemo(() => {
     );
   };
 
-  // message text ke andar search term ko highlight karne ke liye — current
-  // active match amber solid color me, baaki matches halke amber me dikhte hain
   const highlightText = (text, msgId) => {
     const term = msgSearchTerm.trim();
     if (!term || !text) return text;
@@ -1942,7 +1977,6 @@ const sortedUsers = useMemo(() => {
     );
   };
 
-  // 👇 NAYA — chat ke andar search bar ka reusable UI (group + private dono me use hoga)
   const renderMsgSearchBar = () => (
     <div
       style={{
@@ -2026,7 +2060,6 @@ const sortedUsers = useMemo(() => {
     </div>
   );
 
-
   const currentGroupTypingNames = selectedGroup
     ? Object.values(groupTypingUsers[selectedGroup._id] || {})
     : [];
@@ -2034,25 +2067,24 @@ const sortedUsers = useMemo(() => {
   const isPrivateUserTyping = Boolean(
     selectedUser && privateTypingStatus[selectedUser._id]
   );
-useEffect(() => {
-  const setVH = () => {
-    const vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty("--vh", `${vh}px`);
-  };
+  useEffect(() => {
+    const setVH = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty("--vh", `${vh}px`);
+    };
 
-  setVH();
+    setVH();
 
-  window.visualViewport?.addEventListener("resize", setVH);
-  window.addEventListener("resize", setVH);
+    window.visualViewport?.addEventListener("resize", setVH);
+    window.addEventListener("resize", setVH);
 
-  return () => {
-    window.visualViewport?.removeEventListener("resize", setVH);
-    window.removeEventListener("resize", setVH);
-  };
-}, []);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", setVH);
+      window.removeEventListener("resize", setVH);
+    };
+  }, []);
   return (<>
 
- 
     {actionLoading && <Loader />}
 
     <div className="  cv-page-container">
@@ -2087,7 +2119,6 @@ useEffect(() => {
               user={user}
               groupTypingUsers={groupTypingUsers}
               privateTypingStatus={privateTypingStatus}
-             
             />
           </div>
 
@@ -2209,6 +2240,10 @@ useEffect(() => {
                                       setPreviewImage(msg.media)
                                     }
                                   />
+
+                                ) : msg.mediaType === "audio" ? (
+
+                                  <audio controls src={msg.media} />
 
                                 ) : (
 
@@ -2386,26 +2421,26 @@ useEffect(() => {
                                 </div>
                               )}
 
-                              {msg.media && (
-                                <>
-                                  {msg.mediaType === "image" ? (
-                                    <img
-                                      src={msg.media}
-                                      className="cv-media"
-                                      alt=""
-                                      onClick={() =>
-                                        setPreviewImage(msg.media)
-                                      }
-                                    />
-                                  ) : (
-                                    <video
-                                      src={msg.media}
-                                      className="cv-media"
-                                      controls
-                                    />
-                                  )}
-                                </>
-                              )}
+                            {msg.media && (
+  <>
+    {msg.mediaType === "image" ? (
+      <img
+        src={msg.media}
+        className="cv-media"
+        alt=""
+        onClick={() => setPreviewImage(msg.media)}
+      />
+    ) : msg.mediaType === "audio" ? (
+      <audio controls src={msg.media} className="cv-voice-audio" />
+    ) : (
+      <video
+        src={msg.media}
+        className="cv-media"
+        controls
+      />
+    )}
+  </>
+)}
 
                               <div className="cv-stamp">
                                 {formatTime(msg.createdAt)}
@@ -2428,8 +2463,6 @@ useEffect(() => {
                         );
                       })
                     )}
-
-                 
 
                   </div>
 
@@ -2456,16 +2489,18 @@ useEffect(() => {
                     </div>
                   )}
 
-                  {media && (
-                    <div className="cv-media-stage">
-                      {media.type.startsWith("image") ? (
-                        <img src={URL.createObjectURL(media)} alt="" />
-                      ) : (
-                        <video src={URL.createObjectURL(media)} controls />
-                      )}
-                      <i className="fa-solid fa-xmark cv-media-remove" onClick={() => setMedia(null)}></i>
-                    </div>
-                  )}
+                 {media && (
+  <div className="cv-media-stage">
+    {media.type.startsWith("image") ? (
+      <img src={URL.createObjectURL(media)} alt="" />
+    ) : media.type.startsWith("audio") ? (
+      <audio controls src={URL.createObjectURL(media)} />
+    ) : (
+      <video src={URL.createObjectURL(media)} controls />
+    )}
+    <i className="fa-solid fa-xmark cv-media-remove" onClick={() => { setMedia(null); setMediaKind(null); }}></i>
+  </div>
+)}
 
                   {isUserBlocked(selectedUser._id) ? (
                     <div className="cv-blocked-banner">
@@ -2490,7 +2525,6 @@ useEffect(() => {
                         onChange={handleMediaUpload}
                       />
 
-                      {/* 👇 NAYA — emoji button + picker panel */}
                       <div
                         ref={emojiPickerRef}
                         style={{ position: "relative", display: "flex", alignItems: "center" }}
@@ -2552,20 +2586,38 @@ useEffect(() => {
                         }}
                       />
 
-                      {/*  jab tak message send ho raha hai button disabled
-                          rahega aur spinner ke saath "Sending" dikhega */}
-                      <button
-                        type="button"
-                        className="cv-send"
-                        onClick={handleSend}
-                        disabled={sendingMessage}
-                      >
-                        {sendingMessage ? (
-                          <i className="fa-solid fa-circle-notch fa-spin"></i>
-                        ) : (
-                          <i className="fa-solid fa-paper-plane"></i>
-                        )}
-                      </button>
+                   <button
+  type="button"
+  className="cv-send"
+  onClick={
+    sendingMessage
+      ? undefined
+      : message.trim() || media
+      ? handleSend
+      : isRecording
+      ? stopRecording
+      : startRecording
+  }
+  disabled={sendingMessage}
+>
+  {sendingMessage ? (
+    <i className="fa-solid fa-circle-notch fa-spin"></i>
+  ) : message.trim() || media ? (
+    <i className="fa-solid fa-paper-plane"></i>
+  ) : isRecording ? (
+    <i className="fa-solid fa-stop" style={{ color: "red" }}></i>
+  ) : (
+    <i className="fa-solid fa-microphone"></i>
+  )}
+</button>
+{isRecording && (
+  <div className="cv-recording-bar">
+    <i className="fa-solid fa-trash-can cv-recording-cancel" onClick={cancelRecording}></i>
+    <span className="cv-recording-dot"></span>
+    <span className="cv-recording-time">{formatRecordingTime(recordingTime)}</span>
+    <span className="cv-recording-hint">Recording…</span>
+  </div>
+)}
 
                     </div>
                   )}
@@ -2643,7 +2695,7 @@ useEffect(() => {
   {selectedGroup?.createdBy?._id === user?._id && (
   <div className="cv-action danger" onClick={handleClearGroupChat}>
     <div className="cv-action-circle">
-     <i class="fa-solid fa-trash"></i>
+      <i className="fa-solid fa-broom"></i>
     </div>
     <p>Clear Chat</p>
   </div>
@@ -2725,9 +2777,7 @@ useEffect(() => {
                           .filter((msg) => msg.media)
                           .map((msg) => (
                             <div key={msg._id}>
-                              {msg.media.match(/\.(mp4|mov|avi|mkv|webm)$/i) ? (
-                                <video controls src={msg.media} />
-                              ) : (
+                              {msg.mediaType === "image" ? (
                                 <img
                                   src={msg.media}
                                   alt=""
@@ -2735,6 +2785,10 @@ useEffect(() => {
                                     setPreviewImage(msg.media)
                                   }
                                 />
+                              ) : msg.mediaType === "audio" ? (
+                                <audio controls src={msg.media} />
+                              ) : (
+                                <video controls src={msg.media} />
                               )}
                             </div>
                           ))}
@@ -2756,8 +2810,6 @@ useEffect(() => {
                     </div>
                   </div>
                 )}
-
-{/* edit group modal */}
 
 <div className={`modal fade ${showEditGroupModal ? "show d-block" : ""}`} tabIndex="-1">
   <div className="modal-dialog modal-dialog-centered">
@@ -3019,26 +3071,17 @@ useEffect(() => {
                             </div>
                           )}
 
-                          {msg.media && (
-                            <>
-                              {msg.mediaType === "image" ? (
-                                <img
-                                  src={msg.media}
-                                  alt=""
-                                  className="cv-media"
-                                  onClick={() =>
-                                    setPreviewImage(msg.media)
-                                  }
-                                />
-                              ) : (
-                                <video
-                                  src={msg.media}
-                                  controls
-                                  className="cv-media"
-                                />
-                              )}
-                            </>
-                          )}
+                         {msg.media && (
+  <>
+    {msg.mediaType === "image" ? (
+      <img src={msg.media} className="cv-media" alt="" onClick={() => setPreviewImage(msg.media)} />
+    ) : msg.mediaType === "audio" ? (
+      <audio controls src={msg.media} className="cv-voice-audio" />
+    ) : (
+      <video src={msg.media} className="cv-media" controls />
+    )}
+  </>
+)}
 
                           <div className="cv-stamp">{formatTime(msg.createdAt)}</div>
 
@@ -3051,8 +3094,6 @@ useEffect(() => {
                     );
 
                   })}
-
-                
 
                   <div ref={messagesEndRef}></div>
 
@@ -3081,16 +3122,18 @@ useEffect(() => {
                   </div>
                 )}
 
-                {media && (
-                  <div className="cv-media-stage">
-                    {media.type.startsWith("image") ? (
-                      <img src={URL.createObjectURL(media)} alt="" />
-                    ) : (
-                      <video src={URL.createObjectURL(media)} controls />
-                    )}
-                    <i className="fa-solid fa-xmark cv-media-remove" onClick={() => setMedia(null)}></i>
-                  </div>
-                )}
+               {media && (
+  <div className="cv-media-stage">
+    {media.type.startsWith("image") ? (
+      <img src={URL.createObjectURL(media)} alt="" />
+    ) : media.type.startsWith("audio") ? (
+      <audio controls src={URL.createObjectURL(media)} />
+    ) : (
+      <video src={URL.createObjectURL(media)} controls />
+    )}
+    <i className="fa-solid fa-xmark cv-media-remove" onClick={() => { setMedia(null); setMediaKind(null); }}></i>
+  </div>
+)}
 
                 <div className="cv-composer">
 
@@ -3109,7 +3152,6 @@ useEffect(() => {
                     onChange={handleMediaUpload}
                   />
 
-                  {/* 👇 NAYA — emoji button + picker panel */}
                   <div
                     ref={emojiPickerRef}
                     style={{ position: "relative", display: "flex", alignItems: "center" }}
@@ -3169,19 +3211,39 @@ useEffect(() => {
                     onKeyDown={handleKeyPress}
                   />
 
-                 
-                  <button
-                    type="button"
-                    className="cv-send"
-                    onClick={sendMessage}
-                    disabled={sendingMessage}
-                  >
-                    {sendingMessage ? (
-                      <i className="fa-solid fa-circle-notch fa-spin"></i>
-                    ) : (
-                      <i className="fa-solid fa-paper-plane"></i>
-                    )}
-                  </button>
+               <button
+  type="button"
+  className="cv-send"
+  onClick={
+    sendingMessage
+      ? undefined
+      : message.trim() || media
+      ? sendMessage
+      : isRecording
+      ? stopRecording
+      : startRecording
+  }
+  disabled={sendingMessage}
+>
+  {sendingMessage ? (
+    <i className="fa-solid fa-circle-notch fa-spin"></i>
+  ) : message.trim() || media ? (
+    <i className="fa-solid fa-paper-plane"></i>
+  ) : isRecording ? (
+    <i className="fa-solid fa-stop" style={{ color: "red" }}></i>
+  ) : (
+    <i className="fa-solid fa-microphone"></i>
+  )}
+</button>
+
+{isRecording && (
+  <div className="cv-recording-bar">
+    <i className="fa-solid fa-trash-can cv-recording-cancel" onClick={cancelRecording}></i>
+    <span className="cv-recording-dot"></span>
+    <span className="cv-recording-time">{formatRecordingTime(recordingTime)}</span>
+    <span className="cv-recording-hint">Recording…</span>
+  </div>
+)}
 
                 </div>
 
@@ -3340,7 +3402,6 @@ useEffect(() => {
 
           <div className="modal-header cv-modal-header">
             <h5 className="modal-title">
-   
               Join a group
             </h5>
             <button
@@ -3353,15 +3414,12 @@ useEffect(() => {
 
           <div className="modal-body">
 
-        
-
             <label className="cv-field-label">Invite code</label>
 
             <div className="cv-join-input-row">
               <input
                 type="text"
                 className="form-control cv-input cv-join-input"
-        
                 value={joinCode}
                 maxLength={8}
                 onChange={(e) =>
@@ -3640,7 +3698,7 @@ useEffect(() => {
               <i className="fa-solid fa-download"></i>
             </a>
             <button type="button" onClick={() => setPreviewImage(null)}>
-              <i className="fa-solid fa-xmark"></ i>
+              <i className="fa-solid fa-xmark"></i>
             </button>
           </div>
         </div>

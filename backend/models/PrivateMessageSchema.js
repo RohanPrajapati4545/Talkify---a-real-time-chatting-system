@@ -32,7 +32,7 @@ const PrivateMessageSchema = new mongoose.Schema(
 
     mediaType: {
       type: String,
-      enum: ["image", "video", ""],
+      enum: ["image", "video", "audio"],
       default: "",
     },
     isEdited: {

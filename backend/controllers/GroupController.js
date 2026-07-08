@@ -84,20 +84,22 @@ const sendMessage = async (req, res) => {
   try {
     const { groupId, message, replyTo } = req.body;
 
-    let media = "";
-    let mediaType = "";
+   let media = "";
+let mediaType = "";
 
-    if (req.file) {
-      media = req.file.path;
+if (req.file) {
+  media = req.file.path;
 
-      if (req.file.mimetype.startsWith("image")) {
-        mediaType = "image";
-      }
-
-      if (req.file.mimetype.startsWith("video")) {
-        mediaType = "video";
-      }
-    }
+  if (req.body.isVoice === "true") {
+    mediaType = "audio";                              // 👈 sabse pehle explicit check
+  } else if (req.file.mimetype.startsWith("image")) {
+    mediaType = "image";
+  } else if (req.file.mimetype.startsWith("video")) {
+    mediaType = "video";
+  } else if (req.file.mimetype.startsWith("audio")) {
+    mediaType = "audio";
+  }
+}
 
     if (!message && !media) {
       return res.status(400).json({

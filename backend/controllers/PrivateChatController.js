@@ -145,6 +145,7 @@ const getPrivateMessages = async (req, res) => {
 
 const sendPrivateMessage = async (req, res) => {
 
+
   try {
     const { chatId, receiverId, message, replyTo } = req.body;
 
@@ -174,17 +175,33 @@ const sendPrivateMessage = async (req, res) => {
         message: "You cannot message this user",
       });
     }
-    const media = req.file ? req.file.path : "";
+  
+console.log("req.file:", req.file);
+let media = "";
+let mediaType = "";
 
-    const msg = await PrivateMessage.create({
-      chatId,
-      sender: req.user.id,
-      receiver: receiverId,
-      message: message || "",
-      media,
-      mediaType: media ? "image" : "",
-      replyTo: replyTo || null
-    });
+if (req.file) {
+  media = req.file.path;
+
+  if (req.body.isVoice === "true") {
+    mediaType = "audio";                            
+  } else if (req.file.mimetype.startsWith("image")) {
+    mediaType = "image";
+  } else if (req.file.mimetype.startsWith("video")) {
+    mediaType = "video";
+  } else if (req.file.mimetype.startsWith("audio")) {
+    mediaType = "audio";
+  }
+}
+const msg = await PrivateMessage.create({
+  chatId,
+  sender: req.user.id,
+  receiver: receiverId,
+  message: message || "",
+  media,
+  mediaType,         
+  replyTo: replyTo || null
+});
 
     await PrivateChat.findByIdAndUpdate(chatId, { updatedAt: new Date() });
 

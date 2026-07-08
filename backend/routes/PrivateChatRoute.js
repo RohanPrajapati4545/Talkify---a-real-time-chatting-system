@@ -43,7 +43,7 @@ router.delete(
   AuthMiddleware,
 PrivateChatController.deleteChat);
 
-const { getUnreadCounts } = require("./../controllers/PrivateChatController"); // path apne project ke hisab se adjust karo
+const { getUnreadCounts } = require("./../controllers/PrivateChatController"); 
 router.get("/unread-counts", AuthMiddleware, getUnreadCounts);
 
 router.get("/my-chats", AuthMiddleware, PrivateChatController.getMyChats);

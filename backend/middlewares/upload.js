@@ -11,13 +11,17 @@ cloudinary.config({
 
 // Cloudinary storage engine
 const storage = new CloudinaryStorage({
-    cloudinary: cloudinary,
-    params: {
-        folder: "talkify_uploads",
-        allowed_formats: ["jpg", "jpeg", "png", "webp", "gif", "mp4", "mov", "webm"],
-        resource_type: "auto", // images + videos dono handle karega
-    },
-});
+  cloudinary: cloudinary,
+  params: {
+    folder: "talkify_uploads",
+    allowed_formats: [
+      "jpg", "jpeg", "png", "webp", "gif",
+      "mp4", "mov", "webm",
+      "mp3", "wav", "ogg", "m4a", "aac", 
+    ],
+    resource_type: "auto",
+  },
+}); 
 
 const upload = multer({
     storage,
