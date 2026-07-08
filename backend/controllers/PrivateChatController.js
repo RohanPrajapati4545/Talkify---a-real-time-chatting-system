@@ -218,7 +218,7 @@ const msg = await PrivateMessage.create({
 
     res.status(201).json(populated);
   } catch (error) {
-    console.log(error);
+    console.log(error)
     res.status(500).json({ message: "Error sending private message" });
   }
 };

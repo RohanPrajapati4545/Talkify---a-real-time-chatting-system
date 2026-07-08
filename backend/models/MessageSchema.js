@@ -27,7 +27,7 @@ const MessageSchema = new mongoose.Schema(
 
     mediaType: {
       type: String,
-      enum: ["image", "video", "audio"],
+      enum: ["image", "video", "audio", ""],
       default: "",
     },
     isDeleted: {
