@@ -201,7 +201,18 @@ socket.on("endCall", ({ toUserId }) => {
   });
 
 });
-
+app.get("/api/turn-credentials", async (req, res) => {
+  try {
+    const response = await fetch(
+      `https://${process.env.METERED_APP_NAME}/api/v1/turn/credentials?apiKey=${process.env.METERED_API_KEY}`
+    );
+    const iceServers = await response.json();
+    res.json(iceServers);
+  } catch (err) {
+    console.log("TURN fetch error:", err);
+    res.status(500).json({ message: "Could not fetch TURN credentials" });
+  }
+});
 const AuthRoute = require("./routes/AuthRoute");
 const GroupRoute = require("./routes/GroupRoute");
 const UserRoute = require("./routes/UserRoute");
