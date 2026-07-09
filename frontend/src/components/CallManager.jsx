@@ -3,14 +3,7 @@ import Peer from "simple-peer";
 import socket from "../socket/Socket";
 import { toast } from "react-toastify";
 
-// ✅ FIX — ICE_CONFIG ab properly defined hai (pehle kahin define nahi tha,
-// isliye "ICE_CONFIG is not defined" runtime error aata tha jaise hi call start hoti thi)
-// ✅ FIX — ab credentials .env se aa rahi hain (process.env.REACT_APP_TURN_USERNAME
-// aur REACT_APP_TURN_CREDENTIAL), hardcoded nahi. .env file mein ye values
-// zaroor bharo (frontend project ke root mein):
-//   REACT_APP_TURN_USERNAME=apni_username
-//   REACT_APP_TURN_CREDENTIAL=apni_credential
-// Change karne ke baad frontend rebuild/redeploy zaroor karo.
+
 const ICE_CONFIG = {
   iceServers: [
     { urls: "stun:stun.relay.metered.ca:80" },
@@ -35,6 +28,23 @@ const ICE_CONFIG = {
       credential: process.env.REACT_APP_TURN_CREDENTIAL,
     },
   ],
+};
+
+// 👇 NAYA — static env creds expire/rotate ho sakti hain, isliye har call se
+// pehle backend ke /api/turn-credentials se FRESH TURN creds fetch karte hain.
+// Fetch fail ho jaye to static ICE_CONFIG pe fallback karte hain (safety net).
+const getIceServers = async () => {
+  try {
+    const res = await fetch(`${process.env.REACT_APP_API_URL}/api/turn-credentials`);
+    const data = await res.json();
+    const servers = Array.isArray(data) ? data : data?.iceServers;
+    if (!servers || servers.length === 0) throw new Error("Empty ICE servers");
+    console.log("✅ Fresh TURN credentials fetched:", servers);
+    return servers;
+  } catch (err) {
+    console.log("⚠️ TURN fetch failed, falling back to static config:", err);
+    return ICE_CONFIG.iceServers;
+  }
 };
 
 // ❌ REMOVED — ye stray/unused `myPeerConnection = new RTCPeerConnection(...)`
@@ -159,12 +169,15 @@ const CallManager = ({ user }) => {
       localStreamRef.current = stream;
       attachStream(myVideoRef.current, stream);
 
+      // 👇 NAYA — fresh TURN creds fetch karo Peer banane se pehle
+      const iceServers = await getIceServers();
+
       const peer = new Peer({
         initiator: true,
         trickle: true,
         stream,
         config: {
-          iceServers: ICE_CONFIG.iceServers,
+          iceServers,
           // ✅ iceTransportPolicy: "relay" jaan-boojh kar nahi lagaya —
           // isse host/STUN candidates bhi try honge, TURN sirf fallback rahega
         },
@@ -275,12 +288,15 @@ const CallManager = ({ user }) => {
 
     localStreamRef.current = stream;
 
+    // 👇 NAYA — fresh TURN creds fetch karo Peer banane se pehle
+    const iceServers = await getIceServers();
+
     const peer = new Peer({
       initiator: false,
       trickle: true,
       stream,
       config: {
-        iceServers: ICE_CONFIG.iceServers,
+        iceServers,
         // ✅ FIX — pehle yahan "iceTransportPolicy: 'relay'" tha, hata diya
         // taaki caller ki tarah receiver bhi host/STUN candidates try kar sake
       },
@@ -429,7 +445,7 @@ const CallManager = ({ user }) => {
         <div className="cv-call-card">
           <img src={remoteUser?.image} alt="" className="cv-call-avatar" />
           <h4>{remoteUser?.name}</h4>
-          <p>{callType} call aa rahi hai…</p>
+          <p>{callType} incoming call…</p>
           <div className="cv-call-actions">
             <button className="cv-call-btn accept" onClick={acceptCall}>
               <i className="fa-solid fa-phone"></i>
@@ -445,7 +461,7 @@ const CallManager = ({ user }) => {
         <div className="cv-call-card">
           <img src={remoteUser?.image} alt="" className="cv-call-avatar" />
           <h4>{remoteUser?.name}</h4>
-          <p>Call ja rahi hai…</p>
+          <p>Calling…</p>
           <button className="cv-call-btn decline" onClick={hangUp}>
             <i className="fa-solid fa-phone-slash"></i>
           </button>
