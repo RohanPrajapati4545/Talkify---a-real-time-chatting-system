@@ -3,11 +3,32 @@ import Peer from "simple-peer";
 import socket from "../socket/Socket";
 import { toast } from "react-toastify";
 
+// 👇 shared ICE server config (STUN + free TURN fallback)
+const ICE_CONFIG = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+  ],
+};
+
 const CallManager = ({ user }) => {
   const [callState, setCallState] = useState("idle");
-  // idle | calling | incoming | connected
 
-  const [callType, setCallType] = useState("audio"); // audio | video
+  const [callType, setCallType] = useState("audio");
   const [incomingData, setIncomingData] = useState(null);
   const [remoteUser, setRemoteUser] = useState(null);
   const [callDuration, setCallDuration] = useState(0);
@@ -16,13 +37,13 @@ const CallManager = ({ user }) => {
 
   const myVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const remoteAudioRef = useRef(null); // 👈 NAYA — audio-only calls ke liye
   const peerRef = useRef(null);
   const localStreamRef = useRef(null);
   const timerRef = useRef(null);
   const ringtoneRef = useRef(null);
-  const noAnswerTimeoutRef = useRef(null); // 👈 no-answer timeout ke liye
+  const noAnswerTimeoutRef = useRef(null);
 
-  // ---- helper: getUserMedia errors ko user-friendly toast me convert karta hai ----
   const handleMediaError = (err) => {
     console.log(err);
     if (err.name === "NotAllowedError") {
@@ -34,39 +55,55 @@ const CallManager = ({ user }) => {
     }
   };
 
-  // ---- global trigger — chat header icons isko call karenge ----
+  // ICE connection state track karne ke liye helper
+  const attachIceDebug = (peer, label) => {
+    peer.on("connect", () => {
+      console.log(`✅ [${label}] PEER DATA CHANNEL CONNECTED`);
+    });
+
+    if (peer._pc) {
+      peer._pc.oniceconnectionstatechange = () => {
+        console.log(`🧊 [${label}] ICE STATE:`, peer._pc.iceConnectionState);
+      };
+      peer._pc.onconnectionstatechange = () => {
+        console.log(`🔗 [${label}] CONNECTION STATE:`, peer._pc.connectionState);
+      };
+    }
+  };
+
   useEffect(() => {
     window.__startCall = async (targetUser, type) => {
-         console.log("🔵 STEP A — startCall triggered", targetUser, type);
       setCallType(type);
       setRemoteUser(targetUser);
       setCallState("calling");
 
       let stream;
       try {
-         console.log("🔵 STEP B — asking getUserMedia");
         stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
           video: type === "video",
         });
-          console.log("🔵 STEP C — got stream", stream);
       } catch (err) {
-         console.log("🔴 STEP B FAILED", err);
         handleMediaError(err);
         setCallState("idle");
         setRemoteUser(null);
-        return; // 👈 permission na mile to call start hi nahi hogi
+        return;
       }
 
       localStreamRef.current = stream;
       if (myVideoRef.current) myVideoRef.current.srcObject = stream;
- console.log("🔵 STEP D — creating peer");
-      const peer = new Peer({ initiator: true, trickle: false, stream });
+
+      const peer = new Peer({
+        initiator: true,
+        trickle: false,
+        stream,
+        config: ICE_CONFIG,
+      });
       peerRef.current = peer;
 
-      peer.on("signal", (signalData) => {
-            console.log("🔵 STEP E — signal generated, emitting callUser", targetUser._id);
+      attachIceDebug(peer, "CALLER");
 
+      peer.on("signal", (signalData) => {
         socket.emit("callUser", {
           toUserId: targetUser._id,
           fromUser: user,
@@ -74,7 +111,6 @@ const CallManager = ({ user }) => {
           callType: type,
         });
 
-        // 👇 30 sec me answer na aaye to auto-cancel
         noAnswerTimeoutRef.current = setTimeout(() => {
           toast.error("User is not available right now");
           socket.emit("endCall", { toUserId: targetUser._id });
@@ -83,21 +119,19 @@ const CallManager = ({ user }) => {
       });
 
       peer.on("stream", (remoteStream) => {
-            console.log("🔵 STEP F — remote stream received"); // 👈 bonus
-
+        console.log("🎥 CALLER — remote stream received", remoteStream);
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
+        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream; // 👈 NAYA
       });
 
       peer.on("close", () => cleanupCall());
-      peer.on("error", () =>{
-        
-cleanupCall()
-      } );
-      
+      peer.on("error", (err) => {
+        console.log("🔴 CALLER PEER ERROR:", err);
+        cleanupCall();
+      });
     };
   }, [user]);
 
-  // ---- incoming call listener ----
   useEffect(() => {
     socket.on("incomingCall", ({ fromUser, signalData, callType }) => {
       setIncomingData({ fromUser, signalData });
@@ -108,14 +142,14 @@ cleanupCall()
     });
 
     socket.on("callAccepted", ({ signalData }) => {
-      clearTimeout(noAnswerTimeoutRef.current); // 👈 receiver ne answer diya, timeout clear karo
+      clearTimeout(noAnswerTimeoutRef.current);
       peerRef.current?.signal(signalData);
       setCallState("connected");
       startTimer();
     });
 
     socket.on("callRejected", () => {
-      clearTimeout(noAnswerTimeoutRef.current); // 👈 yahan bhi clear karo
+      clearTimeout(noAnswerTimeoutRef.current);
       toast.error("Call decline kar di gayi");
       cleanupCall();
     });
@@ -143,26 +177,38 @@ cleanupCall()
       });
     } catch (err) {
       handleMediaError(err);
-      declineCall(); // 👈 permission na mile to call reject kar do, warna caller "calling..." pe atka rahega
+      declineCall();
       return;
     }
 
     localStreamRef.current = stream;
     if (myVideoRef.current) myVideoRef.current.srcObject = stream;
 
-    const peer = new Peer({ initiator: false, trickle: false, stream });
+    const peer = new Peer({
+      initiator: false,
+      trickle: false,
+      stream,
+      config: ICE_CONFIG,
+    });
     peerRef.current = peer;
+
+    attachIceDebug(peer, "RECEIVER");
 
     peer.on("signal", (signalData) => {
       socket.emit("answerCall", { toUserId: remoteUser._id, signalData });
     });
 
     peer.on("stream", (remoteStream) => {
+      console.log("🎥 RECEIVER — remote stream received", remoteStream);
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
+      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream; // 👈 NAYA
     });
 
     peer.on("close", () => cleanupCall());
-    peer.on("error", () => cleanupCall());
+    peer.on("error", (err) => {
+      console.log("🔴 RECEIVER PEER ERROR:", err);
+      cleanupCall();
+    });
 
     peer.signal(incomingData.signalData);
     setCallState("connected");
@@ -186,7 +232,7 @@ cleanupCall()
     peerRef.current = null;
     localStreamRef.current = null;
     clearInterval(timerRef.current);
-    clearTimeout(noAnswerTimeoutRef.current); // 👈 safety cleanup
+    clearTimeout(noAnswerTimeoutRef.current);
     setCallDuration(0);
     setCallState("idle");
     setIncomingData(null);
@@ -228,6 +274,7 @@ cleanupCall()
   return (
     <div className="cv-call-overlay">
       <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden />
+      <audio ref={remoteAudioRef} autoPlay hidden muted={callType === "video"} /> {/* 👈 NAYA */}
 
       {callState === "incoming" && (
         <div className="cv-call-card">
