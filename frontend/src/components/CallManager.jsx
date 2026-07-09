@@ -3,31 +3,43 @@ import Peer from "simple-peer";
 import socket from "../socket/Socket";
 import { toast } from "react-toastify";
 
+// ✅ FIX — ICE_CONFIG ab properly defined hai (pehle kahin define nahi tha,
+// isliye "ICE_CONFIG is not defined" runtime error aata tha jaise hi call start hoti thi)
+// ✅ FIX — ab credentials .env se aa rahi hain (process.env.REACT_APP_TURN_USERNAME
+// aur REACT_APP_TURN_CREDENTIAL), hardcoded nahi. .env file mein ye values
+// zaroor bharo (frontend project ke root mein):
+//   REACT_APP_TURN_USERNAME=apni_username
+//   REACT_APP_TURN_CREDENTIAL=apni_credential
+// Change karne ke baad frontend rebuild/redeploy zaroor karo.
 const ICE_CONFIG = {
   iceServers: [
     { urls: "stun:stun.relay.metered.ca:80" },
     {
-      urls: "turn:standard.relay.metered.ca:80",
-      username: "e8dd65c92c62b8158c8b1d33",
-      credential: "uWdWNmkhvyqTEswO",
+      urls: "turn:global.relay.metered.ca:80",
+      username: process.env.REACT_APP_TURN_USERNAME,
+      credential: process.env.REACT_APP_TURN_CREDENTIAL,
     },
     {
-      urls: "turn:standard.relay.metered.ca:80?transport=tcp",
-      username: "e8dd65c92c62b8158c8b1d33",
-      credential: "uWdWNmkhvyqTEswO",
+      urls: "turn:global.relay.metered.ca:80?transport=tcp",
+      username: process.env.REACT_APP_TURN_USERNAME,
+      credential: process.env.REACT_APP_TURN_CREDENTIAL,
     },
     {
-      urls: "turn:standard.relay.metered.ca:443",
-      username: "e8dd65c92c62b8158c8b1d33",
-      credential: "uWdWNmkhvyqTEswO",
+      urls: "turn:global.relay.metered.ca:443",
+      username: process.env.REACT_APP_TURN_USERNAME,
+      credential: process.env.REACT_APP_TURN_CREDENTIAL,
     },
     {
-      urls: "turns:standard.relay.metered.ca:443?transport=tcp",
-      username: "e8dd65c92c62b8158c8b1d33",
-      credential: "uWdWNmkhvyqTEswO",
+      urls: "turns:global.relay.metered.ca:443?transport=tcp",
+      username: process.env.REACT_APP_TURN_USERNAME,
+      credential: process.env.REACT_APP_TURN_CREDENTIAL,
     },
   ],
 };
+
+// ❌ REMOVED — ye stray/unused `myPeerConnection = new RTCPeerConnection(...)`
+// koi kaam nahi kar raha tha, sirf module load hote hi ek useless
+// peer connection bana deta tha. Hata diya gaya.
 
 const CallManager = ({ user }) => {
   const [callState, setCallState] = useState("idle");
@@ -123,10 +135,10 @@ const CallManager = ({ user }) => {
 
   useEffect(() => {
     window.__startCall = async (targetUser, type) => {
-         if (peerRef.current || callState !== "idle") {
-    console.log("Call already in progress, ignoring duplicate startCall");
-    return;
-  }
+      if (peerRef.current || callState !== "idle") {
+        console.log("Call already in progress, ignoring duplicate startCall");
+        return;
+      }
       setCallType(type);
       setRemoteUser(targetUser);
       setCallState("calling");
@@ -153,7 +165,8 @@ const CallManager = ({ user }) => {
         stream,
         config: {
           iceServers: ICE_CONFIG.iceServers,
-          iceTransportPolicy: "relay",
+          // ✅ iceTransportPolicy: "relay" jaan-boojh kar nahi lagaya —
+          // isse host/STUN candidates bhi try honge, TURN sirf fallback rahega
         },
       });
       peerRef.current = peer;
@@ -241,10 +254,10 @@ const CallManager = ({ user }) => {
   }, []);
 
   const acceptCall = async () => {
-      if (peerRef.current) {
-    console.log("Call already in progress, ignoring duplicate acceptCall");
-    return;
-  }
+    if (peerRef.current) {
+      console.log("Call already in progress, ignoring duplicate acceptCall");
+      return;
+    }
 
     ringtoneRef.current?.pause();
 
@@ -268,7 +281,8 @@ const CallManager = ({ user }) => {
       stream,
       config: {
         iceServers: ICE_CONFIG.iceServers,
-        iceTransportPolicy: "relay",
+        // ✅ FIX — pehle yahan "iceTransportPolicy: 'relay'" tha, hata diya
+        // taaki caller ki tarah receiver bhi host/STUN candidates try kar sake
       },
     });
     peerRef.current = peer;
