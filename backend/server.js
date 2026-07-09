@@ -126,9 +126,13 @@ io.on("connection", (socket) => {
   socket.on("privateMessageDeleted", (msg) => {
     io.to(msg.chatId).emit("privateMessageDeleted", msg);
   });
-socket.on("iceCandidate", ({ toUserId, signalData }) => {
-  io.to(`user_${toUserId}`).emit("iceCandidate", { signalData });
-});
+
+  // 👇 UPDATED — debug log + candidate counter add kiya
+  socket.on("iceCandidate", ({ toUserId, signalData }) => {
+    console.log("🧊 RELAYING ICE CANDIDATE → to:", `user_${toUserId}`, "from socket:", socket.id);
+    io.to(`user_${toUserId}`).emit("iceCandidate", { signalData });
+  });
+
   // 👇 NAYA — PRIVATE TYPING INDICATOR
   socket.on("typingPrivate", ({ chatId, senderId, receiverId, userName }) => {
     socket.to(chatId).emit("userTypingPrivate", { chatId, senderId, receiverId, userName });
@@ -163,7 +167,7 @@ socket.on("iceCandidate", ({ toUserId, signalData }) => {
 // Caller call start karta hai
 socket.on("callUser", ({ toUserId, fromUser, signalData, callType }) => {
   // callType: "audio" | "video"
-
+  console.log("📞 CALL USER — toUserId:", toUserId); // 👈 NAYA
   io.to(`user_${toUserId}`).emit("incomingCall", {
     fromUser,          // { _id, name, image }
     signalData,        // WebRTC offer signal
@@ -173,6 +177,7 @@ socket.on("callUser", ({ toUserId, fromUser, signalData, callType }) => {
 
 // Receiver accept karta hai aur apna answer signal bhejta hai
 socket.on("answerCall", ({ toUserId, signalData }) => {
+  console.log("✅ ANSWER CALL — toUserId:", toUserId); // 👈 NAYA
   io.to(`user_${toUserId}`).emit("callAccepted", { signalData });
 });
 
