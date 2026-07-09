@@ -99,7 +99,10 @@ const CallManager = ({ user }) => {
         initiator: true,
         trickle: true,
         stream,
-        config: ICE_CONFIG,
+        config: {
+    iceServers: ICE_CONFIG.iceServers,
+    iceTransportPolicy: "relay",
+  },
       });
       peerRef.current = peer;
       attachIceDebug(peer, "CALLER");
