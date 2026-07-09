@@ -231,7 +231,10 @@ const CallManager = ({ user }) => {
       initiator: false,
       trickle: true,
       stream,
-      config: ICE_CONFIG,
+     config: {
+    iceServers: ICE_CONFIG.iceServers,
+    iceTransportPolicy: "relay", // 👈 NAYA — force TURN-only, testing ke liye
+  },
     });
     peerRef.current = peer;
     attachIceDebug(peer, "RECEIVER");
