@@ -201,6 +201,16 @@ socket.on("endCall", ({ toUserId }) => {
   });
 
 });
+app.get("/api/debug-env", (req, res) => {
+  const appName = process.env.METERED_APP_NAME || "MISSING";
+  const key = process.env.METERED_API_KEY || "MISSING";
+
+  res.json({
+    appName,
+    keyLength: key.length,
+    keyPreview: key === "MISSING" ? "MISSING" : `${key.slice(0, 4)}...${key.slice(-4)}`,
+  });
+});
 app.get("/api/turn-credentials", async (req, res) => {
   try {
     const response = await fetch(
