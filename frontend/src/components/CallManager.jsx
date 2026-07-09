@@ -30,23 +30,6 @@ const ICE_CONFIG = {
   ],
 };
 
-// 👇 NAYA — static env creds expire/rotate ho sakti hain, isliye har call se
-// pehle backend ke /api/turn-credentials se FRESH TURN creds fetch karte hain.
-// Fetch fail ho jaye to static ICE_CONFIG pe fallback karte hain (safety net).
-const getIceServers = async () => {
-  try {
-    const res = await fetch(`${process.env.REACT_APP_API_URL}/api/turn-credentials`);
-    const data = await res.json();
-    const servers = Array.isArray(data) ? data : data?.iceServers;
-    if (!servers || servers.length === 0) throw new Error("Empty ICE servers");
-    console.log("✅ Fresh TURN credentials fetched:", servers);
-    return servers;
-  } catch (err) {
-    console.log("⚠️ TURN fetch failed, falling back to static config:", err);
-    return ICE_CONFIG.iceServers;
-  }
-};
-
 // ❌ REMOVED — ye stray/unused `myPeerConnection = new RTCPeerConnection(...)`
 // koi kaam nahi kar raha tha, sirf module load hote hi ek useless
 // peer connection bana deta tha. Hata diya gaya.
@@ -169,15 +152,12 @@ const CallManager = ({ user }) => {
       localStreamRef.current = stream;
       attachStream(myVideoRef.current, stream);
 
-      // 👇 NAYA — fresh TURN creds fetch karo Peer banane se pehle
-      const iceServers = await getIceServers();
-
       const peer = new Peer({
         initiator: true,
         trickle: true,
         stream,
         config: {
-          iceServers,
+          iceServers: ICE_CONFIG.iceServers,
           // ✅ iceTransportPolicy: "relay" jaan-boojh kar nahi lagaya —
           // isse host/STUN candidates bhi try honge, TURN sirf fallback rahega
         },
@@ -288,15 +268,12 @@ const CallManager = ({ user }) => {
 
     localStreamRef.current = stream;
 
-    // 👇 NAYA — fresh TURN creds fetch karo Peer banane se pehle
-    const iceServers = await getIceServers();
-
     const peer = new Peer({
       initiator: false,
       trickle: true,
       stream,
       config: {
-        iceServers,
+        iceServers: ICE_CONFIG.iceServers,
         // ✅ FIX — pehle yahan "iceTransportPolicy: 'relay'" tha, hata diya
         // taaki caller ki tarah receiver bhi host/STUN candidates try kar sake
       },
