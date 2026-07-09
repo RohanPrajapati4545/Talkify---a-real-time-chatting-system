@@ -690,8 +690,7 @@ const MyGroups = () => {
       }
 
       toast.success(
-        `Forwarded to ${forwardTargets.length} ${
-          forwardTargets.length === 1 ? "chat" : "chats"
+        `Forwarded to ${forwardTargets.length} ${forwardTargets.length === 1 ? "chat" : "chats"
         }`
       );
 
@@ -865,7 +864,14 @@ const MyGroups = () => {
     setShowMsgMenu(null);
 
   };
+const callLockRef = useRef(false);
 
+const triggerCall = (targetUser, type) => {
+  if (callLockRef.current) return;
+  callLockRef.current = true;
+  window.__startCall?.(targetUser, type);
+  setTimeout(() => { callLockRef.current = false; }, 2000); // 2s cooldown
+};
   const deleteGroupMessage = async (id) => {
 
     const res = await axios.delete(
@@ -1473,7 +1479,7 @@ const MyGroups = () => {
     if (media) {
       formData.append("media", media);
       console.log("media =", media);
-console.log("mediaKind =", mediaKind);
+      console.log("mediaKind =", mediaKind);
       if (mediaKind === "voice") {          // ✅ FIX — reliable flag
         formData.append("isVoice", "true");
       }
@@ -1587,7 +1593,7 @@ console.log("mediaKind =", mediaKind);
     if (media) {
       formData.append("media", media);
       console.log("media =", media);
-console.log("mediaKind =", mediaKind);
+      console.log("mediaKind =", mediaKind);
       if (mediaKind === "voice") {          // ✅ FIX — reliable flag
         formData.append("isVoice", "true");
       }
@@ -1830,9 +1836,9 @@ console.log("mediaKind =", mediaKind);
   const formatTime = (createdAt) =>
     createdAt
       ? new Date(createdAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
+        hour: "2-digit",
+        minute: "2-digit",
+      })
       : "";
 
   const getDateLabel = (dateStr) => {
@@ -2088,7 +2094,7 @@ console.log("mediaKind =", mediaKind);
   return (<>
 
     {actionLoading && <Loader />}
-  <CallManager user={user} />
+    <CallManager user={user} />
     <div className="  cv-page-container">
 
       <div className="cv-shell">
@@ -2096,9 +2102,8 @@ console.log("mediaKind =", mediaKind);
         <div className="row g-0 cv-grid">
 
           <div
-            className={`col-12 col-md-4 p-0 ${
-              chatOpen ? "d-none d-md-block" : "d-block"
-            }`}
+            className={`col-12 col-md-4 p-0 ${chatOpen ? "d-none d-md-block" : "d-block"
+              }`}
           >
             <SideBar
               activeTab={activeTab}
@@ -2125,14 +2130,515 @@ console.log("mediaKind =", mediaKind);
           </div>
 
           <div
-            className={`col-12 col-md-8 p-0 ${
-              chatOpen ? "d-block" : "d-none d-md-block"
-            }`}
+            className={`col-12 col-md-8 p-0 ${chatOpen ? "d-block" : "d-none d-md-block"
+              }`}
           >
-          <div className="cv-main">
-            {selectedUser ? (
+            <div className="cv-main">
+              {selectedUser ? (
 
-              showUserInfo ? (
+                showUserInfo ? (
+
+                  <div className="cv-info">
+
+                    <div className="cv-info-header">
+                      <i
+                        className="fa-solid fa-arrow-left d-md-none cv-back-btn"
+                        onClick={goBackToList}
+                      ></i>
+                      <h5>Contact</h5>
+
+                      <i
+                        className="fa-solid fa-xmark"
+                        onClick={() => setShowUserInfo(false)}
+                      ></i>
+                    </div>
+
+                    <div className="cv-info-top">
+
+                      <div className="cv-avatar-wrap cv-avatar-wrap-lg">
+                        <img
+                          src={selectedUser.image}
+                          className="cv-info-avatar"
+                          alt=""
+                          onClick={() =>
+                            setPreviewImage(selectedUser.image)
+                          }
+                        />
+                        {isOnline(selectedUser._id) && (
+                          <span className="cv-online-dot cv-online-dot-lg"></span>
+                        )}
+                      </div>
+
+                      <h2>{selectedUser.name}</h2>
+
+                      <p>
+                        {isOnline(selectedUser._id) ? (
+                          <span className="cv-online-text">● Online</span>
+                        ) : (
+                          selectedUser.email
+                        )}
+                      </p>
+
+                    </div>
+
+                    <hr className="cv-divider" />
+
+                    <div className="cv-actions">
+                      <div
+                        className="cv-action"
+                        onClick={() => setShowMedia(!showMedia)}
+                      >
+                        <div className="cv-action-circle">
+                          <i className="fa-solid fa-images"></i>
+                        </div>
+                        <p>Media</p>
+                      </div>
+
+                      <div className="cv-action danger" onClick={toggleBlockUser}>
+                        <div className="cv-action-circle">
+                          <i
+                            className={`fa-solid ${isUserBlocked(selectedUser._id) ? "fa-circle-check" : "fa-ban"
+                              }`}
+                          ></i>
+                        </div>
+                        <p>{isUserBlocked(selectedUser._id) ? "Unblock" : "Block"}</p>
+                      </div>
+                      <div className="cv-action danger" onClick={handleDeleteChat}>
+                        <div className="cv-action-circle">
+                          <i className="fa-solid fa-trash-can"></i>
+                        </div>
+                        <p>Delete Chat</p>
+                      </div>
+                    </div>
+
+                    {isUserBlocked(selectedUser._id) && (
+                      <p className="cv-empty-note">
+                        You have blocked this user. They can't send you messages.
+                      </p>
+                    )}
+
+                    {showMedia && (
+                      <div>
+
+                        {privateMessages.filter(msg => msg.media).length === 0 ? (
+
+                          <p className="cv-empty-note">
+                            No media shared yet
+                          </p>
+
+                        ) : (
+
+                          <div className="cv-media-grid">
+
+                            {privateMessages
+                              .filter(msg => msg.media)
+                              .map(msg => (
+
+                                <div key={msg._id}>
+
+                                  {msg.mediaType === "image" ? (
+
+                                    <img
+                                      src={msg.media}
+                                      alt=""
+                                      onClick={() =>
+                                        setPreviewImage(msg.media)
+                                      }
+                                    />
+
+                                  ) : msg.mediaType === "audio" ? (
+
+                                    <VoiceMessagePlayer src={msg.media} isMine={msg.sender?._id === user?._id} />
+
+                                  ) : (
+
+                                    <video
+                                      controls
+                                      src={msg.media}
+                                    />
+
+                                  )}
+
+                                </div>
+
+                              ))}
+
+                          </div>
+
+                        )}
+
+                      </div>
+                    )}
+
+                  </div>
+
+                ) : (
+                  <>
+
+                    {/* HEADER */}
+                    <div className="cv-thread-header">
+
+                      <div className="cv-thread-id" onClick={() => setShowUserInfo(true)}>
+
+                        <i
+                          className="fa-solid fa-arrow-left d-md-none cv-back-btn"
+                          onClick={goBackToList}
+                        ></i>
+
+                        <div className="cv-avatar-wrap"   >
+                          <img
+                            src={selectedUser.image}
+                            alt=""
+                            className="cv-thread-avatar"
+                          />
+                          {isOnline(selectedUser._id) && (
+                            <span className="cv-online-dot"></span>
+                          )}
+                        </div>
+
+                        <div>
+                          <h5>{selectedUser.name}</h5>
+                          <small>
+                            {isPrivateUserTyping ? (
+                              <span className="cv-typing-text">typing…</span>
+                            ) : isOnline(selectedUser._id) ? (
+                              <span className="cv-online-text">Online</span>
+                            ) : (
+                              selectedUser.email
+                            )}
+                          </small>
+                        </div>
+
+                      </div>
+
+                      <div className="cv-thread-actions">
+                        <i
+                          className="fa-solid fa-magnifying-glass"
+                          onClick={() => setShowMsgSearch((prev) => !prev)}
+                          title="Search messages"
+                        ></i>
+                        <i className="fa-solid fa-phone" onClick={() => triggerCall(selectedUser, "audio")}></i>
+                        <i className="fa-solid fa-video" onClick={() => triggerCall(selectedUser, "video")}></i>
+                        <i
+                          className="fa-solid fa-circle-info"
+                          onClick={() => setShowUserInfo(true)}
+                        ></i>
+                      </div>
+
+                    </div>
+
+                    {/* 🔍 MESSAGE SEARCH BAR — private chat */}
+                    {showMsgSearch && renderMsgSearchBar()}
+
+                    {/* MESSAGES */}
+                    <div className="cv-thread" ref={privateMessagesRef}>
+
+                      {privateMessages.length === 0 ? (
+                        <div className="cv-thread-empty">
+                          No messages yet — start the conversation
+                        </div>
+                      ) : (
+                        privateMessages.map((msg, index) => {
+                          const isMe = msg.sender?._id === user?._id;
+                          const side = isMe ? "mine" : "theirs";
+                          const showDateSeparator = shouldShowDateSeparator(
+                            msg,
+                            privateMessages[index - 1]
+                          );
+
+                          return (
+                            <React.Fragment key={msg._id}>
+
+                              {showDateSeparator && (
+                                <div className="cv-date-separator">
+                                  <span>{getDateLabel(msg.createdAt)}</span>
+                                </div>
+                              )}
+
+                              <div
+                                className={`cv-msg-row ${side}`}
+                                ref={(el) => (messageRefs.current[msg._id] = el)}
+                              >
+
+                                {!isMe && (
+                                  <div className="cv-bubble-avatar-wrap">
+                                    <img
+                                      src={msg.sender?.image}
+                                      alt=""
+                                      className="cv-bubble-avatar"
+                                    />
+                                    {isOnline(msg.sender?._id) && (
+                                      <span className="cv-online-dot cv-online-dot-xs"></span>
+                                    )}
+                                  </div>
+                                )}
+
+                                <div className={`cv-bubble ${side}`}>
+
+                                  {!msg.isDeleted && (
+                                    <div
+                                      className="cv-menu-trigger"
+                                      ref={showMsgMenu === msg._id ? msgMenuRef : null}
+                                    >
+                                      <i
+                                        className="fa-solid fa-ellipsis-vertical"
+                                        onClick={() =>
+                                          setShowMsgMenu(
+                                            showMsgMenu === msg._id ? null : msg._id
+                                          )
+                                        }
+                                      />
+
+                                      {showMsgMenu === msg._id && (
+                                        <div className={`cv-dropdown ${side}`}>
+                                          <div onClick={() => handleReply(msg)}>Reply</div>
+                                          <div onClick={() => forwardMessage(msg)}>Forward</div>
+                                          {isMe && (
+                                            <>
+                                              <div onClick={() => updateMessage(msg)}>Edit</div>
+                                              <div onClick={() => deleteMessage(msg._id)}>Delete</div>
+                                            </>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {!isMe && (
+                                    <div className="cv-sender">{msg.sender?.name}</div>
+                                  )}
+
+                                  {msg.replyTo && (
+                                    <div className="cv-reply-box">
+                                      <div className="cv-reply-user">{msg.replyTo.sender?.name}</div>
+                                      <div className="cv-reply-text">
+                                        {msg.replyTo.isDeleted ? "This message was deleted" : msg.replyTo.message}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {msg.message && (
+                                    <div className={`cv-msg-text ${msg.isDeleted ? "deleted" : ""}`}>
+                                      {msg.isDeleted ? msg.message : highlightText(msg.message, msg._id)}
+                                      {msg.isEdited && !msg.isDeleted && (
+                                        <div className="cv-edited-tag">edited</div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {msg.media && (
+                                    <>
+                                      {msg.mediaType === "image" ? (
+                                        <img
+                                          src={msg.media}
+                                          className="cv-media"
+                                          alt=""
+                                          onClick={() => setPreviewImage(msg.media)}
+                                        />
+                                      ) : msg.mediaType === "audio" ? (
+                                        <VoiceMessagePlayer src={msg.media} isMine={isMe} />
+                                      ) : (
+                                        <video
+                                          src={msg.media}
+                                          className="cv-media"
+                                          controls
+                                        />
+                                      )}
+                                    </>
+                                  )}
+
+                                  <div className="cv-stamp">
+                                    {formatTime(msg.createdAt)}
+                                    {isMe && !msg.isDeleted && (
+                                      <i
+                                        className={`fa-solid ${msg.seen
+                                          ? "fa-check-double cv-tick-seen"
+                                          : "fa-check cv-tick-sent"
+                                          }`}
+                                      ></i>
+                                    )}
+                                  </div>
+
+                                </div>
+
+                              </div>
+
+                            </React.Fragment>
+                          );
+                        })
+                      )}
+
+                    </div>
+
+                    {replyingTo && (
+                      <div className="cv-strip">
+                        <div>
+                          <span className="cv-strip-label">Replying to {replyingTo.sender?.name}</span>
+                          <p>{replyingTo.message}</p>
+                        </div>
+                        <i className="fa-solid fa-xmark" onClick={() => setReplyingTo(null)}></i>
+                      </div>
+                    )}
+
+                    {editingMessage && (
+                      <div className="cv-strip">
+                        <span className="cv-strip-label">Editing message</span>
+                        <i
+                          className="fa-solid fa-xmark"
+                          onClick={() => {
+                            setEditingMessage(null);
+                            setMessage("");
+                          }}
+                        ></i>
+                      </div>
+                    )}
+
+                    {media && (
+                      <div className="cv-media-stage">
+                        {media.type.startsWith("image") ? (
+                          <img src={URL.createObjectURL(media)} alt="" />
+                        ) : media.type.startsWith("audio") ? (
+                          <audio controls src={URL.createObjectURL(media)} />
+                        ) : (
+                          <video src={URL.createObjectURL(media)} controls />
+                        )}
+                        <i className="fa-solid fa-xmark cv-media-remove" onClick={() => { setMedia(null); setMediaKind(null); }}></i>
+                      </div>
+                    )}
+
+                    {isUserBlocked(selectedUser._id) ? (
+                      <div className="cv-blocked-banner">
+                        <i className="fa-solid fa-ban"></i>
+                        You blocked this user — unblock from their info page to send messages.
+                      </div>
+                    ) : (
+                      <div className="cv-composer">
+
+                        <div
+                          className="cv-attach"
+                          onClick={() => document.getElementById("privateMediaInput").click()}
+                        >
+                          <i className="fa-solid fa-images"></i>
+                        </div>
+
+                        <input
+                          id="privateMediaInput"
+                          type="file"
+                          hidden
+                          accept="image/*,video/*"
+                          onChange={handleMediaUpload}
+                        />
+
+                        <div
+                          ref={emojiPickerRef}
+                          style={{ position: "relative", display: "flex", alignItems: "center" }}
+                        >
+                          <div
+                            className="cv-attach"
+                            onClick={() => setShowEmojiPicker((prev) => !prev)}
+                          >
+                            <i className="fa-solid fa-face-smile"></i>
+                          </div>
+
+                          {showEmojiPicker && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                bottom: "48px",
+                                left: 0,
+                                width: "260px",
+                                maxHeight: "220px",
+                                overflowY: "auto",
+                                background: "#fff",
+                                border: "1px solid #e0e0e0",
+                                borderRadius: "10px",
+                                boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+                                padding: "8px",
+                                display: "grid",
+                                gridTemplateColumns: "repeat(7, 1fr)",
+                                gap: "4px",
+                                zIndex: 20,
+                              }}
+                            >
+                              {EMOJI_LIST.map((emoji, i) => (
+                                <span
+                                  key={i}
+                                  onClick={() => appendEmoji(emoji)}
+                                  style={{
+                                    fontSize: "20px",
+                                    cursor: "pointer",
+                                    textAlign: "center",
+                                    lineHeight: "28px",
+                                    borderRadius: "6px",
+                                  }}
+                                  onMouseDown={(e) => e.preventDefault()}
+                                >
+                                  {emoji}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <input
+                          type="text"
+                          placeholder="Write a message…"
+                          value={message}
+                          onChange={(e) => handlePrivateTyping(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSend();
+                          }}
+                        />
+
+                        <button
+                          type="button"
+                          className="cv-send"
+                          onClick={
+                            sendingMessage
+                              ? undefined
+                              : message.trim() || media
+                                ? handleSend
+                                : isRecording
+                                  ? stopRecording
+                                  : startRecording
+                          }
+                          disabled={sendingMessage}
+                        >
+                          {sendingMessage ? (
+                            <i className="fa-solid fa-circle-notch fa-spin"></i>
+                          ) : message.trim() || media ? (
+                            <i className="fa-solid fa-paper-plane"></i>
+                          ) : isRecording ? (
+                            <i className="fa-solid fa-stop" style={{ color: "red" }}></i>
+                          ) : (
+                            <i className="fa-solid fa-microphone"></i>
+                          )}
+                        </button>
+                        {isRecording && (
+                          <div className="cv-recording-bar">
+                            <i className="fa-solid fa-trash-can cv-recording-cancel" onClick={cancelRecording}></i>
+                            <span className="cv-recording-dot"></span>
+                            <span className="cv-recording-time">{formatRecordingTime(recordingTime)}</span>
+                            <span className="cv-recording-hint">Recording…</span>
+                          </div>
+                        )}
+
+                      </div>
+                    )}
+
+                  </>
+                )
+              ) : !selectedGroup ? (
+
+                <div className="cv-blank">
+                  <div className="cv-blank-mark">
+                    <i className="fa-solid fa-feather-pointed"></i>
+                  </div>
+                  <h2>Talkify</h2>
+                  <p>Connect · Converse · Collaborate</p>
+                </div>
+
+              ) : showGroupInfo ? (
 
                 <div className="cv-info">
 
@@ -2141,100 +2647,140 @@ console.log("mediaKind =", mediaKind);
                       className="fa-solid fa-arrow-left d-md-none cv-back-btn"
                       onClick={goBackToList}
                     ></i>
-                    <h5>Contact</h5>
-
-                    <i
-                      className="fa-solid fa-xmark"
-                      onClick={() => setShowUserInfo(false)}
-                    ></i>
+                    <h5>Group Info</h5>
+                    <i className="fa-solid fa-xmark" onClick={() => setShowGroupInfo(false)}></i>
                   </div>
 
                   <div className="cv-info-top">
 
-                    <div className="cv-avatar-wrap cv-avatar-wrap-lg">
-                      <img
-                        src={selectedUser.image}
-                        className="cv-info-avatar"
-                        alt=""
-                        onClick={() =>
-                          setPreviewImage(selectedUser.image)
-                        }
-                      />
-                      {isOnline(selectedUser._id) && (
-                        <span className="cv-online-dot cv-online-dot-lg"></span>
-                      )}
-                    </div>
+                    <img
+                      src={selectedGroup.groupImage}
+                      alt=""
+                      className="cv-info-avatar"
+                      onClick={() =>
+                        setPreviewImage(selectedGroup.groupImage)
+                      }
+                    />
 
-                    <h2>{selectedUser.name}</h2>
+                    <h2>{selectedGroup.groupName}</h2>
 
-                    <p>
-                      {isOnline(selectedUser._id) ? (
-                        <span className="cv-online-text">● Online</span>
-                      ) : (
-                        selectedUser.email
-                      )}
-                    </p>
+                    <p>Group · {selectedGroup.members.length} members</p>
 
                   </div>
 
                   <hr className="cv-divider" />
 
                   <div className="cv-actions">
-                    <div
-                      className="cv-action"
-                      onClick={() => setShowMedia(!showMedia)}
-                    >
+
+                    {selectedGroup?.createdBy?._id === user?._id && (
+                      <div className="cv-action" onClick={openEditGroupModal}>
+                        <div className="cv-action-circle">
+                          <i className="fa-solid fa-pen"></i>
+                        </div>
+                        <p>Edit</p>
+                      </div>
+                    )}
+
+                    {selectedGroup?.createdBy?._id === user?._id && (
+                      <div className="cv-action" onClick={() => setShowAddUserModal(true)}>
+                        <div className="cv-action-circle">
+                          <i className="fa-solid fa-user-plus"></i>
+                        </div>
+                        <p>Add</p>
+                      </div>
+                    )}
+
+                    <div className="cv-action" onClick={() => setShowMedia(!showMedia)}>
                       <div className="cv-action-circle">
                         <i className="fa-solid fa-images"></i>
                       </div>
                       <p>Media</p>
                     </div>
-
-                    <div className="cv-action danger" onClick={toggleBlockUser}>
-                      <div className="cv-action-circle">
-                        <i
-                          className={`fa-solid ${
-                            isUserBlocked(selectedUser._id) ? "fa-circle-check" : "fa-ban"
-                          }`}
-                        ></i>
+                    {selectedGroup?.createdBy?._id === user?._id && (
+                      <div className="cv-action danger" onClick={handleClearGroupChat}>
+                        <div className="cv-action-circle">
+                          <i className="fa-solid fa-broom"></i>
+                        </div>
+                        <p>Clear Chat</p>
                       </div>
-                      <p>{isUserBlocked(selectedUser._id) ? "Unblock" : "Block"}</p>
-                    </div>
-                     <div className="cv-action danger" onClick={handleDeleteChat}>
-    <div className="cv-action-circle">
-      <i className="fa-solid fa-trash-can"></i>
-    </div>
-    <p>Delete Chat</p>
-  </div>
+                    )}
+
+                    {selectedGroup?.createdBy?._id !== user?._id && (
+                      <div className="cv-action danger" onClick={handleLeaveGroup}>
+                        <div className="cv-action-circle">
+                          <i className="fa-solid fa-right-from-bracket"></i>
+                        </div>
+                        <p>Leave</p>
+                      </div>
+                    )}
+
+                    {selectedGroup?.createdBy?._id === user?._id && (
+                      <div className="cv-action danger" onClick={handleDeleteGroup}>
+                        <div className="cv-action-circle">
+                          <i className="fa-solid fa-trash-can"></i>
+                        </div>
+                        <p>Delete</p>
+                      </div>
+                    )}
+
                   </div>
 
-                  {isUserBlocked(selectedUser._id) && (
-                    <p className="cv-empty-note">
-                      You have blocked this user. They can't send you messages.
-                    </p>
+                  {selectedGroup?.createdBy?._id === user?._id && (
+                    <div className="cv-invite-code-box">
+                      <div className="cv-invite-code-label">
+                        <i className="fa-solid fa-key"></i>
+                        Invite Code
+                      </div>
+
+                      <div className="cv-invite-code-row">
+                        <span className="cv-invite-code-value">
+                          {selectedGroup.inviteCode}
+                        </span>
+
+                        <div className="cv-invite-code-actions">
+                          <button
+                            type="button"
+                            className="cv-code-btn"
+                            onClick={copyInviteCode}
+                            title="Copy code"
+                          >
+                            <i className="fa-solid fa-copy"></i>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="cv-code-btn cv-code-btn-danger"
+                            onClick={regenerateCode}
+                            disabled={regenLoading}
+                            title="Regenerate code"
+                          >
+                            <i
+                              className={`fa-solid fa-rotate-right ${regenLoading ? "fa-spin" : ""
+                                }`}
+                            ></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="cv-invite-code-hint">
+                        Share this code with people you want to invite. Regenerate to invalidate the old one.
+                      </p>
+                    </div>
                   )}
 
                   {showMedia && (
                     <div>
 
-                      {privateMessages.filter(msg => msg.media).length === 0 ? (
-
-                        <p className="cv-empty-note">
-                          No media shared yet
-                        </p>
-
+                      {messages.filter((msg) => msg.media).length === 0 ? (
+                        <p className="cv-empty-note">No media shared yet</p>
                       ) : (
-
                         <div className="cv-media-grid">
 
-                          {privateMessages
-                            .filter(msg => msg.media)
-                            .map(msg => (
-
+                          {messages
+                            .filter((msg) => msg.media)
+                            .map((msg) => (
                               <div key={msg._id}>
-
                                 {msg.mediaType === "image" ? (
-
                                   <img
                                     src={msg.media}
                                     alt=""
@@ -2242,67 +2788,182 @@ console.log("mediaKind =", mediaKind);
                                       setPreviewImage(msg.media)
                                     }
                                   />
-
                                 ) : msg.mediaType === "audio" ? (
-
                                   <VoiceMessagePlayer src={msg.media} isMine={msg.sender?._id === user?._id} />
-
                                 ) : (
-
-                                  <video
-                                    controls
-                                    src={msg.media}
-                                  />
-
+                                  <video controls src={msg.media} />
                                 )}
-
                               </div>
-
                             ))}
 
                         </div>
-
                       )}
 
                     </div>
                   )}
 
+                  {previewImage && (
+                    <div className="cv-lightbox" onClick={() => setPreviewImage(null)}>
+                      <div className="cv-lightbox-content" onClick={(e) => e.stopPropagation()}>
+                        <img src={previewImage} alt="" />
+                        <div className="cv-lightbox-actions">
+                          <a href={previewImage} download><i className="fa-solid fa-download"></i></a>
+                          <button type="button" onClick={() => setPreviewImage(null)}><i className="fa-solid fa-xmark"></i></button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={`modal fade ${showEditGroupModal ? "show d-block" : ""}`} tabIndex="-1">
+                    <div className="modal-dialog modal-dialog-centered">
+                      <div className="modal-content cv-modal-content">
+
+                        <div className="modal-header cv-modal-header">
+                          <h5 className="modal-title">
+                            <i className="fa-solid fa-pen me-2"></i>
+                            Edit group
+                          </h5>
+                          <button
+                            type="button"
+                            className="btn-close"
+                            onClick={() => setShowEditGroupModal(false)}
+                          ></button>
+                        </div>
+
+                        <div className="modal-body">
+
+                          <div className="text-center mb-4">
+
+                            <img
+                              src={
+                                editGroupImage
+                                  ? URL.createObjectURL(editGroupImage)
+                                  : selectedGroup?.groupImage
+                              }
+                              alt="Group preview"
+                              style={{
+                                width: "104px",
+                                height: "104px",
+                                borderRadius: "50%",
+                                objectFit: "cover",
+                              }}
+                            />
+
+                            <input
+                              type="file"
+                              className="form-control mt-3 cv-input"
+                              accept="image/*"
+                              onChange={(e) => setEditGroupImage(e.target.files[0])}
+                            />
+                          </div>
+
+                          <div className="mb-3">
+                            <label className="cv-field-label">Group name</label>
+                            <input
+                              type="text"
+                              className="form-control cv-input"
+                              placeholder="Enter group name"
+                              value={editGroupName}
+                              onChange={(e) => setEditGroupName(e.target.value)}
+                            />
+                          </div>
+
+                        </div>
+
+                        <div className="modal-footer border-0">
+                          <button
+                            type="button"
+                            className="cv-btn-ghost"
+                            onClick={() => setShowEditGroupModal(false)}
+                          >
+                            Cancel
+                          </button>
+
+                          <button
+                            type="button"
+                            className="cv-btn-primary"
+                            onClick={updateGroupProfile}
+                            disabled={editGroupLoading}
+                          >
+                            {editGroupLoading ? (
+                              <>
+                                <i className="fa-solid fa-circle-notch fa-spin me-2"></i>
+                                Saving…
+                              </>
+                            ) : (
+                              "Save changes"
+                            )}
+                          </button>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="cv-members">
+
+                    <h5>Members</h5>
+
+                    {[...selectedGroup.members]
+                      .sort((a, b) => {
+                        if (a._id === selectedGroup?.createdBy?._id) return -1;
+                        if (b._id === selectedGroup?.createdBy?._id) return 1;
+                        return 0;
+                      })
+                      .map((member) => (
+                        <div key={member._id} className="cv-member-row">
+
+                          <div className="cv-member-left">
+                            <img src={member.image} alt="" />
+                            <span>{member.name}</span>
+                          </div>
+
+                          {member._id === selectedGroup?.createdBy?._id ? (
+                            <span className="cv-admin-tag">Admin</span>
+                          ) : (
+                            selectedGroup?.createdBy?._id === user?._id && (
+                              <i
+                                onClick={() => handleRemoveMember(member)}
+                                className="fa-solid fa-trash-can cv-member-remove"
+                              ></i>
+                            )
+                          )}
+
+                        </div>
+                      ))}
+
+                  </div>
+
                 </div>
 
               ) : (
+
                 <>
 
-                  {/* HEADER */}
                   <div className="cv-thread-header">
 
-                    <div className="cv-thread-id" onClick={() => setShowUserInfo(true)}>
+                    <div className="cv-thread-id" onClick={() => setShowGroupInfo(true)}>
 
                       <i
                         className="fa-solid fa-arrow-left d-md-none cv-back-btn"
-                        onClick={goBackToList}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          goBackToList();
+                        }}
                       ></i>
 
-                      <div className="cv-avatar-wrap"   >
-                        <img  
-                          src={selectedUser.image}
-                          alt=""
-                          className="cv-thread-avatar"
-                        />
-                        {isOnline(selectedUser._id) && (
-                          <span className="cv-online-dot"></span>
-                        )}
-                      </div>
+                      <img
+                        src={selectedGroup.groupImage}
+                        alt=""
+                        className="cv-thread-avatar"
+                      />
 
                       <div>
-                        <h5>{selectedUser.name}</h5>
+                        <h5>{selectedGroup.groupName}</h5>
                         <small>
-                          {isPrivateUserTyping ? (
-                            <span className="cv-typing-text">typing…</span>
-                          ) : isOnline(selectedUser._id) ? (
-                            <span className="cv-online-text">Online</span>
-                          ) : (
-                            selectedUser.email
-                          )}
+                          {currentGroupTypingNames.length > 0
+                            ? `${currentGroupTypingNames.join(", ")} is typing…`
+                            : `${selectedGroup.members.length} members`}
                         </small>
                       </div>
 
@@ -2314,43 +2975,31 @@ console.log("mediaKind =", mediaKind);
                         onClick={() => setShowMsgSearch((prev) => !prev)}
                         title="Search messages"
                       ></i>
-                    <i
-  className="fa-solid fa-phone"
-  onClick={() => window.__startCall(selectedUser, "audio")}
-></i>
-<i
-  className="fa-solid fa-video"
-  onClick={() => window.__startCall(selectedUser, "video")}
-></i>
-                      <i
-                        className="fa-solid fa-circle-info"
-                        onClick={() => setShowUserInfo(true)}
-                      ></i>
+                      <i className="fa-solid fa-phone"></i>
+                      <i className="fa-solid fa-video"></i>
+                      <i className="fa-solid fa-circle-info" onClick={() => setShowGroupInfo(true)}></i>
                     </div>
 
                   </div>
 
-                  {/* 🔍 MESSAGE SEARCH BAR — private chat */}
+                  {/* 🔍 MESSAGE SEARCH BAR — group chat */}
                   {showMsgSearch && renderMsgSearchBar()}
 
-                  {/* MESSAGES */}
-                  <div className="cv-thread" ref={privateMessagesRef}>
+                  <div className="cv-thread" ref={messagesContainerRef}>
 
-                    {privateMessages.length === 0 ? (
-                      <div className="cv-thread-empty">
-                        No messages yet — start the conversation
-                      </div>
-                    ) : (
-                      privateMessages.map((msg, index) => {
-                        const isMe = msg.sender?._id === user?._id;
-                        const side = isMe ? "mine" : "theirs";
-                        const showDateSeparator = shouldShowDateSeparator(
-                          msg,
-                          privateMessages[index - 1]
-                        );
+                    {messages.map((msg, index) => {
 
-                        return (
-                          <React.Fragment key={msg._id}>
+                      const senderName = msg.sender?.name || msg.sender;
+                      const isMe = senderName === user?.name;
+                      const side = isMe ? "mine" : "theirs";
+                      const showDateSeparator = shouldShowDateSeparator(
+                        msg,
+                        messages[index - 1]
+                      );
+
+                      return (
+
+                        <React.Fragment key={msg._id || index}>
 
                           {showDateSeparator && (
                             <div className="cv-date-separator">
@@ -2386,9 +3035,7 @@ console.log("mediaKind =", mediaKind);
                                   <i
                                     className="fa-solid fa-ellipsis-vertical"
                                     onClick={() =>
-                                      setShowMsgMenu(
-                                        showMsgMenu === msg._id ? null : msg._id
-                                      )
+                                      setShowMsgMenu(showMsgMenu === msg._id ? null : msg._id)
                                     }
                                   />
 
@@ -2398,8 +3045,8 @@ console.log("mediaKind =", mediaKind);
                                       <div onClick={() => forwardMessage(msg)}>Forward</div>
                                       {isMe && (
                                         <>
-                                          <div onClick={() => updateMessage(msg)}>Edit</div>
-                                          <div onClick={() => deleteMessage(msg._id)}>Delete</div>
+                                          <div onClick={() => updateGroupMessage(msg)}>Edit</div>
+                                          <div onClick={() => deleteGroupMessage(msg._id)}>Delete</div>
                                         </>
                                       )}
                                     </div>
@@ -2407,9 +3054,7 @@ console.log("mediaKind =", mediaKind);
                                 </div>
                               )}
 
-                              {!isMe && (
-                                <div className="cv-sender">{msg.sender?.name}</div>
-                              )}
+                              {!isMe && <div className="cv-sender">{senderName}</div>}
 
                               {msg.replyTo && (
                                 <div className="cv-reply-box">
@@ -2429,48 +3074,31 @@ console.log("mediaKind =", mediaKind);
                                 </div>
                               )}
 
-                            {msg.media && (
-  <>
-    {msg.mediaType === "image" ? (
-      <img
-        src={msg.media}
-        className="cv-media"
-        alt=""
-        onClick={() => setPreviewImage(msg.media)}
-      />
-    ) : msg.mediaType === "audio" ? (
-      <VoiceMessagePlayer src={msg.media} isMine={isMe} />
-    ) : (
-      <video
-        src={msg.media}
-        className="cv-media"
-        controls
-      />
-    )}
-  </>
-)}
+                              {msg.media && (
+                                <>
+                                  {msg.mediaType === "image" ? (
+                                    <img src={msg.media} className="cv-media" alt="" onClick={() => setPreviewImage(msg.media)} />
+                                  ) : msg.mediaType === "audio" ? (
+                                    <VoiceMessagePlayer src={msg.media} isMine={isMe} />
+                                  ) : (
+                                    <video src={msg.media} className="cv-media" controls />
+                                  )}
+                                </>
+                              )}
 
-                              <div className="cv-stamp">
-                                {formatTime(msg.createdAt)}
-                                {isMe && !msg.isDeleted && (
-                                  <i
-                                    className={`fa-solid ${
-                                      msg.seen
-                                        ? "fa-check-double cv-tick-seen"
-                                        : "fa-check cv-tick-sent"
-                                    }`}
-                                  ></i>
-                                )}
-                              </div>
+                              <div className="cv-stamp">{formatTime(msg.createdAt)}</div>
 
                             </div>
 
                           </div>
 
-                          </React.Fragment>
-                        );
-                      })
-                    )}
+                        </React.Fragment>
+
+                      );
+
+                    })}
+
+                    <div ref={messagesEndRef}></div>
 
                   </div>
 
@@ -2497,769 +3125,136 @@ console.log("mediaKind =", mediaKind);
                     </div>
                   )}
 
-                 {media && (
-  <div className="cv-media-stage">
-    {media.type.startsWith("image") ? (
-      <img src={URL.createObjectURL(media)} alt="" />
-    ) : media.type.startsWith("audio") ? (
-      <audio controls src={URL.createObjectURL(media)} />
-    ) : (
-      <video src={URL.createObjectURL(media)} controls />
-    )}
-    <i className="fa-solid fa-xmark cv-media-remove" onClick={() => { setMedia(null); setMediaKind(null); }}></i>
-  </div>
-)}
-
-                  {isUserBlocked(selectedUser._id) ? (
-                    <div className="cv-blocked-banner">
-                      <i className="fa-solid fa-ban"></i>
-                      You blocked this user — unblock from their info page to send messages.
-                    </div>
-                  ) : (
-                    <div className="cv-composer">
-
-                      <div
-                        className="cv-attach"
-                        onClick={() => document.getElementById("privateMediaInput").click()}
-                      >
-                        <i className="fa-solid fa-images"></i>
-                      </div>
-
-                      <input
-                        id="privateMediaInput"
-                        type="file"
-                        hidden
-                        accept="image/*,video/*"
-                        onChange={handleMediaUpload}
-                      />
-
-                      <div
-                        ref={emojiPickerRef}
-                        style={{ position: "relative", display: "flex", alignItems: "center" }}
-                      >
-                        <div
-                          className="cv-attach"
-                          onClick={() => setShowEmojiPicker((prev) => !prev)}
-                        >
-                          <i className="fa-solid fa-face-smile"></i>
-                        </div>
-
-                        {showEmojiPicker && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              bottom: "48px",
-                              left: 0,
-                              width: "260px",
-                              maxHeight: "220px",
-                              overflowY: "auto",
-                              background: "#fff",
-                              border: "1px solid #e0e0e0",
-                              borderRadius: "10px",
-                              boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-                              padding: "8px",
-                              display: "grid",
-                              gridTemplateColumns: "repeat(7, 1fr)",
-                              gap: "4px",
-                              zIndex: 20,
-                            }}
-                          >
-                            {EMOJI_LIST.map((emoji, i) => (
-                              <span
-                                key={i}
-                                onClick={() => appendEmoji(emoji)}
-                                style={{
-                                  fontSize: "20px",
-                                  cursor: "pointer",
-                                  textAlign: "center",
-                                  lineHeight: "28px",
-                                  borderRadius: "6px",
-                                }}
-                                onMouseDown={(e) => e.preventDefault()}
-                              >
-                                {emoji}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <input
-                        type="text"
-                        placeholder="Write a message…"
-                        value={message}
-                        onChange={(e) => handlePrivateTyping(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSend();
-                        }}
-                      />
-
-                   <button
-  type="button"
-  className="cv-send"
-  onClick={
-    sendingMessage
-      ? undefined
-      : message.trim() || media
-      ? handleSend
-      : isRecording
-      ? stopRecording
-      : startRecording
-  }
-  disabled={sendingMessage}
->
-  {sendingMessage ? (
-    <i className="fa-solid fa-circle-notch fa-spin"></i>
-  ) : message.trim() || media ? (
-    <i className="fa-solid fa-paper-plane"></i>
-  ) : isRecording ? (
-    <i className="fa-solid fa-stop" style={{ color: "red" }}></i>
-  ) : (
-    <i className="fa-solid fa-microphone"></i>
-  )}
-</button>
-{isRecording && (
-  <div className="cv-recording-bar">
-    <i className="fa-solid fa-trash-can cv-recording-cancel" onClick={cancelRecording}></i>
-    <span className="cv-recording-dot"></span>
-    <span className="cv-recording-time">{formatRecordingTime(recordingTime)}</span>
-    <span className="cv-recording-hint">Recording…</span>
-  </div>
-)}
-
-                    </div>
-                  )}
-
-                </>
-              )
-            ) : !selectedGroup ? (
-
-              <div className="cv-blank">
-                <div className="cv-blank-mark">
-                  <i className="fa-solid fa-feather-pointed"></i>
-                </div>
-                <h2>Talkify</h2>
-                <p>Connect · Converse · Collaborate</p>
-              </div>
-
-            ) : showGroupInfo ? (
-
-              <div className="cv-info">
-
-                <div className="cv-info-header">
-                  <i
-                    className="fa-solid fa-arrow-left d-md-none cv-back-btn"
-                    onClick={goBackToList}
-                  ></i>
-                  <h5>Group Info</h5>
-                  <i className="fa-solid fa-xmark" onClick={() => setShowGroupInfo(false)}></i>
-                </div>
-
-                <div className="cv-info-top">
-
-                  <img
-                    src={selectedGroup.groupImage}
-                    alt=""
-                    className="cv-info-avatar"
-                    onClick={() =>
-                      setPreviewImage(selectedGroup.groupImage)
-                    }
-                  />
-
-                  <h2>{selectedGroup.groupName}</h2>
-
-                  <p>Group · {selectedGroup.members.length} members</p>
-
-                </div>
-
-                <hr className="cv-divider" />
-
-                <div className="cv-actions">
-
-                {selectedGroup?.createdBy?._id === user?._id && (
-    <div className="cv-action" onClick={openEditGroupModal}>
-      <div className="cv-action-circle">
-        <i className="fa-solid fa-pen"></i>
-      </div>
-      <p>Edit</p>
-    </div>
-  )}
-
-  {selectedGroup?.createdBy?._id === user?._id && (
-    <div className="cv-action" onClick={() => setShowAddUserModal(true)}>
-      <div className="cv-action-circle">
-        <i className="fa-solid fa-user-plus"></i>
-      </div>
-      <p>Add</p>
-    </div>
-  )}
-
-  <div className="cv-action" onClick={() => setShowMedia(!showMedia)}>
-    <div className="cv-action-circle">
-      <i className="fa-solid fa-images"></i>
-    </div>
-    <p>Media</p>
-  </div>
-  {selectedGroup?.createdBy?._id === user?._id && (
-  <div className="cv-action danger" onClick={handleClearGroupChat}>
-    <div className="cv-action-circle">
-      <i className="fa-solid fa-broom"></i>
-    </div>
-    <p>Clear Chat</p>
-  </div>
-)}
- 
-                  {selectedGroup?.createdBy?._id !== user?._id && (
-                    <div className="cv-action danger" onClick={handleLeaveGroup}>
-                      <div className="cv-action-circle">
-                        <i className="fa-solid fa-right-from-bracket"></i>
-                      </div>
-                      <p>Leave</p>
-                    </div>
-                  )}
-
-                  {selectedGroup?.createdBy?._id === user?._id && (
-                    <div className="cv-action danger" onClick={handleDeleteGroup}>
-                      <div className="cv-action-circle">
-                        <i className="fa-solid fa-trash-can"></i>
-                      </div>
-                      <p>Delete</p>
-                    </div>
-                  )}
-
-                </div>
-
-                {selectedGroup?.createdBy?._id === user?._id && (
-                  <div className="cv-invite-code-box">
-                    <div className="cv-invite-code-label">
-                      <i className="fa-solid fa-key"></i>
-                      Invite Code
-                    </div>
-
-                                    <div className="cv-invite-code-row">
-                      <span className="cv-invite-code-value">
-                        {selectedGroup.inviteCode}
-                      </span>
-
-                      <div className="cv-invite-code-actions">
-                        <button
-                          type="button"
-                          className="cv-code-btn"
-                          onClick={copyInviteCode}
-                          title="Copy code"
-                        >
-                          <i className="fa-solid fa-copy"></i>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="cv-code-btn cv-code-btn-danger"
-                          onClick={regenerateCode}
-                          disabled={regenLoading}
-                          title="Regenerate code"
-                        >
-                          <i
-                            className={`fa-solid fa-rotate-right ${
-                              regenLoading ? "fa-spin" : ""
-                            }`}
-                          ></i>
-                        </button>
-                      </div>
-                    </div>
-
-                    <p className="cv-invite-code-hint">
-                      Share this code with people you want to invite. Regenerate to invalidate the old one.
-                    </p>
-                  </div>
-                )}
-
-                {showMedia && (
-                  <div>
-
-                    {messages.filter((msg) => msg.media).length === 0 ? (
-                      <p className="cv-empty-note">No media shared yet</p>
-                    ) : (
-                      <div className="cv-media-grid">
-
-                        {messages
-                          .filter((msg) => msg.media)
-                          .map((msg) => (
-                            <div key={msg._id}>
-                              {msg.mediaType === "image" ? (
-                                <img
-                                  src={msg.media}
-                                  alt=""
-                                  onClick={() =>
-                                    setPreviewImage(msg.media)
-                                  }
-                                />
-                              ) : msg.mediaType === "audio" ? (
-                                <VoiceMessagePlayer src={msg.media} isMine={msg.sender?._id === user?._id} />
-                              ) : (
-                                <video controls src={msg.media} />
-                              )}
-                            </div>
-                          ))}
-
-                      </div>
-                    )}
-
-                  </div>
-                )}
-
-                {previewImage && (
-                  <div className="cv-lightbox" onClick={() => setPreviewImage(null)}>
-                    <div className="cv-lightbox-content" onClick={(e) => e.stopPropagation()}>
-                      <img src={previewImage} alt="" />
-                      <div className="cv-lightbox-actions">
-                        <a href={previewImage} download><i className="fa-solid fa-download"></i></a>
-                        <button type="button" onClick={() => setPreviewImage(null)}><i className="fa-solid fa-xmark"></i></button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-<div className={`modal fade ${showEditGroupModal ? "show d-block" : ""}`} tabIndex="-1">
-  <div className="modal-dialog modal-dialog-centered">
-    <div className="modal-content cv-modal-content">
-
-      <div className="modal-header cv-modal-header">
-        <h5 className="modal-title">
-          <i className="fa-solid fa-pen me-2"></i>
-          Edit group
-        </h5>
-        <button
-          type="button"
-          className="btn-close"
-          onClick={() => setShowEditGroupModal(false)}
-        ></button>
-      </div>
-
-      <div className="modal-body">
-
-        <div className="text-center mb-4">
-
-          <img
-            src={
-              editGroupImage
-                ? URL.createObjectURL(editGroupImage)
-                : selectedGroup?.groupImage
-            }
-            alt="Group preview"
-            style={{
-              width: "104px",
-              height: "104px",
-              borderRadius: "50%",
-              objectFit: "cover",
-            }}
-          />
-
-          <input
-            type="file"
-            className="form-control mt-3 cv-input"
-            accept="image/*"
-            onChange={(e) => setEditGroupImage(e.target.files[0])}
-          />
-        </div>
-
-        <div className="mb-3">
-          <label className="cv-field-label">Group name</label>
-          <input
-            type="text"
-            className="form-control cv-input"
-            placeholder="Enter group name"
-            value={editGroupName}
-            onChange={(e) => setEditGroupName(e.target.value)}
-          />
-        </div>
-
-      </div>
-
-      <div className="modal-footer border-0">
-        <button
-          type="button"
-          className="cv-btn-ghost"
-          onClick={() => setShowEditGroupModal(false)}
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          className="cv-btn-primary"
-          onClick={updateGroupProfile}
-          disabled={editGroupLoading}
-        >
-          {editGroupLoading ? (
-            <>
-              <i className="fa-solid fa-circle-notch fa-spin me-2"></i>
-              Saving…
-            </>
-          ) : (
-            "Save changes"
-          )}
-        </button>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-                <div className="cv-members">
-
-                  <h5>Members</h5>
-
-                  {[...selectedGroup.members]
-                    .sort((a, b) => {
-                      if (a._id === selectedGroup?.createdBy?._id) return -1;
-                      if (b._id === selectedGroup?.createdBy?._id) return 1;
-                      return 0;
-                    })
-                    .map((member) => (
-                      <div key={member._id} className="cv-member-row">
-
-                        <div className="cv-member-left">
-                          <img src={member.image} alt="" />
-                          <span>{member.name}</span>
-                        </div>
-
-                        {member._id === selectedGroup?.createdBy?._id ? (
-                          <span className="cv-admin-tag">Admin</span>
-                        ) : (
-                          selectedGroup?.createdBy?._id === user?._id && (
-                            <i
-                              onClick={() => handleRemoveMember(member)}
-                              className="fa-solid fa-trash-can cv-member-remove"
-                            ></i>
-                          )
-                        )}
-
-                      </div>
-                    ))}
-
-                </div>
-
-              </div>
-
-            ) : (
-
-              <>
-
-                <div className="cv-thread-header">
-
-                  <div className="cv-thread-id" onClick={() => setShowGroupInfo(true)}>
-
-                    <i
-                      className="fa-solid fa-arrow-left d-md-none cv-back-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        goBackToList();
-                      }}
-                    ></i>
-
-                    <img 
-                      src={selectedGroup.groupImage}
-                      alt=""
-                      className="cv-thread-avatar"
-                    />
-
-                    <div>
-                      <h5>{selectedGroup.groupName}</h5>
-                      <small>
-                        {currentGroupTypingNames.length > 0
-                          ? `${currentGroupTypingNames.join(", ")} is typing…`
-                          : `${selectedGroup.members.length} members`}
-                      </small>
-                    </div>
-
-                  </div>
-
-                  <div className="cv-thread-actions">
-                    <i
-                      className="fa-solid fa-magnifying-glass"
-                      onClick={() => setShowMsgSearch((prev) => !prev)}
-                      title="Search messages"
-                    ></i>
-                    <i className="fa-solid fa-phone"></i>
-                    <i className="fa-solid fa-video"></i>
-                    <i className="fa-solid fa-circle-info" onClick={() => setShowGroupInfo(true)}></i>
-                  </div>
-
-                </div>
-
-                {/* 🔍 MESSAGE SEARCH BAR — group chat */}
-                {showMsgSearch && renderMsgSearchBar()}
-
-                <div className="cv-thread" ref={messagesContainerRef}>
-
-                  {messages.map((msg, index) => {
-
-                    const senderName = msg.sender?.name || msg.sender;
-                    const isMe = senderName === user?.name;
-                    const side = isMe ? "mine" : "theirs";
-                    const showDateSeparator = shouldShowDateSeparator(
-                      msg,
-                      messages[index - 1]
-                    );
-
-                    return (
-
-                      <React.Fragment key={msg._id || index}>
-
-                      {showDateSeparator && (
-                        <div className="cv-date-separator">
-                          <span>{getDateLabel(msg.createdAt)}</span>
-                        </div>
+                  {media && (
+                    <div className="cv-media-stage">
+                      {media.type.startsWith("image") ? (
+                        <img src={URL.createObjectURL(media)} alt="" />
+                      ) : media.type.startsWith("audio") ? (
+                        <audio controls src={URL.createObjectURL(media)} />
+                      ) : (
+                        <video src={URL.createObjectURL(media)} controls />
                       )}
-
-                      <div
-                        className={`cv-msg-row ${side}`}
-                        ref={(el) => (messageRefs.current[msg._id] = el)}
-                      >
-
-                        {!isMe && (
-                          <div className="cv-bubble-avatar-wrap">
-                            <img
-                              src={msg.sender?.image}
-                              alt=""
-                              className="cv-bubble-avatar"
-                            />
-                            {isOnline(msg.sender?._id) && (
-                              <span className="cv-online-dot cv-online-dot-xs"></span>
-                            )}
-                          </div>
-                        )}
-
-                        <div className={`cv-bubble ${side}`}>
-
-                          {!msg.isDeleted && (
-                            <div
-                              className="cv-menu-trigger"
-                              ref={showMsgMenu === msg._id ? msgMenuRef : null}
-                            >
-                              <i
-                                className="fa-solid fa-ellipsis-vertical"
-                                onClick={() =>
-                                  setShowMsgMenu(showMsgMenu === msg._id ? null : msg._id)
-                                }
-                              />
-
-                              {showMsgMenu === msg._id && (
-                                <div className={`cv-dropdown ${side}`}>
-                                  <div onClick={() => handleReply(msg)}>Reply</div>
-                                  <div onClick={() => forwardMessage(msg)}>Forward</div>
-                                  {isMe && (
-                                    <>
-                                      <div onClick={() => updateGroupMessage(msg)}>Edit</div>
-                                      <div onClick={() => deleteGroupMessage(msg._id)}>Delete</div>
-                                    </>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {!isMe && <div className="cv-sender">{senderName}</div>}
-
-                          {msg.replyTo && (
-                            <div className="cv-reply-box">
-                              <div className="cv-reply-user">{msg.replyTo.sender?.name}</div>
-                              <div className="cv-reply-text">
-                                {msg.replyTo.isDeleted ? "This message was deleted" : msg.replyTo.message}
-                              </div>
-                            </div>
-                          )}
-
-                          {msg.message && (
-                            <div className={`cv-msg-text ${msg.isDeleted ? "deleted" : ""}`}>
-                              {msg.isDeleted ? msg.message : highlightText(msg.message, msg._id)}
-                              {msg.isEdited && !msg.isDeleted && (
-                                <div className="cv-edited-tag">edited</div>
-                              )}
-                            </div>
-                          )}
-
-                         {msg.media && (
-  <>
-    {msg.mediaType === "image" ? (
-      <img src={msg.media} className="cv-media" alt="" onClick={() => setPreviewImage(msg.media)} />
-    ) : msg.mediaType === "audio" ? (
-      <VoiceMessagePlayer src={msg.media} isMine={isMe} />
-    ) : (
-      <video src={msg.media} className="cv-media" controls />
-    )}
-  </>
-)}
-
-                          <div className="cv-stamp">{formatTime(msg.createdAt)}</div>
-
-                        </div>
-
-                      </div>
-
-                      </React.Fragment>
-
-                    );
-
-                  })}
-
-                  <div ref={messagesEndRef}></div>
-
-                </div>
-
-                {replyingTo && (
-                  <div className="cv-strip">
-                    <div>
-                      <span className="cv-strip-label">Replying to {replyingTo.sender?.name}</span>
-                      <p>{replyingTo.message}</p>
+                      <i className="fa-solid fa-xmark cv-media-remove" onClick={() => { setMedia(null); setMediaKind(null); }}></i>
                     </div>
-                    <i className="fa-solid fa-xmark" onClick={() => setReplyingTo(null)}></i>
-                  </div>
-                )}
+                  )}
 
-                {editingMessage && (
-                  <div className="cv-strip">
-                    <span className="cv-strip-label">Editing message</span>
-                    <i
-                      className="fa-solid fa-xmark"
-                      onClick={() => {
-                        setEditingMessage(null);
-                        setMessage("");
-                      }}
-                    ></i>
-                  </div>
-                )}
+                  <div className="cv-composer">
 
-               {media && (
-  <div className="cv-media-stage">
-    {media.type.startsWith("image") ? (
-      <img src={URL.createObjectURL(media)} alt="" />
-    ) : media.type.startsWith("audio") ? (
-      <audio controls src={URL.createObjectURL(media)} />
-    ) : (
-      <video src={URL.createObjectURL(media)} controls />
-    )}
-    <i className="fa-solid fa-xmark cv-media-remove" onClick={() => { setMedia(null); setMediaKind(null); }}></i>
-  </div>
-)}
-
-                <div className="cv-composer">
-
-                  <div
-                    className="cv-attach"
-                    onClick={() => document.getElementById("chatMediaInput").click()}
-                  >
-                    <i className="fa-solid fa-images"></i>
-                  </div>
-
-                  <input
-                    id="chatMediaInput"
-                    type="file"
-                    hidden
-                    accept="image/*,video/*"
-                    onChange={handleMediaUpload}
-                  />
-
-                  <div
-                    ref={emojiPickerRef}
-                    style={{ position: "relative", display: "flex", alignItems: "center" }}
-                  >
                     <div
                       className="cv-attach"
-                      onClick={() => setShowEmojiPicker((prev) => !prev)}
+                      onClick={() => document.getElementById("chatMediaInput").click()}
                     >
-                      <i className="fa-solid fa-face-smile"></i>
+                      <i className="fa-solid fa-images"></i>
                     </div>
 
-                    {showEmojiPicker && (
+                    <input
+                      id="chatMediaInput"
+                      type="file"
+                      hidden
+                      accept="image/*,video/*"
+                      onChange={handleMediaUpload}
+                    />
+
+                    <div
+                      ref={emojiPickerRef}
+                      style={{ position: "relative", display: "flex", alignItems: "center" }}
+                    >
                       <div
-                        style={{
-                          position: "absolute",
-                          bottom: "48px",
-                          left: 0,
-                          width: "260px",
-                          maxHeight: "220px",
-                          overflowY: "auto",
-                          background: "#fff",
-                          border: "1px solid #e0e0e0",
-                          borderRadius: "10px",
-                          boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-                          padding: "8px",
-                          display: "grid",
-                          gridTemplateColumns: "repeat(7, 1fr)",
-                          gap: "4px",
-                          zIndex: 20,
-                        }}
+                        className="cv-attach"
+                        onClick={() => setShowEmojiPicker((prev) => !prev)}
                       >
-                        {EMOJI_LIST.map((emoji, i) => (
-                          <span
-                            key={i}
-                            onClick={() => appendEmoji(emoji)}
-                            style={{
-                              fontSize: "20px",
-                              cursor: "pointer",
-                              textAlign: "center",
-                              lineHeight: "28px",
-                              borderRadius: "6px",
-                            }}
-                            onMouseDown={(e) => e.preventDefault()}
-                          >
-                            {emoji}
-                          </span>
-                        ))}
+                        <i className="fa-solid fa-face-smile"></i>
+                      </div>
+
+                      {showEmojiPicker && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            bottom: "48px",
+                            left: 0,
+                            width: "260px",
+                            maxHeight: "220px",
+                            overflowY: "auto",
+                            background: "#fff",
+                            border: "1px solid #e0e0e0",
+                            borderRadius: "10px",
+                            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+                            padding: "8px",
+                            display: "grid",
+                            gridTemplateColumns: "repeat(7, 1fr)",
+                            gap: "4px",
+                            zIndex: 20,
+                          }}
+                        >
+                          {EMOJI_LIST.map((emoji, i) => (
+                            <span
+                              key={i}
+                              onClick={() => appendEmoji(emoji)}
+                              style={{
+                                fontSize: "20px",
+                                cursor: "pointer",
+                                textAlign: "center",
+                                lineHeight: "28px",
+                                borderRadius: "6px",
+                              }}
+                              onMouseDown={(e) => e.preventDefault()}
+                            >
+                              {emoji}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <input
+                      type="text"
+                      placeholder="Write a message…"
+                      value={message}
+                      onChange={(e) => handleGroupTyping(e.target.value)}
+                      onKeyDown={handleKeyPress}
+                    />
+
+                    <button
+                      type="button"
+                      className="cv-send"
+                      onClick={
+                        sendingMessage
+                          ? undefined
+                          : message.trim() || media
+                            ? sendMessage
+                            : isRecording
+                              ? stopRecording
+                              : startRecording
+                      }
+                      disabled={sendingMessage}
+                    >
+                      {sendingMessage ? (
+                        <i className="fa-solid fa-circle-notch fa-spin"></i>
+                      ) : message.trim() || media ? (
+                        <i className="fa-solid fa-paper-plane"></i>
+                      ) : isRecording ? (
+                        <i className="fa-solid fa-stop" style={{ color: "red" }}></i>
+                      ) : (
+                        <i className="fa-solid fa-microphone"></i>
+                      )}
+                    </button>
+
+                    {isRecording && (
+                      <div className="cv-recording-bar">
+                        <i className="fa-solid fa-trash-can cv-recording-cancel" onClick={cancelRecording}></i>
+                        <span className="cv-recording-dot"></span>
+                        <span className="cv-recording-time">{formatRecordingTime(recordingTime)}</span>
+                        <span className="cv-recording-hint">Recording…</span>
                       </div>
                     )}
+
                   </div>
 
-                  <input
-                    type="text"
-                    placeholder="Write a message…"
-                    value={message}
-                    onChange={(e) => handleGroupTyping(e.target.value)}
-                    onKeyDown={handleKeyPress}
-                  />
+                </>
 
-               <button
-  type="button"
-  className="cv-send"
-  onClick={
-    sendingMessage
-      ? undefined
-      : message.trim() || media
-      ? sendMessage
-      : isRecording
-      ? stopRecording
-      : startRecording
-  }
-  disabled={sendingMessage}
->
-  {sendingMessage ? (
-    <i className="fa-solid fa-circle-notch fa-spin"></i>
-  ) : message.trim() || media ? (
-    <i className="fa-solid fa-paper-plane"></i>
-  ) : isRecording ? (
-    <i className="fa-solid fa-stop" style={{ color: "red" }}></i>
-  ) : (
-    <i className="fa-solid fa-microphone"></i>
-  )}
-</button>
+              )}
 
-{isRecording && (
-  <div className="cv-recording-bar">
-    <i className="fa-solid fa-trash-can cv-recording-cancel" onClick={cancelRecording}></i>
-    <span className="cv-recording-dot"></span>
-    <span className="cv-recording-time">{formatRecordingTime(recordingTime)}</span>
-    <span className="cv-recording-hint">Recording…</span>
-  </div>
-)}
-
-                </div>
-
-              </>
-
-            )}
-
-          </div>
+            </div>
 
           </div>
 
@@ -3551,9 +3546,8 @@ console.log("mediaKind =", mediaKind);
                             <div className="cv-row-sub">{g.members.length} members</div>
                           </div>
                           <i
-                            className={`fa-solid ${
-                              isChecked ? "fa-circle-check" : "fa-circle"
-                            }`}
+                            className={`fa-solid ${isChecked ? "fa-circle-check" : "fa-circle"
+                              }`}
                           ></i>
                         </div>
                       );
@@ -3591,9 +3585,8 @@ console.log("mediaKind =", mediaKind);
                             <div className="cv-row-sub">{u.email}</div>
                           </div>
                           <i
-                            className={`fa-solid ${
-                              isChecked ? "fa-circle-check" : "fa-circle"
-                            }`}
+                            className={`fa-solid ${isChecked ? "fa-circle-check" : "fa-circle"
+                              }`}
                           ></i>
                         </div>
                       );

@@ -123,6 +123,10 @@ const CallManager = ({ user }) => {
 
   useEffect(() => {
     window.__startCall = async (targetUser, type) => {
+         if (peerRef.current || callState !== "idle") {
+    console.log("Call already in progress, ignoring duplicate startCall");
+    return;
+  }
       setCallType(type);
       setRemoteUser(targetUser);
       setCallState("calling");
@@ -237,6 +241,11 @@ const CallManager = ({ user }) => {
   }, []);
 
   const acceptCall = async () => {
+      if (peerRef.current) {
+    console.log("Call already in progress, ignoring duplicate acceptCall");
+    return;
+  }
+
     ringtoneRef.current?.pause();
 
     let stream;

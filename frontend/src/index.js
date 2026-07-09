@@ -31,6 +31,7 @@ root.render(
       pauseOnHover
       theme="light"
     />
+    
   </React.StrictMode>
 );
 
