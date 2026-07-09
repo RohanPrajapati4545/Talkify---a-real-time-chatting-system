@@ -3,7 +3,6 @@ import Peer from "simple-peer";
 import socket from "../socket/Socket";
 import { toast } from "react-toastify";
 
-// 👇 shared ICE server config (STUN + free TURN fallback)
 const ICE_CONFIG = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -27,7 +26,6 @@ const ICE_CONFIG = {
 
 const CallManager = ({ user }) => {
   const [callState, setCallState] = useState("idle");
-
   const [callType, setCallType] = useState("audio");
   const [incomingData, setIncomingData] = useState(null);
   const [remoteUser, setRemoteUser] = useState(null);
@@ -37,7 +35,7 @@ const CallManager = ({ user }) => {
 
   const myVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const remoteAudioRef = useRef(null); // 👈 NAYA — audio-only calls ke liye
+  const remoteAudioRef = useRef(null);
   const peerRef = useRef(null);
   const localStreamRef = useRef(null);
   const timerRef = useRef(null);
@@ -55,12 +53,10 @@ const CallManager = ({ user }) => {
     }
   };
 
-  // ICE connection state track karne ke liye helper
   const attachIceDebug = (peer, label) => {
     peer.on("connect", () => {
       console.log(`✅ [${label}] PEER DATA CHANNEL CONNECTED`);
     });
-
     if (peer._pc) {
       peer._pc.oniceconnectionstatechange = () => {
         console.log(`🧊 [${label}] ICE STATE:`, peer._pc.iceConnectionState);
@@ -95,33 +91,42 @@ const CallManager = ({ user }) => {
 
       const peer = new Peer({
         initiator: true,
-        trickle: false,
+        trickle: true, // 👈 changed
         stream,
         config: ICE_CONFIG,
       });
       peerRef.current = peer;
-
       attachIceDebug(peer, "CALLER");
 
-      peer.on("signal", (signalData) => {
-        socket.emit("callUser", {
-          toUserId: targetUser._id,
-          fromUser: user,
-          signalData,
-          callType: type,
-        });
+      let firstSignalSent = false; // 👈 naya
 
-        noAnswerTimeoutRef.current = setTimeout(() => {
-          toast.error("User is not available right now");
-          socket.emit("endCall", { toUserId: targetUser._id });
-          cleanupCall();
-        }, 30000);
+      peer.on("signal", (signalData) => {
+        if (!firstSignalSent) {
+          firstSignalSent = true;
+          socket.emit("callUser", {
+            toUserId: targetUser._id,
+            fromUser: user,
+            signalData,
+            callType: type,
+          });
+
+          noAnswerTimeoutRef.current = setTimeout(() => {
+            toast.error("User is not available right now");
+            socket.emit("endCall", { toUserId: targetUser._id });
+            cleanupCall();
+          }, 30000);
+        } else {
+          socket.emit("iceCandidate", {
+            toUserId: targetUser._id,
+            signalData,
+          });
+        }
       });
 
       peer.on("stream", (remoteStream) => {
         console.log("🎥 CALLER — remote stream received", remoteStream);
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream; // 👈 NAYA
+        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream;
       });
 
       peer.on("close", () => cleanupCall());
@@ -144,8 +149,10 @@ const CallManager = ({ user }) => {
     socket.on("callAccepted", ({ signalData }) => {
       clearTimeout(noAnswerTimeoutRef.current);
       peerRef.current?.signal(signalData);
-      setCallState("connected");
-      startTimer();
+      setCallState((prev) => {
+        if (prev !== "connected") startTimer();
+        return "connected";
+      });
     });
 
     socket.on("callRejected", () => {
@@ -158,11 +165,17 @@ const CallManager = ({ user }) => {
       cleanupCall();
     });
 
+    // 👇 naya — baad ke ICE candidates yahan aayenge
+    socket.on("iceCandidate", ({ signalData }) => {
+      peerRef.current?.signal(signalData);
+    });
+
     return () => {
       socket.off("incomingCall");
       socket.off("callAccepted");
       socket.off("callRejected");
       socket.off("callEnded");
+      socket.off("iceCandidate"); // 👈 naya
     };
   }, []);
 
@@ -186,22 +199,31 @@ const CallManager = ({ user }) => {
 
     const peer = new Peer({
       initiator: false,
-      trickle: false,
+      trickle: true, // 👈 changed
       stream,
       config: ICE_CONFIG,
     });
     peerRef.current = peer;
-
     attachIceDebug(peer, "RECEIVER");
 
+    let firstSignalSent = false; // 👈 naya
+
     peer.on("signal", (signalData) => {
-      socket.emit("answerCall", { toUserId: remoteUser._id, signalData });
+      if (!firstSignalSent) {
+        firstSignalSent = true;
+        socket.emit("answerCall", { toUserId: remoteUser._id, signalData });
+      } else {
+        socket.emit("iceCandidate", {
+          toUserId: remoteUser._id,
+          signalData,
+        });
+      }
     });
 
     peer.on("stream", (remoteStream) => {
       console.log("🎥 RECEIVER — remote stream received", remoteStream);
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream; // 👈 NAYA
+      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream;
     });
 
     peer.on("close", () => cleanupCall());
@@ -233,6 +255,7 @@ const CallManager = ({ user }) => {
     localStreamRef.current = null;
     clearInterval(timerRef.current);
     clearTimeout(noAnswerTimeoutRef.current);
+    noAnswerTimeoutRef.current = null; // 👈 reset bhi karo taaki agli call pe dobara set ho sake
     setCallDuration(0);
     setCallState("idle");
     setIncomingData(null);
@@ -274,7 +297,7 @@ const CallManager = ({ user }) => {
   return (
     <div className="cv-call-overlay">
       <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden />
-      <audio ref={remoteAudioRef} autoPlay hidden muted={callType === "video"} /> {/* 👈 NAYA */}
+      <audio ref={remoteAudioRef} autoPlay hidden muted={callType === "video"} />
 
       {callState === "incoming" && (
         <div className="cv-call-card">
