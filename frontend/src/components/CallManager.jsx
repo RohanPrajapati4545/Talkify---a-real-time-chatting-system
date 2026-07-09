@@ -38,12 +38,15 @@ const CallManager = ({ user }) => {
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
 
+  // 👇 NAYA — jab autoplay block ho jaye (audio/video), user ko "tap to enable" dikhate hain
+  const [needsPlaybackUnlock, setNeedsPlaybackUnlock] = useState(false);
+
   const myVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
-  const remoteStreamRef = useRef(null); // 👈 NAYA — stream yahan store hogi
-  const peerRef = useRef(null);
+  const remoteStreamRef = useRef(null);
   const localStreamRef = useRef(null);
+  const peerRef = useRef(null);
   const timerRef = useRef(null);
   const ringtoneRef = useRef(null);
   const noAnswerTimeoutRef = useRef(null);
@@ -57,6 +60,51 @@ const CallManager = ({ user }) => {
     } else {
       toast.error("Could not access mic/camera.");
     }
+  };
+
+  // 👇 NAYA — safe attach helper. Har jagah stream ko video/audio element pe
+  // isi se lagao — chahe callback ref se ho ya peer "stream" event se.
+  const attachStream = (el, stream) => {
+    if (!el || !stream) return;
+    if (el.srcObject !== stream) el.srcObject = stream;
+
+    const playPromise = el.play?.();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch((err) => {
+        if (err.name === "AbortError") return; // element unmount hote waqt normal hai
+        if (err.name === "NotAllowedError") {
+          // 👇 Autoplay policy ne block kiya — user gesture chahiye
+          console.log(`autoplay blocked for ${el.tagName}, needs user tap`);
+          setNeedsPlaybackUnlock(true);
+        } else {
+          console.log("play blocked:", err);
+        }
+      });
+    }
+  };
+
+  // 👇 NAYA — callback refs. Ye DOM mount hote hi (ya jab bhi call ho) turant
+  // current stream attach kar dete hain — kisi useEffect timing pe depend nahi.
+  const setMyVideoEl = (el) => {
+    myVideoRef.current = el;
+    attachStream(el, localStreamRef.current);
+  };
+
+  const setRemoteVideoEl = (el) => {
+    remoteVideoRef.current = el;
+    attachStream(el, remoteStreamRef.current);
+  };
+
+  const setRemoteAudioEl = (el) => {
+    remoteAudioRef.current = el;
+    attachStream(el, remoteStreamRef.current);
+  };
+
+  // 👇 NAYA — user "Tap to enable" button dabaye to ye chalega (genuine user gesture)
+  const unlockPlayback = () => {
+    setNeedsPlaybackUnlock(false);
+    attachStream(remoteVideoRef.current, remoteStreamRef.current);
+    attachStream(remoteAudioRef.current, remoteStreamRef.current);
   };
 
   const attachIceDebug = (peer, label) => {
@@ -93,16 +141,16 @@ const CallManager = ({ user }) => {
       }
 
       localStreamRef.current = stream;
-      if (myVideoRef.current) myVideoRef.current.srcObject = stream;
+      attachStream(myVideoRef.current, stream);
 
       const peer = new Peer({
         initiator: true,
         trickle: true,
         stream,
         config: {
-    iceServers: ICE_CONFIG.iceServers,
-    iceTransportPolicy: "relay",
-  },
+          iceServers: ICE_CONFIG.iceServers,
+          iceTransportPolicy: "relay",
+        },
       });
       peerRef.current = peer;
       attachIceDebug(peer, "CALLER");
@@ -134,9 +182,9 @@ const CallManager = ({ user }) => {
 
       peer.on("stream", (remoteStream) => {
         console.log("🎥 CALLER — remote stream received", remoteStream);
-        remoteStreamRef.current = remoteStream; // 👈 NAYA
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream;
+        remoteStreamRef.current = remoteStream;
+        attachStream(remoteVideoRef.current, remoteStream);
+        attachStream(remoteAudioRef.current, remoteStream);
       });
 
       peer.on("close", () => cleanupCall());
@@ -188,27 +236,6 @@ const CallManager = ({ user }) => {
     };
   }, []);
 
-  // 👇 NAYA — jab call "connected" ho aur elements mount hon, tab streams (dobara) assign karo
-  useEffect(() => {
-    if (callState === "connected") {
-      if (myVideoRef.current && localStreamRef.current) {
-        myVideoRef.current.srcObject = localStreamRef.current;
-      }
-      if (remoteVideoRef.current && remoteStreamRef.current) {
-        remoteVideoRef.current.srcObject = remoteStreamRef.current;
-        remoteVideoRef.current.play().catch((e) =>
-          console.log("remote video play blocked:", e)
-        );
-      }
-      if (remoteAudioRef.current && remoteStreamRef.current) {
-        remoteAudioRef.current.srcObject = remoteStreamRef.current;
-        remoteAudioRef.current.play().catch((e) =>
-          console.log("remote audio play blocked:", e)
-        );
-      }
-    }
-  }, [callState, callType]);
-
   const acceptCall = async () => {
     ringtoneRef.current?.pause();
 
@@ -225,16 +252,15 @@ const CallManager = ({ user }) => {
     }
 
     localStreamRef.current = stream;
-    if (myVideoRef.current) myVideoRef.current.srcObject = stream;
 
     const peer = new Peer({
       initiator: false,
       trickle: true,
       stream,
-     config: {
-    iceServers: ICE_CONFIG.iceServers,
-    iceTransportPolicy: "relay", // 👈 NAYA — force TURN-only, testing ke liye
-  },
+      config: {
+        iceServers: ICE_CONFIG.iceServers,
+        iceTransportPolicy: "relay",
+      },
     });
     peerRef.current = peer;
     attachIceDebug(peer, "RECEIVER");
@@ -255,9 +281,9 @@ const CallManager = ({ user }) => {
 
     peer.on("stream", (remoteStream) => {
       console.log("🎥 RECEIVER — remote stream received", remoteStream);
-      remoteStreamRef.current = remoteStream; // 👈 NAYA
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream;
+      remoteStreamRef.current = remoteStream;
+      attachStream(remoteVideoRef.current, remoteStream);
+      attachStream(remoteAudioRef.current, remoteStream);
     });
 
     peer.on("close", () => cleanupCall());
@@ -269,6 +295,10 @@ const CallManager = ({ user }) => {
     peer.signal(incomingData.signalData);
     setCallState("connected");
     startTimer();
+
+    // callback ref se video mount ho chuka hoga is render ke baad,
+    // par local stream turant bhi try kar lete hain
+    attachStream(myVideoRef.current, stream);
   };
 
   const declineCall = () => {
@@ -282,16 +312,30 @@ const CallManager = ({ user }) => {
     cleanupCall();
   };
 
+  // 👇 FIX — video/audio elements ko pehle pause + srcObject clear karo,
+  // TAB jaake state "idle" karo. Isse elements unmount hote waqt koi
+  // pending play() promise nahi bachta => AbortError console me nahi aayega.
   const cleanupCall = () => {
+    [myVideoRef.current, remoteVideoRef.current, remoteAudioRef.current].forEach((el) => {
+      if (!el) return;
+      try {
+        el.pause();
+        el.srcObject = null;
+      } catch (e) {
+        // ignore
+      }
+    });
+
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     peerRef.current?.destroy();
     peerRef.current = null;
     localStreamRef.current = null;
-    remoteStreamRef.current = null; // 👈 NAYA
+    remoteStreamRef.current = null;
     clearInterval(timerRef.current);
     clearTimeout(noAnswerTimeoutRef.current);
     noAnswerTimeoutRef.current = null;
     setCallDuration(0);
+    setNeedsPlaybackUnlock(false);
     setCallState("idle");
     setIncomingData(null);
     setRemoteUser(null);
@@ -332,7 +376,31 @@ const CallManager = ({ user }) => {
   return (
     <div className="cv-call-overlay">
       <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden />
-      <audio ref={remoteAudioRef} autoPlay hidden muted={callType === "video"} />
+      {/* Video call me audio remote video element ke through hi aayega,
+          isliye us case me ye element muted rehta hai (double audio na ho) */}
+      <audio ref={setRemoteAudioEl} autoPlay hidden muted={callType === "video"} />
+
+      {/* 👇 NAYA — autoplay block hone par ye overlay dikhega */}
+      {needsPlaybackUnlock && callState === "connected" && (
+        <button
+          onClick={unlockPlayback}
+          style={{
+            position: "fixed",
+            top: "16px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 9999,
+            padding: "10px 18px",
+            borderRadius: "20px",
+            border: "none",
+            background: "#222",
+            color: "#fff",
+            fontSize: "14px",
+          }}
+        >
+          🔊 Tap to enable audio/video
+        </button>
+      )}
 
       {callState === "incoming" && (
         <div className="cv-call-card">
@@ -365,8 +433,8 @@ const CallManager = ({ user }) => {
         <div className="cv-call-connected">
           {callType === "video" ? (
             <>
-              <video ref={remoteVideoRef} autoPlay playsInline className="cv-remote-video" />
-              <video ref={myVideoRef} autoPlay playsInline muted className="cv-my-video" />
+              <video ref={setRemoteVideoEl} autoPlay playsInline className="cv-remote-video" />
+              <video ref={setMyVideoEl} autoPlay playsInline muted className="cv-my-video" />
             </>
           ) : (
             <div className="cv-call-card">
