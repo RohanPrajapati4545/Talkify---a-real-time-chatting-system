@@ -126,7 +126,9 @@ io.on("connection", (socket) => {
   socket.on("privateMessageDeleted", (msg) => {
     io.to(msg.chatId).emit("privateMessageDeleted", msg);
   });
-
+socket.on("iceCandidate", ({ toUserId, signalData }) => {
+  io.to(`user_${toUserId}`).emit("iceCandidate", { signalData });
+});
   // 👇 NAYA — PRIVATE TYPING INDICATOR
   socket.on("typingPrivate", ({ chatId, senderId, receiverId, userName }) => {
     socket.to(chatId).emit("userTypingPrivate", { chatId, senderId, receiverId, userName });

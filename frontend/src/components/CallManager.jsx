@@ -36,6 +36,7 @@ const CallManager = ({ user }) => {
   const myVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
+  const remoteStreamRef = useRef(null); // 👈 NAYA — stream yahan store hogi
   const peerRef = useRef(null);
   const localStreamRef = useRef(null);
   const timerRef = useRef(null);
@@ -91,14 +92,14 @@ const CallManager = ({ user }) => {
 
       const peer = new Peer({
         initiator: true,
-        trickle: true, // 👈 changed
+        trickle: true,
         stream,
         config: ICE_CONFIG,
       });
       peerRef.current = peer;
       attachIceDebug(peer, "CALLER");
 
-      let firstSignalSent = false; // 👈 naya
+      let firstSignalSent = false;
 
       peer.on("signal", (signalData) => {
         if (!firstSignalSent) {
@@ -125,6 +126,7 @@ const CallManager = ({ user }) => {
 
       peer.on("stream", (remoteStream) => {
         console.log("🎥 CALLER — remote stream received", remoteStream);
+        remoteStreamRef.current = remoteStream; // 👈 NAYA
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
         if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream;
       });
@@ -165,7 +167,6 @@ const CallManager = ({ user }) => {
       cleanupCall();
     });
 
-    // 👇 naya — baad ke ICE candidates yahan aayenge
     socket.on("iceCandidate", ({ signalData }) => {
       peerRef.current?.signal(signalData);
     });
@@ -175,9 +176,30 @@ const CallManager = ({ user }) => {
       socket.off("callAccepted");
       socket.off("callRejected");
       socket.off("callEnded");
-      socket.off("iceCandidate"); // 👈 naya
+      socket.off("iceCandidate");
     };
   }, []);
+
+  // 👇 NAYA — jab call "connected" ho aur elements mount hon, tab streams (dobara) assign karo
+  useEffect(() => {
+    if (callState === "connected") {
+      if (myVideoRef.current && localStreamRef.current) {
+        myVideoRef.current.srcObject = localStreamRef.current;
+      }
+      if (remoteVideoRef.current && remoteStreamRef.current) {
+        remoteVideoRef.current.srcObject = remoteStreamRef.current;
+        remoteVideoRef.current.play().catch((e) =>
+          console.log("remote video play blocked:", e)
+        );
+      }
+      if (remoteAudioRef.current && remoteStreamRef.current) {
+        remoteAudioRef.current.srcObject = remoteStreamRef.current;
+        remoteAudioRef.current.play().catch((e) =>
+          console.log("remote audio play blocked:", e)
+        );
+      }
+    }
+  }, [callState, callType]);
 
   const acceptCall = async () => {
     ringtoneRef.current?.pause();
@@ -199,14 +221,14 @@ const CallManager = ({ user }) => {
 
     const peer = new Peer({
       initiator: false,
-      trickle: true, // 👈 changed
+      trickle: true,
       stream,
       config: ICE_CONFIG,
     });
     peerRef.current = peer;
     attachIceDebug(peer, "RECEIVER");
 
-    let firstSignalSent = false; // 👈 naya
+    let firstSignalSent = false;
 
     peer.on("signal", (signalData) => {
       if (!firstSignalSent) {
@@ -222,6 +244,7 @@ const CallManager = ({ user }) => {
 
     peer.on("stream", (remoteStream) => {
       console.log("🎥 RECEIVER — remote stream received", remoteStream);
+      remoteStreamRef.current = remoteStream; // 👈 NAYA
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
       if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream;
     });
@@ -253,9 +276,10 @@ const CallManager = ({ user }) => {
     peerRef.current?.destroy();
     peerRef.current = null;
     localStreamRef.current = null;
+    remoteStreamRef.current = null; // 👈 NAYA
     clearInterval(timerRef.current);
     clearTimeout(noAnswerTimeoutRef.current);
-    noAnswerTimeoutRef.current = null; // 👈 reset bhi karo taaki agli call pe dobara set ho sake
+    noAnswerTimeoutRef.current = null;
     setCallDuration(0);
     setCallState("idle");
     setIncomingData(null);
