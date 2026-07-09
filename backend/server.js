@@ -69,6 +69,8 @@ io.on("connection", (socket) => {
 
   // ── ONLINE STATUS ──────────────────────────────────────────
   socket.on("userOnline", (userId) => {
+      console.log("🟢 JOINING ROOM:", `user_${userId}`);
+     socket.join(`user_${userId}`); 
     socket.userId = userId;
     addOnlineUser(userId, socket.id);
     broadcastOnlineUsers();
@@ -152,6 +154,34 @@ io.on("connection", (socket) => {
   });
   socket.on("groupSystemMessage", ({ groupId, message }) => {
   socket.to(groupId).emit("groupSystemMessage", { groupId, message });
+});
+
+// ---- CALL SIGNALING ----
+
+// Caller call start karta hai
+socket.on("callUser", ({ toUserId, fromUser, signalData, callType }) => {
+  // callType: "audio" | "video"
+
+  io.to(`user_${toUserId}`).emit("incomingCall", {
+    fromUser,          // { _id, name, image }
+    signalData,        // WebRTC offer signal
+    callType,
+  });
+});
+
+// Receiver accept karta hai aur apna answer signal bhejta hai
+socket.on("answerCall", ({ toUserId, signalData }) => {
+  io.to(`user_${toUserId}`).emit("callAccepted", { signalData });
+});
+
+// Koi bhi side connect hone se pehle reject/cancel kare
+socket.on("rejectCall", ({ toUserId }) => {
+  io.to(`user_${toUserId}`).emit("callRejected");
+});
+
+// Koi bhi side call end kare
+socket.on("endCall", ({ toUserId }) => {
+  io.to(`user_${toUserId}`).emit("callEnded");
 });
 
   // ── DISCONNECT ─────────────────────────────────────────────

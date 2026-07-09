@@ -10,6 +10,7 @@ import { logout } from "./../../../frontend/src/pages/redux/AuthSlice";
 import SideBar from "./../components/SideBar";
 import Loader from "./../components/Loader";
 import VoiceMessagePlayer from "./../components/VoiceMessagePlayer";
+import CallManager from "./../components/CallManager";
 import "./../App.css";
 
 const EMOJI_LIST = [
@@ -1660,7 +1661,7 @@ console.log("mediaKind =", mediaKind);
     return () => {
       socket.off("onlineUsers");
     };
-  }, []);
+  }, [user?._id]);
 
   useEffect(() => {
     getMyGroups();
@@ -2087,7 +2088,7 @@ console.log("mediaKind =", mediaKind);
   return (<>
 
     {actionLoading && <Loader />}
-
+  <CallManager user={user} />
     <div className="  cv-page-container">
 
       <div className="cv-shell">
@@ -2313,8 +2314,14 @@ console.log("mediaKind =", mediaKind);
                         onClick={() => setShowMsgSearch((prev) => !prev)}
                         title="Search messages"
                       ></i>
-                      <i className="fa-solid fa-phone"></i>
-                      <i className="fa-solid fa-video"></i>
+                    <i
+  className="fa-solid fa-phone"
+  onClick={() => window.__startCall(selectedUser, "audio")}
+></i>
+<i
+  className="fa-solid fa-video"
+  onClick={() => window.__startCall(selectedUser, "video")}
+></i>
                       <i
                         className="fa-solid fa-circle-info"
                         onClick={() => setShowUserInfo(true)}
