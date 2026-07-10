@@ -40,6 +40,7 @@ app.use("/uploads", express.static("uploads"));
 mongoose.set("strictPopulate", false);
 
 const onlineUsers = new Map();
+const activeGroupCalls = new Map();
 
 const addOnlineUser = (userId, socketId) => {
   if (!onlineUsers.has(userId)) {
@@ -180,11 +181,69 @@ io.on("connection", (socket) => {
     io.to(`user_${toUserId}`).emit("callEnded");
   });
 
+  socket.on("groupCallUser", ({ groupId, groupName, groupImage, fromUser, callType }) => {
+    console.log("📞 GROUP CALL USER — groupId:", groupId, "from:", fromUser?._id);
+    socket.to(groupId).emit("groupIncomingCall", {
+      groupId,
+      groupName,
+      groupImage,
+      fromUser,
+      callType,
+    });
+  });
+
+  socket.on("joinGroupCall", ({ groupId, userInfo }) => {
+    if (!activeGroupCalls.has(groupId)) {
+      activeGroupCalls.set(groupId, new Map());
+    }
+    const room = activeGroupCalls.get(groupId);
+
+    const participants = Array.from(room.values()).map((p) => ({ userInfo: p.userInfo }));
+
+    room.set(userInfo._id, { socketId: socket.id, userInfo });
+    socket.join(`groupcall_${groupId}`);
+
+    console.log("👥 JOIN GROUP CALL —", userInfo._id, "into", groupId, "| existing:", participants.length);
+
+    socket.emit("groupCallParticipants", { groupId, participants });
+    socket.to(`groupcall_${groupId}`).emit("groupUserJoinedCall", { groupId, userInfo });
+  });
+
+  socket.on("groupSignal", ({ groupId, toUserId, fromUser, signalData }) => {
+    io.to(`user_${toUserId}`).emit("groupSignal", { groupId, fromUser, signalData });
+  });
+
+  socket.on("leaveGroupCall", ({ groupId, userId }) => {
+    const room = activeGroupCalls.get(groupId);
+    if (room) {
+      room.delete(userId);
+      if (room.size === 0) {
+        activeGroupCalls.delete(groupId);
+      }
+    }
+    socket.leave(`groupcall_${groupId}`);
+    socket.to(`groupcall_${groupId}`).emit("groupUserLeftCall", { groupId, userId });
+  });
+
   socket.on("disconnect", () => {
     if (socket.userId) {
       removeOnlineUser(socket.userId, socket.id);
       broadcastOnlineUsers();
     }
+
+    activeGroupCalls.forEach((room, groupId) => {
+      for (const [uid, info] of room.entries()) {
+        if (info.socketId === socket.id) {
+          room.delete(uid);
+          socket.to(`groupcall_${groupId}`).emit("groupUserLeftCall", { groupId, userId: uid });
+          if (room.size === 0) {
+            activeGroupCalls.delete(groupId);
+          }
+          break;
+        }
+      }
+    });
+
     console.log("Disconnected:", socket.id);
   });
 

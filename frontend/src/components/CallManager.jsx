@@ -66,6 +66,25 @@ const CallManager = ({ user }) => {
   const acceptCallLockRef = useRef(false);
   const pendingCandidatesRef = useRef([]);
 
+  const [groupCallState, setGroupCallState] = useState("idle");
+  const [groupCallType, setGroupCallType] = useState("audio");
+  const [groupIncomingData, setGroupIncomingData] = useState(null);
+  const [activeGroupInfo, setActiveGroupInfo] = useState(null);
+  const [groupParticipants, setGroupParticipants] = useState({});
+  const [groupDuration, setGroupDuration] = useState(0);
+  const [groupMicOn, setGroupMicOn] = useState(true);
+  const [groupCamOn, setGroupCamOn] = useState(true);
+
+  const groupLocalStreamRef = useRef(null);
+  const groupMyVideoRef = useRef(null);
+  const groupPeersRef = useRef({});
+  const groupStreamsRef = useRef({});
+  const groupVideoElsRef = useRef({});
+  const groupIceServersRef = useRef(ICE_CONFIG.iceServers);
+  const groupTimerRef = useRef(null);
+  const groupCallLockRef = useRef(false);
+  const groupCallActiveRef = useRef(false);
+
   const handleMediaError = (err) => {
     console.log(err);
     if (err.name === "NotAllowedError") {
@@ -138,9 +157,271 @@ const CallManager = ({ user }) => {
     }
   };
 
+  const setGroupVideoEl = (userId) => (el) => {
+    groupVideoElsRef.current[userId] = el;
+    attachStream(el, groupStreamsRef.current[userId]);
+  };
+
+  const setGroupMyVideoEl = (el) => {
+    groupMyVideoRef.current = el;
+    attachStream(el, groupLocalStreamRef.current);
+  };
+
+  const removeGroupPeer = (userId) => {
+    const peer = groupPeersRef.current[userId];
+    if (peer) {
+      peer.destroy();
+      delete groupPeersRef.current[userId];
+    }
+    delete groupStreamsRef.current[userId];
+    delete groupVideoElsRef.current[userId];
+    setGroupParticipants((prev) => {
+      const copy = { ...prev };
+      delete copy[userId];
+      return copy;
+    });
+  };
+
+  const createGroupPeer = (groupId, remoteUserInfo, isInitiator) => {
+    if (groupPeersRef.current[remoteUserInfo._id]) return groupPeersRef.current[remoteUserInfo._id];
+
+    const peer = new Peer({
+      initiator: isInitiator,
+      trickle: true,
+      stream: groupLocalStreamRef.current,
+      config: { iceServers: groupIceServersRef.current },
+    });
+
+    groupPeersRef.current[remoteUserInfo._id] = peer;
+    attachIceDebug(peer, `GROUP-${remoteUserInfo._id}`);
+
+    setGroupParticipants((prev) => ({
+      ...prev,
+      [remoteUserInfo._id]: { ...(prev[remoteUserInfo._id] || {}), userInfo: remoteUserInfo },
+    }));
+
+    peer.on("signal", (signalData) => {
+      socket.emit("groupSignal", {
+        groupId,
+        toUserId: remoteUserInfo._id,
+        fromUser: user,
+        signalData,
+      });
+    });
+
+    peer.on("stream", (remoteStream) => {
+      console.log("🎥 GROUP — remote stream received from", remoteUserInfo._id);
+      groupStreamsRef.current[remoteUserInfo._id] = remoteStream;
+      attachStream(groupVideoElsRef.current[remoteUserInfo._id], remoteStream);
+      setGroupParticipants((prev) => ({
+        ...prev,
+        [remoteUserInfo._id]: { ...(prev[remoteUserInfo._id] || {}), userInfo: remoteUserInfo, hasStream: true },
+      }));
+    });
+
+    peer.on("close", () => removeGroupPeer(remoteUserInfo._id));
+    peer.on("error", (err) => {
+      console.log("🔴 GROUP PEER ERROR:", remoteUserInfo._id, err);
+      removeGroupPeer(remoteUserInfo._id);
+    });
+
+    return peer;
+  };
+
+  const startGroupTimer = () => {
+    groupTimerRef.current = setInterval(() => setGroupDuration((d) => d + 1), 1000);
+  };
+
+  const cleanupGroupCall = () => {
+    Object.keys(groupPeersRef.current).forEach((uid) => {
+      groupPeersRef.current[uid]?.destroy();
+    });
+    groupPeersRef.current = {};
+    groupStreamsRef.current = {};
+    groupVideoElsRef.current = {};
+
+    groupLocalStreamRef.current?.getTracks().forEach((t) => t.stop());
+    groupLocalStreamRef.current = null;
+
+    if (groupMyVideoRef.current) {
+      try {
+        groupMyVideoRef.current.pause();
+        groupMyVideoRef.current.srcObject = null;
+      } catch (e) {}
+    }
+
+    clearInterval(groupTimerRef.current);
+    groupCallActiveRef.current = false;
+    groupCallLockRef.current = false;
+
+    setGroupParticipants({});
+    setGroupDuration(0);
+    setGroupMicOn(true);
+    setGroupCamOn(true);
+    setGroupCallState("idle");
+    setGroupIncomingData(null);
+    setActiveGroupInfo(null);
+
+    ringtoneRef.current?.pause();
+    if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
+  };
+
+  const joinGroupCallFlow = async (group, type) => {
+    if (peerRef.current || callState !== "idle" || groupCallLockRef.current) return;
+    groupCallLockRef.current = true;
+
+    ringtoneRef.current?.pause();
+
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: type === "video",
+      });
+    } catch (err) {
+      handleMediaError(err);
+      groupCallLockRef.current = false;
+      setGroupCallState("idle");
+      setGroupIncomingData(null);
+      return;
+    }
+
+    groupLocalStreamRef.current = stream;
+    attachStream(groupMyVideoRef.current, stream);
+
+    const iceServers = await getIceServers();
+    groupIceServersRef.current = iceServers;
+
+    setActiveGroupInfo(group);
+    setGroupCallType(type);
+    setGroupIncomingData(null);
+    setGroupCallState("connected");
+    groupCallActiveRef.current = true;
+    startGroupTimer();
+
+    socket.emit("joinGroupCall", { groupId: group._id, userInfo: user });
+    groupCallLockRef.current = false;
+  };
+
+  const acceptGroupCall = async () => {
+    if (!groupIncomingData) return;
+    await joinGroupCallFlow(
+      {
+        _id: groupIncomingData.groupId,
+        groupName: activeGroupInfo?.groupName,
+        groupImage: activeGroupInfo?.groupImage,
+      },
+      groupIncomingData.callType
+    );
+  };
+
+  const declineGroupCall = () => {
+    if (groupIncomingData?.groupId) {
+      socket.emit("leaveGroupCall", { groupId: groupIncomingData.groupId, userId: user._id });
+    }
+    ringtoneRef.current?.pause();
+    setGroupCallState("idle");
+    setGroupIncomingData(null);
+    setActiveGroupInfo(null);
+  };
+
+  const leaveGroupCall = () => {
+    if (activeGroupInfo?._id) {
+      socket.emit("leaveGroupCall", { groupId: activeGroupInfo._id, userId: user._id });
+    }
+    cleanupGroupCall();
+  };
+
+  const toggleGroupMic = () => {
+    const track = groupLocalStreamRef.current?.getAudioTracks()[0];
+    if (track) {
+      track.enabled = !track.enabled;
+      setGroupMicOn(track.enabled);
+    }
+  };
+
+  const toggleGroupCam = () => {
+    const track = groupLocalStreamRef.current?.getVideoTracks()[0];
+    if (track) {
+      track.enabled = !track.enabled;
+      setGroupCamOn(track.enabled);
+    }
+  };
+
+  useEffect(() => {
+    window.__startGroupCall = async (group, type) => {
+      if (peerRef.current || callState !== "idle" || groupCallActiveRef.current || groupCallLockRef.current) {
+        console.log("Call already in progress, ignoring group call start");
+        return;
+      }
+      socket.emit("groupCallUser", {
+        groupId: group._id,
+        groupName: group.groupName,
+        groupImage: group.groupImage,
+        fromUser: user,
+        callType: type,
+      });
+      await joinGroupCallFlow(group, type);
+    };
+  }, [user, callState]);
+
+  useEffect(() => {
+    socket.on("groupIncomingCall", ({ groupId, groupName, groupImage, fromUser, callType }) => {
+      if (fromUser._id === user?._id) return;
+      if (peerRef.current || groupCallActiveRef.current) {
+        console.log("Already in a call, ignoring group incoming call");
+        return;
+      }
+      setActiveGroupInfo({ _id: groupId, groupName, groupImage });
+      setGroupIncomingData({ groupId, fromUser, callType });
+      setGroupCallType(callType);
+      setGroupCallState("incoming");
+      ringtoneRef.current?.play().catch(() => {});
+    });
+
+    socket.on("groupCallParticipants", ({ groupId, participants }) => {
+      participants.forEach(({ userInfo }) => {
+        if (!userInfo || userInfo._id === user?._id) return;
+        createGroupPeer(groupId, userInfo, true);
+      });
+    });
+
+    socket.on("groupUserJoinedCall", ({ userInfo }) => {
+      if (!userInfo || userInfo._id === user?._id) return;
+      setGroupParticipants((prev) =>
+        prev[userInfo._id] ? prev : { ...prev, [userInfo._id]: { userInfo } }
+      );
+    });
+
+    socket.on("groupSignal", ({ groupId, fromUser, signalData }) => {
+      let peer = groupPeersRef.current[fromUser._id];
+      if (!peer) {
+        peer = createGroupPeer(groupId, fromUser, false);
+      }
+      peer.signal(signalData);
+    });
+
+    socket.on("groupUserLeftCall", ({ userId }) => {
+      removeGroupPeer(userId);
+    });
+
+    socket.on("groupCallEnded", () => {
+      cleanupGroupCall();
+    });
+
+    return () => {
+      socket.off("groupIncomingCall");
+      socket.off("groupCallParticipants");
+      socket.off("groupUserJoinedCall");
+      socket.off("groupSignal");
+      socket.off("groupUserLeftCall");
+      socket.off("groupCallEnded");
+    };
+  }, [user?._id]);
+
   useEffect(() => {
     window.__startCall = async (targetUser, type) => {
-      if (peerRef.current || startCallLockRef.current || callState !== "idle") {
+      if (peerRef.current || startCallLockRef.current || callState !== "idle" || groupCallActiveRef.current) {
         console.log("Call already in progress, ignoring duplicate startCall");
         return;
       }
@@ -193,6 +474,11 @@ const CallManager = ({ user }) => {
       startCallLockRef.current = false;
       attachIceDebug(peer, "CALLER");
 
+      if (pendingCandidatesRef.current.length > 0) {
+        pendingCandidatesRef.current.forEach((c) => peer.signal(c));
+        pendingCandidatesRef.current = [];
+      }
+
       let firstSignalSent = false;
 
       peer.on("signal", (signalData) => {
@@ -231,11 +517,11 @@ const CallManager = ({ user }) => {
         cleanupCall();
       });
     };
-  }, [user]);
+  }, [user, callState]);
 
   useEffect(() => {
     socket.on("incomingCall", ({ fromUser, signalData, callType }) => {
-      if (peerRef.current || acceptCallLockRef.current) {
+      if (peerRef.current || acceptCallLockRef.current || groupCallActiveRef.current) {
         console.log("Already in a call, ignoring incoming call");
         return;
       }
@@ -285,7 +571,7 @@ const CallManager = ({ user }) => {
   }, []);
 
   const acceptCall = async () => {
-    if (peerRef.current || acceptCallLockRef.current) {
+    if (peerRef.current || acceptCallLockRef.current || groupCallActiveRef.current) {
       console.log("Call already in progress, ignoring duplicate acceptCall");
       return;
     }
@@ -437,16 +723,19 @@ const CallManager = ({ user }) => {
     return `${m}:${sec}`;
   };
 
-  if (callState === "idle") return (
+  if (callState === "idle" && groupCallState === "idle") return (
     <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden />
   );
+
+  const groupParticipantList = Object.entries(groupParticipants);
+  const groupTileCount = groupParticipantList.length + 1;
 
   return (
     <div className="cv-call-overlay">
       <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden />
       <audio ref={setRemoteAudioEl} autoPlay hidden muted={callType === "video"} />
 
-      {needsPlaybackUnlock && callState === "connected" && (
+      {needsPlaybackUnlock && (callState === "connected" || groupCallState === "connected") && (
         <button
           onClick={unlockPlayback}
           style={{
@@ -519,6 +808,139 @@ const CallManager = ({ user }) => {
               </button>
             )}
             <button className="cv-call-btn decline" onClick={hangUp}>
+              <i className="fa-solid fa-phone-slash"></i>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {groupCallState === "incoming" && (
+        <div className="cv-call-card">
+          <img src={activeGroupInfo?.groupImage} alt="" className="cv-call-avatar" />
+          <h4>{activeGroupInfo?.groupName}</h4>
+          <p>{groupIncomingData?.fromUser?.name} started a {groupCallType} group call…</p>
+          <div className="cv-call-actions">
+            <button className="cv-call-btn accept" onClick={acceptGroupCall}>
+              <i className="fa-solid fa-phone"></i>
+            </button>
+            <button className="cv-call-btn decline" onClick={declineGroupCall}>
+              <i className="fa-solid fa-phone-slash"></i>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {groupCallState === "connected" && (
+        <div className="cv-call-connected">
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${Math.min(3, Math.ceil(Math.sqrt(groupTileCount)))}, 1fr)`,
+              gap: "8px",
+              width: "100%",
+              height: "100%",
+              padding: "12px",
+              boxSizing: "border-box",
+              alignContent: "center",
+            }}
+          >
+            <div
+              style={{
+                position: "relative",
+                background: "#111",
+                borderRadius: "12px",
+                overflow: "hidden",
+                aspectRatio: "4 / 3",
+              }}
+            >
+              {groupCallType === "video" ? (
+                <video
+                  ref={setGroupMyVideoEl}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                  <img src={user?.image} alt="" style={{ width: "56px", height: "56px", borderRadius: "50%" }} />
+                </div>
+              )}
+              <span
+                style={{
+                  position: "absolute",
+                  bottom: "6px",
+                  left: "8px",
+                  color: "#fff",
+                  fontSize: "12px",
+                  background: "rgba(0,0,0,0.5)",
+                  padding: "2px 6px",
+                  borderRadius: "6px",
+                }}
+              >
+                You
+              </span>
+            </div>
+
+            {groupParticipantList.map(([uid, p]) => (
+              <div
+                key={uid}
+                style={{
+                  position: "relative",
+                  background: "#111",
+                  borderRadius: "12px",
+                  overflow: "hidden",
+                  aspectRatio: "4 / 3",
+                }}
+              >
+                {groupCallType === "video" ? (
+                  <video
+                    ref={setGroupVideoEl(uid)}
+                    autoPlay
+                    playsInline
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <>
+                    <audio ref={setGroupVideoEl(uid)} autoPlay hidden />
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                      <img
+                        src={p.userInfo?.image}
+                        alt=""
+                        style={{ width: "56px", height: "56px", borderRadius: "50%" }}
+                      />
+                    </div>
+                  </>
+                )}
+                <span
+                  style={{
+                    position: "absolute",
+                    bottom: "6px",
+                    left: "8px",
+                    color: "#fff",
+                    fontSize: "12px",
+                    background: "rgba(0,0,0,0.5)",
+                    padding: "2px 6px",
+                    borderRadius: "6px",
+                  }}
+                >
+                  {p.userInfo?.name}{!p.hasStream ? " — connecting…" : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="cv-call-bar">
+            <span className="cv-call-timer">{fmt(groupDuration)}</span>
+            <button className="cv-call-btn small" onClick={toggleGroupMic}>
+              <i className={`fa-solid ${groupMicOn ? "fa-microphone" : "fa-microphone-slash"}`}></i>
+            </button>
+            {groupCallType === "video" && (
+              <button className="cv-call-btn small" onClick={toggleGroupCam}>
+                <i className={`fa-solid ${groupCamOn ? "fa-video" : "fa-video-slash"}`}></i>
+              </button>
+            )}
+            <button className="cv-call-btn decline" onClick={leaveGroupCall}>
               <i className="fa-solid fa-phone-slash"></i>
             </button>
           </div>

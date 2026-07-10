@@ -864,14 +864,14 @@ const MyGroups = () => {
     setShowMsgMenu(null);
 
   };
-const callLockRef = useRef(false);
+  const callLockRef = useRef(false);
 
-const triggerCall = (targetUser, type) => {
-  if (callLockRef.current) return;
-  callLockRef.current = true;
-  window.__startCall?.(targetUser, type);
-  setTimeout(() => { callLockRef.current = false; }, 2000); // 2s cooldown
-};
+  const triggerCall = (targetUser, type) => {
+    if (callLockRef.current) return;
+    callLockRef.current = true;
+    window.__startCall?.(targetUser, type);
+    setTimeout(() => { callLockRef.current = false; }, 2000); // 2s cooldown
+  };
   const deleteGroupMessage = async (id) => {
 
     const res = await axios.delete(
@@ -892,6 +892,13 @@ const triggerCall = (targetUser, type) => {
     );
 
     setShowMsgMenu(null);
+  };
+
+  const triggerGroupCall = (group, type) => {
+    if (callLockRef.current) return;
+    callLockRef.current = true;
+    window.__startGroupCall?.(group, type);
+    setTimeout(() => { callLockRef.current = false; }, 2000);
   };
 
   const updateGroupMessage = (msg) => {
@@ -2975,8 +2982,8 @@ const triggerCall = (targetUser, type) => {
                         onClick={() => setShowMsgSearch((prev) => !prev)}
                         title="Search messages"
                       ></i>
-                      <i className="fa-solid fa-phone"></i>
-                      <i className="fa-solid fa-video"></i>
+                      <i className="fa-solid fa-phone" onClick={() => triggerGroupCall(selectedGroup, "audio")}></i>
+                      <i className="fa-solid fa-video" onClick={() => triggerGroupCall(selectedGroup, "video")}></i>
                       <i className="fa-solid fa-circle-info" onClick={() => setShowGroupInfo(true)}></i>
                     </div>
 
