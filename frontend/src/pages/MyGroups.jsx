@@ -2100,6 +2100,12 @@ useEffect(() => {
       window.removeEventListener("resize", setVH);
     };
   }, []);
+  // 👈 NAYA — jab chat page open ho, body pe class lagao taaki
+  // global header/footer ko mobile par hide kar sakein
+  useEffect(() => {
+    document.body.classList.add("cv-chat-active");
+    return () => document.body.classList.remove("cv-chat-active");
+  }, []);
   return (<>
 
     {actionLoading && <Loader />}

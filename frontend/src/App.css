@@ -2153,7 +2153,12 @@ body {
     /* vh se dvh kiya */
   }
 }
-
+@media (max-width: 768px) {
+  body.cv-chat-active .cv-header,
+  body.cv-chat-active .cv-footer {
+    display: none !important;
+  }
+}
 /* ============== UNREAD MESSAGE BADGE (NAYA) ============== */
 
 .cv-unread-badge {
