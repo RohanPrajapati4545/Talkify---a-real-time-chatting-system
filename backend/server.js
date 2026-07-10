@@ -129,9 +129,10 @@ io.on("connection", (socket) => {
 
   // 👇 UPDATED — debug log + candidate counter add kiya
   socket.on("iceCandidate", ({ toUserId, signalData }) => {
-    console.log("🧊 RELAYING ICE CANDIDATE → to:", `user_${toUserId}`, "from socket:", socket.id);
-    io.to(`user_${toUserId}`).emit("iceCandidate", { signalData });
-  });
+  const room = io.sockets.adapter.rooms.get(`user_${toUserId}`);
+  console.log("🧊 RELAYING ICE CANDIDATE → to:", `user_${toUserId}`, "| sockets in room:", room ? room.size : 0, "| from socket:", socket.id);
+  io.to(`user_${toUserId}`).emit("iceCandidate", { signalData });
+});
 
   // 👇 NAYA — PRIVATE TYPING INDICATOR
   socket.on("typingPrivate", ({ chatId, senderId, receiverId, userName }) => {
