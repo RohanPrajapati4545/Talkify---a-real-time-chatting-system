@@ -6,7 +6,7 @@ const express = require("express");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const mongoose = require("mongoose");
-const PrivateMessage =require("./models/PrivateMessageSchema")
+const PrivateMessage = require("./models/PrivateMessageSchema")
 require("./config/db");
 
 const app = express();
@@ -28,7 +28,7 @@ const corsOption = {
   origin: [
     "http://localhost:3000",
     "http://localhost:5173",
-     process.env.CLIENT_URL,
+    process.env.CLIENT_URL,
   ],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
@@ -39,7 +39,6 @@ app.use("/uploads", express.static("uploads"));
 
 mongoose.set("strictPopulate", false);
 
-// ── ONLINE USERS TRACKING ──────────────────────────────────────
 const onlineUsers = new Map();
 
 const addOnlineUser = (userId, socketId) => {
@@ -67,10 +66,9 @@ io.on("connection", (socket) => {
 
   console.log("User Connected:", socket.id);
 
-  // ── ONLINE STATUS ──────────────────────────────────────────
   socket.on("userOnline", (userId) => {
-      console.log("🟢 JOINING ROOM:", `user_${userId}`);
-     socket.join(`user_${userId}`); 
+    console.log("🟢 JOINING ROOM:", `user_${userId}`);
+    socket.join(`user_${userId}`);
     socket.userId = userId;
     addOnlineUser(userId, socket.id);
     broadcastOnlineUsers();
@@ -82,7 +80,6 @@ io.on("connection", (socket) => {
     broadcastOnlineUsers();
   });
 
-  // ── GROUP ──────────────────────────────────────────────────
   socket.on("joinGroup", (groupId) => {
     socket.join(groupId);
     console.log(`${socket.id} joined Group ${groupId}`);
@@ -100,7 +97,6 @@ io.on("connection", (socket) => {
     io.to(msg.groupId).emit("groupMessageDeleted", msg);
   });
 
-  // 👇 NAYA — GROUP TYPING INDICATOR
   socket.on("typing", ({ groupId, userId, userName }) => {
     socket.to(groupId).emit("userTyping", { groupId, userId, userName });
   });
@@ -109,7 +105,6 @@ io.on("connection", (socket) => {
     socket.to(groupId).emit("userStopTyping", { groupId, userId });
   });
 
-  // ── PRIVATE ────────────────────────────────────────────────
   socket.on("joinPrivateChat", (chatId) => {
     socket.join(chatId);
     console.log(`${socket.id} joined Private Chat ${chatId}`);
@@ -127,14 +122,12 @@ io.on("connection", (socket) => {
     io.to(msg.chatId).emit("privateMessageDeleted", msg);
   });
 
-  // 👇 UPDATED — debug log + candidate counter add kiya
   socket.on("iceCandidate", ({ toUserId, signalData }) => {
-  const room = io.sockets.adapter.rooms.get(`user_${toUserId}`);
-  console.log("🧊 RELAYING ICE CANDIDATE → to:", `user_${toUserId}`, "| sockets in room:", room ? room.size : 0, "| from socket:", socket.id);
-  io.to(`user_${toUserId}`).emit("iceCandidate", { signalData });
-});
+    const room = io.sockets.adapter.rooms.get(`user_${toUserId}`);
+    console.log("🧊 RELAYING ICE CANDIDATE → to:", `user_${toUserId}`, "| sockets in room:", room ? room.size : 0, "| from socket:", socket.id);
+    io.to(`user_${toUserId}`).emit("iceCandidate", { signalData });
+  });
 
-  // 👇 NAYA — PRIVATE TYPING INDICATOR
   socket.on("typingPrivate", ({ chatId, senderId, receiverId, userName }) => {
     socket.to(chatId).emit("userTypingPrivate", { chatId, senderId, receiverId, userName });
   });
@@ -159,40 +152,34 @@ io.on("connection", (socket) => {
       console.log(err);
     }
   });
+
   socket.on("groupSystemMessage", ({ groupId, message }) => {
-  socket.to(groupId).emit("groupSystemMessage", { groupId, message });
-});
-
-// ---- CALL SIGNALING ----
-
-// Caller call start karta hai
-socket.on("callUser", ({ toUserId, fromUser, signalData, callType }) => {
-  // callType: "audio" | "video"
-  console.log("📞 CALL USER — toUserId:", toUserId); // 👈 NAYA
-  io.to(`user_${toUserId}`).emit("incomingCall", {
-    fromUser,          // { _id, name, image }
-    signalData,        // WebRTC offer signal
-    callType,
+    socket.to(groupId).emit("groupSystemMessage", { groupId, message });
   });
-});
 
-// Receiver accept karta hai aur apna answer signal bhejta hai
-socket.on("answerCall", ({ toUserId, signalData }) => {
-  console.log("✅ ANSWER CALL — toUserId:", toUserId); // 👈 NAYA
-  io.to(`user_${toUserId}`).emit("callAccepted", { signalData });
-});
+  socket.on("callUser", ({ toUserId, fromUser, signalData, callType }) => {
+    const room = io.sockets.adapter.rooms.get(`user_${toUserId}`);
+    console.log("📞 CALL USER — toUserId:", toUserId, "| sockets in room:", room ? room.size : 0);
+    io.to(`user_${toUserId}`).emit("incomingCall", {
+      fromUser,
+      signalData,
+      callType,
+    });
+  });
 
-// Koi bhi side connect hone se pehle reject/cancel kare
-socket.on("rejectCall", ({ toUserId }) => {
-  io.to(`user_${toUserId}`).emit("callRejected");
-});
+  socket.on("answerCall", ({ toUserId, signalData }) => {
+    console.log("✅ ANSWER CALL — toUserId:", toUserId);
+    io.to(`user_${toUserId}`).emit("callAccepted", { signalData });
+  });
 
-// Koi bhi side call end kare
-socket.on("endCall", ({ toUserId }) => {
-  io.to(`user_${toUserId}`).emit("callEnded");
-});
+  socket.on("rejectCall", ({ toUserId }) => {
+    io.to(`user_${toUserId}`).emit("callRejected");
+  });
 
-  // ── DISCONNECT ─────────────────────────────────────────────
+  socket.on("endCall", ({ toUserId }) => {
+    io.to(`user_${toUserId}`).emit("callEnded");
+  });
+
   socket.on("disconnect", () => {
     if (socket.userId) {
       removeOnlineUser(socket.userId, socket.id);
@@ -202,6 +189,7 @@ socket.on("endCall", ({ toUserId }) => {
   });
 
 });
+
 app.get("/api/debug-env", (req, res) => {
   const appName = process.env.METERED_APP_NAME || "MISSING";
   const key = process.env.METERED_API_KEY || "MISSING";
@@ -212,6 +200,7 @@ app.get("/api/debug-env", (req, res) => {
     keyPreview: key === "MISSING" ? "MISSING" : `${key.slice(0, 4)}...${key.slice(-4)}`,
   });
 });
+
 app.get("/api/turn-credentials", async (req, res) => {
   try {
     const response = await fetch(
@@ -224,6 +213,7 @@ app.get("/api/turn-credentials", async (req, res) => {
     res.status(500).json({ message: "Could not fetch TURN credentials" });
   }
 });
+
 const AuthRoute = require("./routes/AuthRoute");
 const GroupRoute = require("./routes/GroupRoute");
 const UserRoute = require("./routes/UserRoute");

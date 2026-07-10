@@ -3,7 +3,6 @@ import Peer from "simple-peer";
 import socket from "../socket/Socket";
 import { toast } from "react-toastify";
 
-
 const ICE_CONFIG = {
   iceServers: [
     { urls: "stun:stun.relay.metered.ca:80" },
@@ -30,9 +29,6 @@ const ICE_CONFIG = {
   ],
 };
 
-// 👇 NAYA — static env creds expire/rotate ho sakti hain, isliye har call se
-// pehle backend ke /api/turn-credentials se FRESH TURN creds fetch karte hain.
-// Fetch fail ho jaye to static ICE_CONFIG pe fallback karte hain (safety net).
 const getIceServers = async () => {
   try {
     const res = await fetch(`${process.env.REACT_APP_API_URL}/api/turn-credentials`);
@@ -47,10 +43,6 @@ const getIceServers = async () => {
   }
 };
 
-// ❌ REMOVED — ye stray/unused `myPeerConnection = new RTCPeerConnection(...)`
-// koi kaam nahi kar raha tha, sirf module load hote hi ek useless
-// peer connection bana deta tha. Hata diya gaya.
-
 const CallManager = ({ user }) => {
   const [callState, setCallState] = useState("idle");
   const [callType, setCallType] = useState("audio");
@@ -59,8 +51,6 @@ const CallManager = ({ user }) => {
   const [callDuration, setCallDuration] = useState(0);
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
-
-  // 👇 NAYA — jab autoplay block ho jaye (audio/video), user ko "tap to enable" dikhate hain
   const [needsPlaybackUnlock, setNeedsPlaybackUnlock] = useState(false);
 
   const myVideoRef = useRef(null);
@@ -72,6 +62,8 @@ const CallManager = ({ user }) => {
   const timerRef = useRef(null);
   const ringtoneRef = useRef(null);
   const noAnswerTimeoutRef = useRef(null);
+  const startCallLockRef = useRef(false);
+  const acceptCallLockRef = useRef(false);
 
   const handleMediaError = (err) => {
     console.log(err);
@@ -84,8 +76,6 @@ const CallManager = ({ user }) => {
     }
   };
 
-  // 👇 NAYA — safe attach helper. Har jagah stream ko video/audio element pe
-  // isi se lagao — chahe callback ref se ho ya peer "stream" event se.
   const attachStream = (el, stream) => {
     if (!el || !stream) return;
     if (el.srcObject !== stream) el.srcObject = stream;
@@ -93,9 +83,8 @@ const CallManager = ({ user }) => {
     const playPromise = el.play?.();
     if (playPromise && typeof playPromise.catch === "function") {
       playPromise.catch((err) => {
-        if (err.name === "AbortError") return; // element unmount hote waqt normal hai
+        if (err.name === "AbortError") return;
         if (err.name === "NotAllowedError") {
-          // 👇 Autoplay policy ne block kiya — user gesture chahiye
           console.log(`autoplay blocked for ${el.tagName}, needs user tap`);
           setNeedsPlaybackUnlock(true);
         } else {
@@ -105,8 +94,6 @@ const CallManager = ({ user }) => {
     }
   };
 
-  // 👇 NAYA — callback refs. Ye DOM mount hote hi (ya jab bhi call ho) turant
-  // current stream attach kar dete hain — kisi useEffect timing pe depend nahi.
   const setMyVideoEl = (el) => {
     myVideoRef.current = el;
     attachStream(el, localStreamRef.current);
@@ -122,7 +109,6 @@ const CallManager = ({ user }) => {
     attachStream(el, remoteStreamRef.current);
   };
 
-  // 👇 NAYA — user "Tap to enable" button dabaye to ye chalega (genuine user gesture)
   const unlockPlayback = () => {
     setNeedsPlaybackUnlock(false);
     attachStream(remoteVideoRef.current, remoteStreamRef.current);
@@ -145,10 +131,12 @@ const CallManager = ({ user }) => {
 
   useEffect(() => {
     window.__startCall = async (targetUser, type) => {
-      if (peerRef.current || callState !== "idle") {
+      if (peerRef.current || startCallLockRef.current || callState !== "idle") {
         console.log("Call already in progress, ignoring duplicate startCall");
         return;
       }
+      startCallLockRef.current = true;
+
       setCallType(type);
       setRemoteUser(targetUser);
       setCallState("calling");
@@ -163,14 +151,26 @@ const CallManager = ({ user }) => {
         handleMediaError(err);
         setCallState("idle");
         setRemoteUser(null);
+        startCallLockRef.current = false;
+        return;
+      }
+
+      if (peerRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        startCallLockRef.current = false;
         return;
       }
 
       localStreamRef.current = stream;
       attachStream(myVideoRef.current, stream);
 
-      // 👇 NAYA — fresh TURN creds fetch karo Peer banane se pehle
       const iceServers = await getIceServers();
+
+      if (peerRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        startCallLockRef.current = false;
+        return;
+      }
 
       const peer = new Peer({
         initiator: true,
@@ -178,11 +178,10 @@ const CallManager = ({ user }) => {
         stream,
         config: {
           iceServers,
-          // ✅ iceTransportPolicy: "relay" jaan-boojh kar nahi lagaya —
-          // isse host/STUN candidates bhi try honge, TURN sirf fallback rahega
         },
       });
       peerRef.current = peer;
+      startCallLockRef.current = false;
       attachIceDebug(peer, "CALLER");
 
       let firstSignalSent = false;
@@ -227,6 +226,10 @@ const CallManager = ({ user }) => {
 
   useEffect(() => {
     socket.on("incomingCall", ({ fromUser, signalData, callType }) => {
+      if (peerRef.current || acceptCallLockRef.current) {
+        console.log("Already in a call, ignoring incoming call");
+        return;
+      }
       setIncomingData({ fromUser, signalData });
       setRemoteUser(fromUser);
       setCallType(callType);
@@ -254,7 +257,12 @@ const CallManager = ({ user }) => {
     });
 
     socket.on("iceCandidate", ({ signalData }) => {
-      peerRef.current?.signal(signalData);
+      console.log("🧊 RECEIVED iceCandidate from server, peerRef exists:", !!peerRef.current, signalData);
+      if (!peerRef.current) {
+        console.log("⚠️ Dropped ICE candidate — no active peer yet!");
+        return;
+      }
+      peerRef.current.signal(signalData);
     });
 
     return () => {
@@ -267,10 +275,11 @@ const CallManager = ({ user }) => {
   }, []);
 
   const acceptCall = async () => {
-    if (peerRef.current) {
+    if (peerRef.current || acceptCallLockRef.current) {
       console.log("Call already in progress, ignoring duplicate acceptCall");
       return;
     }
+    acceptCallLockRef.current = true;
 
     ringtoneRef.current?.pause();
 
@@ -282,14 +291,26 @@ const CallManager = ({ user }) => {
       });
     } catch (err) {
       handleMediaError(err);
+      acceptCallLockRef.current = false;
       declineCall();
+      return;
+    }
+
+    if (peerRef.current) {
+      stream.getTracks().forEach((t) => t.stop());
+      acceptCallLockRef.current = false;
       return;
     }
 
     localStreamRef.current = stream;
 
-    // 👇 NAYA — fresh TURN creds fetch karo Peer banane se pehle
     const iceServers = await getIceServers();
+
+    if (peerRef.current) {
+      stream.getTracks().forEach((t) => t.stop());
+      acceptCallLockRef.current = false;
+      return;
+    }
 
     const peer = new Peer({
       initiator: false,
@@ -297,11 +318,10 @@ const CallManager = ({ user }) => {
       stream,
       config: {
         iceServers,
-        // ✅ FIX — pehle yahan "iceTransportPolicy: 'relay'" tha, hata diya
-        // taaki caller ki tarah receiver bhi host/STUN candidates try kar sake
       },
     });
     peerRef.current = peer;
+    acceptCallLockRef.current = false;
     attachIceDebug(peer, "RECEIVER");
 
     let firstSignalSent = false;
@@ -335,8 +355,6 @@ const CallManager = ({ user }) => {
     setCallState("connected");
     startTimer();
 
-    // callback ref se video mount ho chuka hoga is render ke baad,
-    // par local stream turant bhi try kar lete hain
     attachStream(myVideoRef.current, stream);
   };
 
@@ -351,9 +369,6 @@ const CallManager = ({ user }) => {
     cleanupCall();
   };
 
-  // 👇 FIX — video/audio elements ko pehle pause + srcObject clear karo,
-  // TAB jaake state "idle" karo. Isse elements unmount hote waqt koi
-  // pending play() promise nahi bachta => AbortError console me nahi aayega.
   const cleanupCall = () => {
     [myVideoRef.current, remoteVideoRef.current, remoteAudioRef.current].forEach((el) => {
       if (!el) return;
@@ -361,7 +376,6 @@ const CallManager = ({ user }) => {
         el.pause();
         el.srcObject = null;
       } catch (e) {
-        // ignore
       }
     });
 
@@ -373,6 +387,8 @@ const CallManager = ({ user }) => {
     clearInterval(timerRef.current);
     clearTimeout(noAnswerTimeoutRef.current);
     noAnswerTimeoutRef.current = null;
+    startCallLockRef.current = false;
+    acceptCallLockRef.current = false;
     setCallDuration(0);
     setNeedsPlaybackUnlock(false);
     setCallState("idle");
@@ -415,11 +431,8 @@ const CallManager = ({ user }) => {
   return (
     <div className="cv-call-overlay">
       <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden />
-      {/* Video call me audio remote video element ke through hi aayega,
-          isliye us case me ye element muted rehta hai (double audio na ho) */}
       <audio ref={setRemoteAudioEl} autoPlay hidden muted={callType === "video"} />
 
-      {/* 👇 NAYA — autoplay block hone par ye overlay dikhega */}
       {needsPlaybackUnlock && callState === "connected" && (
         <button
           onClick={unlockPlayback}
