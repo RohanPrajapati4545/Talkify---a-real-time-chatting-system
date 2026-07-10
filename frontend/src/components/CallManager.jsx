@@ -64,6 +64,7 @@ const CallManager = ({ user }) => {
   const noAnswerTimeoutRef = useRef(null);
   const startCallLockRef = useRef(false);
   const acceptCallLockRef = useRef(false);
+  const pendingCandidatesRef = useRef([]);
 
   const handleMediaError = (err) => {
     console.log(err);
@@ -126,6 +127,14 @@ const CallManager = ({ user }) => {
       peer._pc.onconnectionstatechange = () => {
         console.log(`🔗 [${label}] CONNECTION STATE:`, peer._pc.connectionState);
       };
+    }
+  };
+
+  const flushPendingCandidates = (peer, label) => {
+    if (pendingCandidatesRef.current.length > 0) {
+      console.log(`📤 [${label}] Flushing ${pendingCandidatesRef.current.length} buffered ICE candidates`);
+      pendingCandidatesRef.current.forEach((c) => peer.signal(c));
+      pendingCandidatesRef.current = [];
     }
   };
 
@@ -259,7 +268,8 @@ const CallManager = ({ user }) => {
     socket.on("iceCandidate", ({ signalData }) => {
       console.log("🧊 RECEIVED iceCandidate from server, peerRef exists:", !!peerRef.current, signalData);
       if (!peerRef.current) {
-        console.log("⚠️ Dropped ICE candidate — no active peer yet!");
+        console.log("📥 Buffering ICE candidate — peer not ready yet");
+        pendingCandidatesRef.current.push(signalData);
         return;
       }
       peerRef.current.signal(signalData);
@@ -352,6 +362,8 @@ const CallManager = ({ user }) => {
     });
 
     peer.signal(incomingData.signalData);
+    flushPendingCandidates(peer, "RECEIVER");
+
     setCallState("connected");
     startTimer();
 
@@ -384,6 +396,7 @@ const CallManager = ({ user }) => {
     peerRef.current = null;
     localStreamRef.current = null;
     remoteStreamRef.current = null;
+    pendingCandidatesRef.current = [];
     clearInterval(timerRef.current);
     clearTimeout(noAnswerTimeoutRef.current);
     noAnswerTimeoutRef.current = null;
