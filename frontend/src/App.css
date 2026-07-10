@@ -2142,15 +2142,14 @@ body {
   }
 
   .cv-grid {
-    min-height: 100dvh;
-    /* vh se dvh kiya */
-    max-height: 100dvh;
+     min-height: calc(var(--vh, 1vh) * 100);
+    max-height: calc(var(--vh, 1vh) * 100);
   }
 
   .cv-sidebar,
   .cv-main,
   .cv-info {
-    height: 100dvh;
+    height: calc(var(--vh, 1vh) * 100); 
     /* vh se dvh kiya */
   }
 }
@@ -3593,4 +3592,11 @@ body {
   font-family: monospace;
   align-self: center;
   margin-right: 10px;
+}
+
+body.cv-chat-open {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  overflow: hidden;
 }

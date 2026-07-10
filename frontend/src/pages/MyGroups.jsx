@@ -2082,19 +2082,21 @@ const MyGroups = () => {
   const isPrivateUserTyping = Boolean(
     selectedUser && privateTypingStatus[selectedUser._id]
   );
-  useEffect(() => {
+useEffect(() => {
+    const vv = window.visualViewport;
+
     const setVH = () => {
-      const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty("--vh", `${vh}px`);
+      const height = vv ? vv.height : window.innerHeight;
+      document.documentElement.style.setProperty("--vh", `${height * 0.01}px`);
     };
 
     setVH();
 
-    window.visualViewport?.addEventListener("resize", setVH);
+    vv?.addEventListener("resize", setVH);
     window.addEventListener("resize", setVH);
 
     return () => {
-      window.visualViewport?.removeEventListener("resize", setVH);
+      vv?.removeEventListener("resize", setVH);
       window.removeEventListener("resize", setVH);
     };
   }, []);
