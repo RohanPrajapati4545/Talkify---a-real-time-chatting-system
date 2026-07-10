@@ -2608,6 +2608,7 @@ useEffect(() => {
                         <button
                           type="button"
                           className="cv-send"
+                            onMouseDown={(e) => e.preventDefault()}  
                           onClick={
                             sendingMessage
                               ? undefined
@@ -3232,6 +3233,7 @@ useEffect(() => {
                     <button
                       type="button"
                       className="cv-send"
+                        onMouseDown={(e) => e.preventDefault()}  
                       onClick={
                         sendingMessage
                           ? undefined
