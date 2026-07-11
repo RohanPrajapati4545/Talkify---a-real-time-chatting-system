@@ -61,7 +61,6 @@ const CallManager = ({ user }) => {
   const peerRef = useRef(null);
   const timerRef = useRef(null);
   const ringtoneRef = useRef(null);
-  const busyToneRef = useRef(null);
   const noAnswerTimeoutRef = useRef(null);
   const startCallLockRef = useRef(false);
   const acceptCallLockRef = useRef(false);
@@ -430,9 +429,6 @@ const CallManager = ({ user }) => {
       }
       startCallLockRef.current = true;
 
-      busyToneRef.current?.pause();
-      if (busyToneRef.current) busyToneRef.current.currentTime = 0;
-
       setCallType(type);
       setRemoteUser(targetUser);
       setCallState("calling");
@@ -552,9 +548,6 @@ const CallManager = ({ user }) => {
     socket.on("callRejected", () => {
       clearTimeout(noAnswerTimeoutRef.current);
       toast.error("Call declined");
-      busyToneRef.current?.play().catch((err) => {
-        console.log("🔔 Busy tone play failed:", err.name, err.message);
-      });
       cleanupCall();
     });
 
@@ -563,9 +556,9 @@ const CallManager = ({ user }) => {
     });
 
     socket.on("iceCandidate", ({ signalData }) => {
-      console.log("🧊 RECEIVED iceCandidate from server, peerRef exists:", !!peerRef.current, signalData);
+      console.log(" RECEIVED iceCandidate from server, peerRef exists:", !!peerRef.current, signalData);
       if (!peerRef.current) {
-        console.log("📥 Buffering ICE candidate — peer not ready yet");
+        console.log(" Buffering ICE candidate — peer not ready yet");
         pendingCandidatesRef.current.push(signalData);
         return;
       }
@@ -646,7 +639,7 @@ const CallManager = ({ user }) => {
     });
 
     peer.on("stream", (remoteStream) => {
-      console.log("🎥 RECEIVER — remote stream received", remoteStream);
+
       remoteStreamRef.current = remoteStream;
       attachStream(remoteVideoRef.current, remoteStream);
       attachStream(remoteAudioRef.current, remoteStream);
@@ -654,7 +647,7 @@ const CallManager = ({ user }) => {
 
     peer.on("close", () => cleanupCall());
     peer.on("error", (err) => {
-      console.log("🔴 RECEIVER PEER ERROR:", err);
+     
       cleanupCall();
     });
 
@@ -738,14 +731,10 @@ const CallManager = ({ user }) => {
   const groupTileCount = groupParticipantList.length + 1;
   const showOverlay = callState !== "idle" || groupCallState !== "idle";
 
-  // 🔧 FIX — ringtone <audio> ab hamesha ek hi jagah render hota hai
-  // (pehle idle vs non-idle render ke beech ye element unmount/remount ho raha tha,
-  // jiski wajah se .play() call fire hone ke turant baad element hi destroy ho jata tha
-  // aur ringtone kabhi baj nahi paati thi). Ab ye component ke top level pe permanently mounted hai.
+
   return (
     <>
       <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden preload="auto" />
-      <audio ref={busyToneRef} src="/busy-tone.mp3" hidden preload="auto" />
 
       {showOverlay && (
         <div className="cv-call-overlay">
@@ -768,7 +757,7 @@ const CallManager = ({ user }) => {
                 fontSize: "14px",
               }}
             >
-              🔊 Tap to enable audio/video
+              Tap to enable audio/video
             </button>
           )}
 
