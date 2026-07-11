@@ -61,6 +61,7 @@ const CallManager = ({ user }) => {
   const peerRef = useRef(null);
   const timerRef = useRef(null);
   const ringtoneRef = useRef(null);
+  const busyToneRef = useRef(null);
   const noAnswerTimeoutRef = useRef(null);
   const startCallLockRef = useRef(false);
   const acceptCallLockRef = useRef(false);
@@ -429,6 +430,9 @@ const CallManager = ({ user }) => {
       }
       startCallLockRef.current = true;
 
+      busyToneRef.current?.pause();
+      if (busyToneRef.current) busyToneRef.current.currentTime = 0;
+
       setCallType(type);
       setRemoteUser(targetUser);
       setCallState("calling");
@@ -547,7 +551,10 @@ const CallManager = ({ user }) => {
 
     socket.on("callRejected", () => {
       clearTimeout(noAnswerTimeoutRef.current);
-      toast.error("Call decline kar di gayi");
+      toast.error("Call declined");
+      busyToneRef.current?.play().catch((err) => {
+        console.log("🔔 Busy tone play failed:", err.name, err.message);
+      });
       cleanupCall();
     });
 
@@ -738,6 +745,7 @@ const CallManager = ({ user }) => {
   return (
     <>
       <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden preload="auto" />
+      <audio ref={busyToneRef} src="/busy-tone.mp3" hidden preload="auto" />
 
       {showOverlay && (
         <div className="cv-call-overlay">
