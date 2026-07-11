@@ -376,7 +376,9 @@ const CallManager = ({ user }) => {
       setGroupIncomingData({ groupId, fromUser, callType });
       setGroupCallType(callType);
       setGroupCallState("incoming");
-      ringtoneRef.current?.play().catch(() => {});
+      ringtoneRef.current?.play().catch((err) => {
+        console.log("🔔 Ringtone play failed:", err.name, err.message);
+      });
     });
 
     socket.on("groupCallParticipants", ({ groupId, participants }) => {
@@ -529,7 +531,9 @@ const CallManager = ({ user }) => {
       setRemoteUser(fromUser);
       setCallType(callType);
       setCallState("incoming");
-      ringtoneRef.current?.play().catch(() => {});
+      ringtoneRef.current?.play().catch((err) => {
+        console.log("🔔 Ringtone play failed:", err.name, err.message);
+      });
     });
 
     socket.on("callAccepted", ({ signalData }) => {
@@ -723,230 +727,236 @@ const CallManager = ({ user }) => {
     return `${m}:${sec}`;
   };
 
-  if (callState === "idle" && groupCallState === "idle") return (
-    <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden />
-  );
-
   const groupParticipantList = Object.entries(groupParticipants);
   const groupTileCount = groupParticipantList.length + 1;
+  const showOverlay = callState !== "idle" || groupCallState !== "idle";
 
+  // 🔧 FIX — ringtone <audio> ab hamesha ek hi jagah render hota hai
+  // (pehle idle vs non-idle render ke beech ye element unmount/remount ho raha tha,
+  // jiski wajah se .play() call fire hone ke turant baad element hi destroy ho jata tha
+  // aur ringtone kabhi baj nahi paati thi). Ab ye component ke top level pe permanently mounted hai.
   return (
-    <div className="cv-call-overlay">
-      <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden />
-      <audio ref={setRemoteAudioEl} autoPlay hidden muted={callType === "video"} />
+    <>
+      <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden preload="auto" />
 
-      {needsPlaybackUnlock && (callState === "connected" || groupCallState === "connected") && (
-        <button
-          onClick={unlockPlayback}
-          style={{
-            position: "fixed",
-            top: "16px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 9999,
-            padding: "10px 18px",
-            borderRadius: "20px",
-            border: "none",
-            background: "#222",
-            color: "#fff",
-            fontSize: "14px",
-          }}
-        >
-          🔊 Tap to enable audio/video
-        </button>
-      )}
+      {showOverlay && (
+        <div className="cv-call-overlay">
+          <audio ref={setRemoteAudioEl} autoPlay hidden muted={callType === "video"} />
 
-      {callState === "incoming" && (
-        <div className="cv-call-card">
-          <img src={remoteUser?.image} alt="" className="cv-call-avatar" />
-          <h4>{remoteUser?.name}</h4>
-          <p>{callType} incoming call…</p>
-          <div className="cv-call-actions">
-            <button className="cv-call-btn accept" onClick={acceptCall}>
-              <i className="fa-solid fa-phone"></i>
+          {needsPlaybackUnlock && (callState === "connected" || groupCallState === "connected") && (
+            <button
+              onClick={unlockPlayback}
+              style={{
+                position: "fixed",
+                top: "16px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 9999,
+                padding: "10px 18px",
+                borderRadius: "20px",
+                border: "none",
+                background: "#222",
+                color: "#fff",
+                fontSize: "14px",
+              }}
+            >
+              🔊 Tap to enable audio/video
             </button>
-            <button className="cv-call-btn decline" onClick={declineCall}>
-              <i className="fa-solid fa-phone-slash"></i>
-            </button>
-          </div>
-        </div>
-      )}
+          )}
 
-      {callState === "calling" && (
-        <div className="cv-call-card">
-          <img src={remoteUser?.image} alt="" className="cv-call-avatar" />
-          <h4>{remoteUser?.name}</h4>
-          <p>Calling…</p>
-          <button className="cv-call-btn decline" onClick={hangUp}>
-            <i className="fa-solid fa-phone-slash"></i>
-          </button>
-        </div>
-      )}
-
-      {callState === "connected" && (
-        <div className="cv-call-connected">
-          {callType === "video" ? (
-            <>
-              <video ref={setRemoteVideoEl} autoPlay playsInline className="cv-remote-video" />
-              <video ref={setMyVideoEl} autoPlay playsInline muted className="cv-my-video" />
-            </>
-          ) : (
+          {callState === "incoming" && (
             <div className="cv-call-card">
               <img src={remoteUser?.image} alt="" className="cv-call-avatar" />
               <h4>{remoteUser?.name}</h4>
+              <p>{callType} incoming call…</p>
+              <div className="cv-call-actions">
+                <button className="cv-call-btn accept" onClick={acceptCall}>
+                  <i className="fa-solid fa-phone"></i>
+                </button>
+                <button className="cv-call-btn decline" onClick={declineCall}>
+                  <i className="fa-solid fa-phone-slash"></i>
+                </button>
+              </div>
             </div>
           )}
 
-          <div className="cv-call-bar">
-            <span className="cv-call-timer">{fmt(callDuration)}</span>
-            <button className="cv-call-btn small" onClick={toggleMic}>
-              <i className={`fa-solid ${micOn ? "fa-microphone" : "fa-microphone-slash"}`}></i>
-            </button>
-            {callType === "video" && (
-              <button className="cv-call-btn small" onClick={toggleCam}>
-                <i className={`fa-solid ${camOn ? "fa-video" : "fa-video-slash"}`}></i>
+          {callState === "calling" && (
+            <div className="cv-call-card">
+              <img src={remoteUser?.image} alt="" className="cv-call-avatar" />
+              <h4>{remoteUser?.name}</h4>
+              <p>Calling…</p>
+              <button className="cv-call-btn decline" onClick={hangUp}>
+                <i className="fa-solid fa-phone-slash"></i>
               </button>
-            )}
-            <button className="cv-call-btn decline" onClick={hangUp}>
-              <i className="fa-solid fa-phone-slash"></i>
-            </button>
-          </div>
-        </div>
-      )}
+            </div>
+          )}
 
-      {groupCallState === "incoming" && (
-        <div className="cv-call-card">
-          <img src={activeGroupInfo?.groupImage} alt="" className="cv-call-avatar" />
-          <h4>{activeGroupInfo?.groupName}</h4>
-          <p>{groupIncomingData?.fromUser?.name} started a {groupCallType} group call…</p>
-          <div className="cv-call-actions">
-            <button className="cv-call-btn accept" onClick={acceptGroupCall}>
-              <i className="fa-solid fa-phone"></i>
-            </button>
-            <button className="cv-call-btn decline" onClick={declineGroupCall}>
-              <i className="fa-solid fa-phone-slash"></i>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {groupCallState === "connected" && (
-        <div className="cv-call-connected">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${Math.min(3, Math.ceil(Math.sqrt(groupTileCount)))}, 1fr)`,
-              gap: "8px",
-              width: "100%",
-              height: "100%",
-              padding: "12px",
-              boxSizing: "border-box",
-              alignContent: "center",
-            }}
-          >
-            <div
-              style={{
-                position: "relative",
-                background: "#111",
-                borderRadius: "12px",
-                overflow: "hidden",
-                aspectRatio: "4 / 3",
-              }}
-            >
-              {groupCallType === "video" ? (
-                <video
-                  ref={setGroupMyVideoEl}
-                  autoPlay
-                  playsInline
-                  muted
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
+          {callState === "connected" && (
+            <div className="cv-call-connected">
+              {callType === "video" ? (
+                <>
+                  <video ref={setRemoteVideoEl} autoPlay playsInline className="cv-remote-video" />
+                  <video ref={setMyVideoEl} autoPlay playsInline muted className="cv-my-video" />
+                </>
               ) : (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
-                  <img src={user?.image} alt="" style={{ width: "56px", height: "56px", borderRadius: "50%" }} />
+                <div className="cv-call-card">
+                  <img src={remoteUser?.image} alt="" className="cv-call-avatar" />
+                  <h4>{remoteUser?.name}</h4>
                 </div>
               )}
-              <span
-                style={{
-                  position: "absolute",
-                  bottom: "6px",
-                  left: "8px",
-                  color: "#fff",
-                  fontSize: "12px",
-                  background: "rgba(0,0,0,0.5)",
-                  padding: "2px 6px",
-                  borderRadius: "6px",
-                }}
-              >
-                You
-              </span>
-            </div>
 
-            {groupParticipantList.map(([uid, p]) => (
+              <div className="cv-call-bar">
+                <span className="cv-call-timer">{fmt(callDuration)}</span>
+                <button className="cv-call-btn small" onClick={toggleMic}>
+                  <i className={`fa-solid ${micOn ? "fa-microphone" : "fa-microphone-slash"}`}></i>
+                </button>
+                {callType === "video" && (
+                  <button className="cv-call-btn small" onClick={toggleCam}>
+                    <i className={`fa-solid ${camOn ? "fa-video" : "fa-video-slash"}`}></i>
+                  </button>
+                )}
+                <button className="cv-call-btn decline" onClick={hangUp}>
+                  <i className="fa-solid fa-phone-slash"></i>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {groupCallState === "incoming" && (
+            <div className="cv-call-card">
+              <img src={activeGroupInfo?.groupImage} alt="" className="cv-call-avatar" />
+              <h4>{activeGroupInfo?.groupName}</h4>
+              <p>{groupIncomingData?.fromUser?.name} started a {groupCallType} group call…</p>
+              <div className="cv-call-actions">
+                <button className="cv-call-btn accept" onClick={acceptGroupCall}>
+                  <i className="fa-solid fa-phone"></i>
+                </button>
+                <button className="cv-call-btn decline" onClick={declineGroupCall}>
+                  <i className="fa-solid fa-phone-slash"></i>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {groupCallState === "connected" && (
+            <div className="cv-call-connected">
               <div
-                key={uid}
                 style={{
-                  position: "relative",
-                  background: "#111",
-                  borderRadius: "12px",
-                  overflow: "hidden",
-                  aspectRatio: "4 / 3",
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${Math.min(3, Math.ceil(Math.sqrt(groupTileCount)))}, 1fr)`,
+                  gap: "8px",
+                  width: "100%",
+                  height: "100%",
+                  padding: "12px",
+                  boxSizing: "border-box",
+                  alignContent: "center",
                 }}
               >
-                {groupCallType === "video" ? (
-                  <video
-                    ref={setGroupVideoEl(uid)}
-                    autoPlay
-                    playsInline
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                ) : (
-                  <>
-                    <audio ref={setGroupVideoEl(uid)} autoPlay hidden />
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
-                      <img
-                        src={p.userInfo?.image}
-                        alt=""
-                        style={{ width: "56px", height: "56px", borderRadius: "50%" }}
-                      />
-                    </div>
-                  </>
-                )}
-                <span
+                <div
                   style={{
-                    position: "absolute",
-                    bottom: "6px",
-                    left: "8px",
-                    color: "#fff",
-                    fontSize: "12px",
-                    background: "rgba(0,0,0,0.5)",
-                    padding: "2px 6px",
-                    borderRadius: "6px",
+                    position: "relative",
+                    background: "#111",
+                    borderRadius: "12px",
+                    overflow: "hidden",
+                    aspectRatio: "4 / 3",
                   }}
                 >
-                  {p.userInfo?.name}{!p.hasStream ? " — connecting…" : ""}
-                </span>
-              </div>
-            ))}
-          </div>
+                  {groupCallType === "video" ? (
+                    <video
+                      ref={setGroupMyVideoEl}
+                      autoPlay
+                      playsInline
+                      muted
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                      <img src={user?.image} alt="" style={{ width: "56px", height: "56px", borderRadius: "50%" }} />
+                    </div>
+                  )}
+                  <span
+                    style={{
+                      position: "absolute",
+                      bottom: "6px",
+                      left: "8px",
+                      color: "#fff",
+                      fontSize: "12px",
+                      background: "rgba(0,0,0,0.5)",
+                      padding: "2px 6px",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    You
+                  </span>
+                </div>
 
-          <div className="cv-call-bar">
-            <span className="cv-call-timer">{fmt(groupDuration)}</span>
-            <button className="cv-call-btn small" onClick={toggleGroupMic}>
-              <i className={`fa-solid ${groupMicOn ? "fa-microphone" : "fa-microphone-slash"}`}></i>
-            </button>
-            {groupCallType === "video" && (
-              <button className="cv-call-btn small" onClick={toggleGroupCam}>
-                <i className={`fa-solid ${groupCamOn ? "fa-video" : "fa-video-slash"}`}></i>
-              </button>
-            )}
-            <button className="cv-call-btn decline" onClick={leaveGroupCall}>
-              <i className="fa-solid fa-phone-slash"></i>
-            </button>
-          </div>
+                {groupParticipantList.map(([uid, p]) => (
+                  <div
+                    key={uid}
+                    style={{
+                      position: "relative",
+                      background: "#111",
+                      borderRadius: "12px",
+                      overflow: "hidden",
+                      aspectRatio: "4 / 3",
+                    }}
+                  >
+                    {groupCallType === "video" ? (
+                      <video
+                        ref={setGroupVideoEl(uid)}
+                        autoPlay
+                        playsInline
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      <>
+                        <audio ref={setGroupVideoEl(uid)} autoPlay hidden />
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                          <img
+                            src={p.userInfo?.image}
+                            alt=""
+                            style={{ width: "56px", height: "56px", borderRadius: "50%" }}
+                          />
+                        </div>
+                      </>
+                    )}
+                    <span
+                      style={{
+                        position: "absolute",
+                        bottom: "6px",
+                        left: "8px",
+                        color: "#fff",
+                        fontSize: "12px",
+                        background: "rgba(0,0,0,0.5)",
+                        padding: "2px 6px",
+                        borderRadius: "6px",
+                      }}
+                    >
+                      {p.userInfo?.name}{!p.hasStream ? " — connecting…" : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="cv-call-bar">
+                <span className="cv-call-timer">{fmt(groupDuration)}</span>
+                <button className="cv-call-btn small" onClick={toggleGroupMic}>
+                  <i className={`fa-solid ${groupMicOn ? "fa-microphone" : "fa-microphone-slash"}`}></i>
+                </button>
+                {groupCallType === "video" && (
+                  <button className="cv-call-btn small" onClick={toggleGroupCam}>
+                    <i className={`fa-solid ${groupCamOn ? "fa-video" : "fa-video-slash"}`}></i>
+                  </button>
+                )}
+                <button className="cv-call-btn decline" onClick={leaveGroupCall}>
+                  <i className="fa-solid fa-phone-slash"></i>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
-    </div>
+    </>
   );
 };
 
