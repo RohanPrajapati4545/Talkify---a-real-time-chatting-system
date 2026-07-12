@@ -142,6 +142,51 @@ const CallManager = ({ user }) => {
     attachStream(remoteAudioRef.current, remoteStreamRef.current);
   };
 
+  // 👇 NAYA — camera stream lene ka robust helper, kai fallback strategies ke saath.
+  // "exact" facingMode kai devices/browsers pe turant OverconstrainedError de deta hai
+  // (agar us exact camera ki availability guarantee nahi ho paati), isliye pehle
+  // "exact" try karte hain, fir "ideal" (jo kabhi throw nahi karta), aur last resort
+  // me available camera devices me se ek alag deviceId try karte hain.
+  const acquireCameraStream = async (newFacingMode) => {
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { exact: newFacingMode } },
+      });
+    } catch (err) {
+      console.log("Camera exact facingMode failed:", err.name);
+    }
+
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: newFacingMode },
+      });
+    } catch (err) {
+      console.log("Camera ideal facingMode failed:", err.name);
+    }
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoInputs = devices.filter((d) => d.kind === "videoinput");
+
+    if (videoInputs.length < 2) {
+      throw new Error("This device only has one camera");
+    }
+
+    let lastErr;
+    for (const device of videoInputs) {
+      try {
+        return await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { deviceId: { exact: device.deviceId } },
+        });
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr || new Error("No working camera found");
+  };
+
   const attachIceDebug = (peer, label) => {
     peer.on("connect", () => {
       console.log(`✅ [${label}] PEER DATA CHANNEL CONNECTED`);
@@ -363,37 +408,64 @@ const CallManager = ({ user }) => {
     switchingGroupCameraRef.current = true;
 
     const newFacingMode = groupFacingMode === "user" ? "environment" : "user";
+    const oldVideoTrack = groupLocalStreamRef.current.getVideoTracks()[0];
 
+    let newStream;
     try {
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: { exact: newFacingMode } },
-      });
-
-      const newVideoTrack = newStream.getVideoTracks()[0];
-      const oldVideoTrack = groupLocalStreamRef.current.getVideoTracks()[0];
-
-      Object.values(groupPeersRef.current).forEach((peer) => {
-        if (oldVideoTrack && newVideoTrack) {
-          peer.replaceTrack(oldVideoTrack, newVideoTrack, groupLocalStreamRef.current);
-        }
-      });
-
-      if (oldVideoTrack) {
-        oldVideoTrack.stop();
-        groupLocalStreamRef.current.removeTrack(oldVideoTrack);
-      }
-      groupLocalStreamRef.current.addTrack(newVideoTrack);
-      newVideoTrack.enabled = groupCamOn;
-
-      attachStream(groupMyVideoRef.current, groupLocalStreamRef.current);
-      setGroupFacingMode(newFacingMode);
+      newStream = await acquireCameraStream(newFacingMode);
     } catch (err) {
-      console.log("🔴 Group camera switch failed:", err);
-      toast.error("Could not switch camera");
-    } finally {
-      switchingGroupCameraRef.current = false;
+      console.log("🔴 Group camera switch attempt 1 failed, releasing old camera and retrying:", err);
+      oldVideoTrack?.stop();
+      try {
+        newStream = await acquireCameraStream(newFacingMode);
+      } catch (err2) {
+        console.log("🔴 Group camera switch failed completely:", err2);
+        toast.error(
+          err2?.message === "This device only has one camera"
+            ? "This device only has one camera"
+            : "Could not switch camera"
+        );
+
+        if (oldVideoTrack) {
+          try {
+            const restored = await acquireCameraStream(groupFacingMode);
+            const restoredTrack = restored.getVideoTracks()[0];
+            Object.values(groupPeersRef.current).forEach((peer) => {
+              if (restoredTrack) {
+                peer.replaceTrack(oldVideoTrack, restoredTrack, groupLocalStreamRef.current);
+              }
+            });
+            groupLocalStreamRef.current.removeTrack(oldVideoTrack);
+            groupLocalStreamRef.current.addTrack(restoredTrack);
+            restoredTrack.enabled = groupCamOn;
+            attachStream(groupMyVideoRef.current, groupLocalStreamRef.current);
+          } catch (restoreErr) {
+            console.log("🔴 Could not restore original camera:", restoreErr);
+          }
+        }
+        switchingGroupCameraRef.current = false;
+        return;
+      }
     }
+
+    const newVideoTrack = newStream.getVideoTracks()[0];
+
+    Object.values(groupPeersRef.current).forEach((peer) => {
+      if (oldVideoTrack && newVideoTrack) {
+        peer.replaceTrack(oldVideoTrack, newVideoTrack, groupLocalStreamRef.current);
+      }
+    });
+
+    if (oldVideoTrack) {
+      oldVideoTrack.stop();
+      groupLocalStreamRef.current.removeTrack(oldVideoTrack);
+    }
+    groupLocalStreamRef.current.addTrack(newVideoTrack);
+    newVideoTrack.enabled = groupCamOn;
+
+    attachStream(groupMyVideoRef.current, groupLocalStreamRef.current);
+    setGroupFacingMode(newFacingMode);
+    switchingGroupCameraRef.current = false;
   };
 
   useEffect(() => {
@@ -784,35 +856,64 @@ const CallManager = ({ user }) => {
     switchingCameraRef.current = true;
 
     const newFacingMode = facingMode === "user" ? "environment" : "user";
+    const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
 
+    let newStream;
     try {
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: { exact: newFacingMode } },
-      });
-
-      const newVideoTrack = newStream.getVideoTracks()[0];
-      const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
-
-      if (peerRef.current && oldVideoTrack && newVideoTrack) {
-        peerRef.current.replaceTrack(oldVideoTrack, newVideoTrack, localStreamRef.current);
-      }
-
-      if (oldVideoTrack) {
-        oldVideoTrack.stop();
-        localStreamRef.current.removeTrack(oldVideoTrack);
-      }
-      localStreamRef.current.addTrack(newVideoTrack);
-      newVideoTrack.enabled = camOn;
-
-      attachStream(myVideoRef.current, localStreamRef.current);
-      setFacingMode(newFacingMode);
+      newStream = await acquireCameraStream(newFacingMode);
     } catch (err) {
-      console.log("🔴 Camera switch failed:", err);
-      toast.error("Could not switch camera");
-    } finally {
-      switchingCameraRef.current = false;
+      // Kai phones ek time pe do camera stream simultaneously allow nahi karte —
+      // purana camera release karke ek baar aur try karte hain
+      console.log("🔴 Camera switch attempt 1 failed, releasing old camera and retrying:", err);
+      oldVideoTrack?.stop();
+      try {
+        newStream = await acquireCameraStream(newFacingMode);
+      } catch (err2) {
+        console.log("🔴 Camera switch failed completely:", err2);
+        toast.error(
+          err2?.message === "This device only has one camera"
+            ? "This device only has one camera"
+            : "Could not switch camera"
+        );
+
+        // Purana track already stop ho chuka hai — same facing mode se
+        // fresh stream lekar video wapas restore karte hain taaki call na tooté
+        if (oldVideoTrack) {
+          try {
+            const restored = await acquireCameraStream(facingMode);
+            const restoredTrack = restored.getVideoTracks()[0];
+            if (peerRef.current && restoredTrack) {
+              peerRef.current.replaceTrack(oldVideoTrack, restoredTrack, localStreamRef.current);
+            }
+            localStreamRef.current.removeTrack(oldVideoTrack);
+            localStreamRef.current.addTrack(restoredTrack);
+            restoredTrack.enabled = camOn;
+            attachStream(myVideoRef.current, localStreamRef.current);
+          } catch (restoreErr) {
+            console.log("🔴 Could not restore original camera:", restoreErr);
+          }
+        }
+        switchingCameraRef.current = false;
+        return;
+      }
     }
+
+    const newVideoTrack = newStream.getVideoTracks()[0];
+
+    if (peerRef.current && oldVideoTrack && newVideoTrack) {
+      peerRef.current.replaceTrack(oldVideoTrack, newVideoTrack, localStreamRef.current);
+    }
+
+    if (oldVideoTrack) {
+      oldVideoTrack.stop();
+      localStreamRef.current.removeTrack(oldVideoTrack);
+    }
+    localStreamRef.current.addTrack(newVideoTrack);
+    newVideoTrack.enabled = camOn;
+
+    attachStream(myVideoRef.current, localStreamRef.current);
+    setFacingMode(newFacingMode);
+    switchingCameraRef.current = false;
   };
 
   const fmt = (s) => {
