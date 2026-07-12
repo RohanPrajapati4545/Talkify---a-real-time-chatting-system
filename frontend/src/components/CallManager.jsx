@@ -145,46 +145,80 @@ const CallManager = ({ user }) => {
   // 👇 NAYA — camera stream lene ka robust helper, kai fallback strategies ke saath.
   // "exact" facingMode kai devices/browsers pe turant OverconstrainedError de deta hai
   // (agar us exact camera ki availability guarantee nahi ho paati), isliye pehle
-  // "exact" try karte hain, fir "ideal" (jo kabhi throw nahi karta), aur last resort
-  // me available camera devices me se ek alag deviceId try karte hain.
-  const acquireCameraStream = async (newFacingMode) => {
-    try {
-      return await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: { exact: newFacingMode } },
-      });
-    } catch (err) {
-      console.log("Camera exact facingMode failed:", err.name);
-    }
-
-    try {
-      return await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: newFacingMode },
-      });
-    } catch (err) {
-      console.log("Camera ideal facingMode failed:", err.name);
-    }
-
+  // camera count check karte hain, fir "exact" -> "ideal" -> deviceId fallback chain
+  // try karte hain, aur akhir me verify karte hain ki actually camera badla ya nahi
+  // (kyunki "ideal" kabhi throw nahi karta, chahe wahi purana camera wapas de de).
+  const acquireCameraStream = async (newFacingMode, currentDeviceId) => {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoInputs = devices.filter((d) => d.kind === "videoinput");
+    console.log(
+      `📷 Found ${videoInputs.length} camera(s):`,
+      videoInputs.map((d) => d.label || d.deviceId)
+    );
 
     if (videoInputs.length < 2) {
       throw new Error("This device only has one camera");
     }
 
+    const verifyDifferentCamera = (stream) => {
+      const track = stream.getVideoTracks()[0];
+      const gotDeviceId = track?.getSettings?.().deviceId;
+      if (currentDeviceId && gotDeviceId && gotDeviceId === currentDeviceId) {
+        console.log("📷 Got the same physical camera back, rejecting this attempt");
+        track.stop();
+        return false;
+      }
+      return true;
+    };
+
+    // Attempt 1 — exact facingMode
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { exact: newFacingMode } },
+      });
+      if (verifyDifferentCamera(stream)) return stream;
+    } catch (err) {
+      console.log("📷 Camera exact facingMode failed:", err.name);
+    }
+
+    // Attempt 2 — ideal facingMode (never throws, but may silently return the same camera)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: newFacingMode },
+      });
+      if (verifyDifferentCamera(stream)) return stream;
+    } catch (err) {
+      console.log("📷 Camera ideal facingMode failed:", err.name);
+    }
+
+    // Attempt 3 — explicitly pick a different physical camera by deviceId.
+    // Prefer one whose label hints at the target facing direction, else just
+    // pick any device that isn't the one currently in use.
+    const labelHint = newFacingMode === "environment" ? ["back", "rear", "environment"] : ["front", "user", "face"];
+    const byLabel = videoInputs.find((d) =>
+      labelHint.some((hint) => d.label?.toLowerCase().includes(hint))
+    );
+    const candidates = [
+      ...(byLabel ? [byLabel] : []),
+      ...videoInputs.filter((d) => d.deviceId !== currentDeviceId),
+      ...videoInputs,
+    ];
+
     let lastErr;
-    for (const device of videoInputs) {
+    for (const device of candidates) {
       try {
-        return await navigator.mediaDevices.getUserMedia({
+        const stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: { deviceId: { exact: device.deviceId } },
         });
+        if (verifyDifferentCamera(stream)) return stream;
       } catch (err) {
         lastErr = err;
       }
     }
-    throw lastErr || new Error("No working camera found");
+    throw lastErr || new Error("No working alternate camera found");
   };
 
   const attachIceDebug = (peer, label) => {
@@ -409,15 +443,16 @@ const CallManager = ({ user }) => {
 
     const newFacingMode = groupFacingMode === "user" ? "environment" : "user";
     const oldVideoTrack = groupLocalStreamRef.current.getVideoTracks()[0];
+    const oldDeviceId = oldVideoTrack?.getSettings?.().deviceId;
 
     let newStream;
     try {
-      newStream = await acquireCameraStream(newFacingMode);
+      newStream = await acquireCameraStream(newFacingMode, oldDeviceId);
     } catch (err) {
       console.log("🔴 Group camera switch attempt 1 failed, releasing old camera and retrying:", err);
       oldVideoTrack?.stop();
       try {
-        newStream = await acquireCameraStream(newFacingMode);
+        newStream = await acquireCameraStream(newFacingMode, oldDeviceId);
       } catch (err2) {
         console.log("🔴 Group camera switch failed completely:", err2);
         toast.error(
@@ -428,7 +463,7 @@ const CallManager = ({ user }) => {
 
         if (oldVideoTrack) {
           try {
-            const restored = await acquireCameraStream(groupFacingMode);
+            const restored = await acquireCameraStream(groupFacingMode, null);
             const restoredTrack = restored.getVideoTracks()[0];
             Object.values(groupPeersRef.current).forEach((peer) => {
               if (restoredTrack) {
@@ -857,17 +892,18 @@ const CallManager = ({ user }) => {
 
     const newFacingMode = facingMode === "user" ? "environment" : "user";
     const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
+    const oldDeviceId = oldVideoTrack?.getSettings?.().deviceId;
 
     let newStream;
     try {
-      newStream = await acquireCameraStream(newFacingMode);
+      newStream = await acquireCameraStream(newFacingMode, oldDeviceId);
     } catch (err) {
       // Kai phones ek time pe do camera stream simultaneously allow nahi karte —
       // purana camera release karke ek baar aur try karte hain
       console.log("🔴 Camera switch attempt 1 failed, releasing old camera and retrying:", err);
       oldVideoTrack?.stop();
       try {
-        newStream = await acquireCameraStream(newFacingMode);
+        newStream = await acquireCameraStream(newFacingMode, oldDeviceId);
       } catch (err2) {
         console.log("🔴 Camera switch failed completely:", err2);
         toast.error(
@@ -880,7 +916,7 @@ const CallManager = ({ user }) => {
         // fresh stream lekar video wapas restore karte hain taaki call na tooté
         if (oldVideoTrack) {
           try {
-            const restored = await acquireCameraStream(facingMode);
+            const restored = await acquireCameraStream(facingMode, null);
             const restoredTrack = restored.getVideoTracks()[0];
             if (peerRef.current && restoredTrack) {
               peerRef.current.replaceTrack(oldVideoTrack, restoredTrack, localStreamRef.current);
