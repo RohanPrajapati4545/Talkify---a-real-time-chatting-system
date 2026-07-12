@@ -52,6 +52,9 @@ const CallManager = ({ user }) => {
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [needsPlaybackUnlock, setNeedsPlaybackUnlock] = useState(false);
+  // 👇 NAYA — kis camera se video ja rahi hai (front/back) aur switch progress lock
+  const [facingMode, setFacingMode] = useState("user");
+  const switchingCameraRef = useRef(false);
 
   const myVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -75,6 +78,9 @@ const CallManager = ({ user }) => {
   const [groupDuration, setGroupDuration] = useState(0);
   const [groupMicOn, setGroupMicOn] = useState(true);
   const [groupCamOn, setGroupCamOn] = useState(true);
+  // 👇 NAYA — group call ke liye front/back camera state
+  const [groupFacingMode, setGroupFacingMode] = useState("user");
+  const switchingGroupCameraRef = useRef(false);
 
   const groupLocalStreamRef = useRef(null);
   const groupMyVideoRef = useRef(null);
@@ -262,6 +268,7 @@ const CallManager = ({ user }) => {
     setGroupCallState("idle");
     setGroupIncomingData(null);
     setActiveGroupInfo(null);
+    setGroupFacingMode("user");
 
     ringtoneRef.current?.pause();
     if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
@@ -346,6 +353,46 @@ const CallManager = ({ user }) => {
     if (track) {
       track.enabled = !track.enabled;
       setGroupCamOn(track.enabled);
+    }
+  };
+
+  // 👇 NAYA — front/back camera switch (group video call)
+  // Sabhi connected group peers me naya video track replace karte hain.
+  const switchGroupCamera = async () => {
+    if (groupCallType !== "video" || !groupLocalStreamRef.current || switchingGroupCameraRef.current) return;
+    switchingGroupCameraRef.current = true;
+
+    const newFacingMode = groupFacingMode === "user" ? "environment" : "user";
+
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { exact: newFacingMode } },
+      });
+
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      const oldVideoTrack = groupLocalStreamRef.current.getVideoTracks()[0];
+
+      Object.values(groupPeersRef.current).forEach((peer) => {
+        if (oldVideoTrack && newVideoTrack) {
+          peer.replaceTrack(oldVideoTrack, newVideoTrack, groupLocalStreamRef.current);
+        }
+      });
+
+      if (oldVideoTrack) {
+        oldVideoTrack.stop();
+        groupLocalStreamRef.current.removeTrack(oldVideoTrack);
+      }
+      groupLocalStreamRef.current.addTrack(newVideoTrack);
+      newVideoTrack.enabled = groupCamOn;
+
+      attachStream(groupMyVideoRef.current, groupLocalStreamRef.current);
+      setGroupFacingMode(newFacingMode);
+    } catch (err) {
+      console.log("🔴 Group camera switch failed:", err);
+      toast.error("Could not switch camera");
+    } finally {
+      switchingGroupCameraRef.current = false;
     }
   };
 
@@ -703,6 +750,7 @@ const CallManager = ({ user }) => {
     setCallState("idle");
     setIncomingData(null);
     setRemoteUser(null);
+    setFacingMode("user");
     ringtoneRef.current?.pause();
     if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
   };
@@ -724,6 +772,46 @@ const CallManager = ({ user }) => {
     if (track) {
       track.enabled = !track.enabled;
       setCamOn(track.enabled);
+    }
+  };
+
+  // 👇 NAYA — front/back camera switch (1-1 video call)
+  // Naya video track banate hain, peer connection me purane track ki jagah
+  // replaceTrack se badal dete hain (renegotiation ki zarurat nahi padti),
+  // aur local stream + preview bhi update kar dete hain.
+  const switchCamera = async () => {
+    if (callType !== "video" || !localStreamRef.current || switchingCameraRef.current) return;
+    switchingCameraRef.current = true;
+
+    const newFacingMode = facingMode === "user" ? "environment" : "user";
+
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { exact: newFacingMode } },
+      });
+
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
+
+      if (peerRef.current && oldVideoTrack && newVideoTrack) {
+        peerRef.current.replaceTrack(oldVideoTrack, newVideoTrack, localStreamRef.current);
+      }
+
+      if (oldVideoTrack) {
+        oldVideoTrack.stop();
+        localStreamRef.current.removeTrack(oldVideoTrack);
+      }
+      localStreamRef.current.addTrack(newVideoTrack);
+      newVideoTrack.enabled = camOn;
+
+      attachStream(myVideoRef.current, localStreamRef.current);
+      setFacingMode(newFacingMode);
+    } catch (err) {
+      console.log("🔴 Camera switch failed:", err);
+      toast.error("Could not switch camera");
+    } finally {
+      switchingCameraRef.current = false;
     }
   };
 
@@ -820,6 +908,15 @@ const CallManager = ({ user }) => {
                 {callType === "video" && (
                   <button className="cv-call-btn small" onClick={toggleCam}>
                     <i className={`fa-solid ${camOn ? "fa-video" : "fa-video-slash"}`}></i>
+                  </button>
+                )}
+                {callType === "video" && (
+                  <button
+                    className="cv-call-btn small"
+                    onClick={switchCamera}
+                    title="Switch camera"
+                  >
+                    <i className="fa-solid fa-camera-rotate"></i>
                   </button>
                 )}
                 <button className="cv-call-btn decline" onClick={hangUp}>
@@ -953,6 +1050,15 @@ const CallManager = ({ user }) => {
                 {groupCallType === "video" && (
                   <button className="cv-call-btn small" onClick={toggleGroupCam}>
                     <i className={`fa-solid ${groupCamOn ? "fa-video" : "fa-video-slash"}`}></i>
+                  </button>
+                )}
+                {groupCallType === "video" && (
+                  <button
+                    className="cv-call-btn small"
+                    onClick={switchGroupCamera}
+                    title="Switch camera"
+                  >
+                    <i className="fa-solid fa-camera-rotate"></i>
                   </button>
                 )}
                 <button className="cv-call-btn decline" onClick={leaveGroupCall}>
