@@ -59,6 +59,26 @@ const SideBar = ({
     );
   }, [sortedUsers, debouncedTerm]);
 
+  // 👇 NAYA — Groups tab ka total unread count (sab groups ka sum)
+  const totalGroupUnread = useMemo(
+    () =>
+      Object.values(unreadCounts?.groups || {}).reduce(
+        (sum, c) => sum + (c || 0),
+        0
+      ),
+    [unreadCounts]
+  );
+
+  // 👇 NAYA — Chats tab ka total unread count (sab users ka sum)
+  const totalUserUnread = useMemo(
+    () =>
+      Object.values(unreadCounts?.users || {}).reduce(
+        (sum, c) => sum + (c || 0),
+        0
+      ),
+    [unreadCounts]
+  );
+
   return (
     <div className="cv-sidebar">
 
@@ -131,6 +151,11 @@ const SideBar = ({
           }}
         >
           Groups
+          {totalGroupUnread > 0 && (
+            <span className="cv-dial-badge">
+              {totalGroupUnread > 99 ? "99+" : totalGroupUnread}
+            </span>
+          )}
         </button>
 
         <button
@@ -142,6 +167,11 @@ const SideBar = ({
           }}
         >
           Chats
+          {totalUserUnread > 0 && (
+            <span className="cv-dial-badge">
+              {totalUserUnread > 99 ? "99+" : totalUserUnread}
+            </span>
+          )}
         </button>
       </div>
 

@@ -3605,3 +3605,26 @@ body.cv-chat-open {
   width: 100%;
   overflow: hidden;
 }
+.cv-dial button {
+  position: relative;
+}
+
+.cv-dial-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #000000;
+  border: 1px solid rgb(212, 171, 6);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+ 
+}
