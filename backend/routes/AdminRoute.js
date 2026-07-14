@@ -15,6 +15,9 @@ router.post("/warn-report", authMiddleware, adminMiddleware,(AdminController.war
 router.post("/block-report", authMiddleware, adminMiddleware, (AdminController.blockReport));
 router.post("/delete-report", authMiddleware, adminMiddleware, (AdminController.deleteReport));
 router.get("/get-user/:id", authMiddleware, adminMiddleware, (AdminController.getUserById));
-router.post("/update-user", authMiddleware, adminMiddleware, AdminController.updateUser);
 
+router.post("/update-user", authMiddleware, adminMiddleware, (AdminController.updateUser));
+router.post("/block-user", authMiddleware, adminMiddleware, (AdminController.blockUser));
+router.post("/unblock-user", authMiddleware, adminMiddleware, (AdminController.unblockUser));
+router.post("/delete-user", authMiddleware, adminMiddleware, (AdminController.deleteUser));
 module.exports=router

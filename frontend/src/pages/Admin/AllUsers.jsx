@@ -17,6 +17,9 @@ const AllUsers = () => {
   const [editEmail, setEditEmail] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // track per-row pending actions so buttons disable individually
+  const [actionLoadingId, setActionLoadingId] = useState(null);
+
   const socketRef = useRef(null);
 
   const getUsers = async () => {
@@ -48,7 +51,6 @@ const AllUsers = () => {
 
     socketRef.current = socket;
 
-    // adjust event name here to match your backend's actual emit
     socket.on("onlineUsers", (ids) => {
       setOnlineUserIds(ids || []);
     });
@@ -59,6 +61,19 @@ const AllUsers = () => {
   }, [token]);
 
   const isUserOnline = (userId) => onlineUserIds.includes(userId);
+
+  const showErrorAlert = (error, fallbackText) => {
+    const backendMsg = error?.response?.data?.msg || error?.response?.data?.message;
+
+    Swal.fire({
+      title: "Error",
+      text: backendMsg || fallbackText,
+      icon: "error",
+      background: "#1c1812",
+      color: "#f2ece2",
+      confirmButtonColor: "#e8a33d",
+    });
+  };
 
   const handleBlockToggle = (user) => {
     const isBlocked = user.isBlocked;
@@ -77,10 +92,19 @@ const AllUsers = () => {
       if (!result.isConfirmed) return;
 
       try {
-        await axios.post(
+        setActionLoadingId(user._id);
+
+        const res = await axios.post(
           `${process.env.REACT_APP_API_URL}/api/admin/${action}-user`,
           { userId: user._id },
           { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        // optimistic local update instead of full refetch
+        setUsers((prev) =>
+          prev.map((u) =>
+            u._id === user._id ? { ...u, isBlocked: res.data.user?.isBlocked ?? !isBlocked } : u
+          )
         );
 
         Swal.fire({
@@ -91,18 +115,11 @@ const AllUsers = () => {
           color: "#f2ece2",
           confirmButtonColor: "#e8a33d",
         });
-
-        getUsers();
       } catch (error) {
         console.log(error);
-        Swal.fire({
-          title: "Error",
-          text: "Something went wrong.",
-          icon: "error",
-          background: "#1c1812",
-          color: "#f2ece2",
-          confirmButtonColor: "#e8a33d",
-        });
+        showErrorAlert(error, `Could not ${action} user.`);
+      } finally {
+        setActionLoadingId(null);
       }
     });
   };
@@ -121,11 +138,15 @@ const AllUsers = () => {
       if (!result.isConfirmed) return;
 
       try {
+        setActionLoadingId(user._id);
+
         await axios.post(
           `${process.env.REACT_APP_API_URL}/api/admin/delete-user`,
           { userId: user._id },
           { headers: { Authorization: `Bearer ${token}` } }
         );
+
+        setUsers((prev) => prev.filter((u) => u._id !== user._id));
 
         Swal.fire({
           title: "Deleted",
@@ -135,10 +156,11 @@ const AllUsers = () => {
           color: "#f2ece2",
           confirmButtonColor: "#e8a33d",
         });
-
-        getUsers();
       } catch (error) {
         console.log(error);
+        showErrorAlert(error, "Could not delete user.");
+      } finally {
+        setActionLoadingId(null);
       }
     });
   };
@@ -150,6 +172,7 @@ const AllUsers = () => {
   };
 
   const closeEditModal = () => {
+    if (saving) return; // don't allow closing mid-save
     setEditUser(null);
     setEditName("");
     setEditEmail("");
@@ -161,10 +184,16 @@ const AllUsers = () => {
     try {
       setSaving(true);
 
-      await axios.post(
+      const res = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/admin/update-user`,
         { userId: editUser._id, name: editName, email: editEmail },
         { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const updatedUser = res.data.user;
+
+      setUsers((prev) =>
+        prev.map((u) => (u._id === editUser._id ? { ...u, ...updatedUser } : u))
       );
 
       Swal.fire({
@@ -177,17 +206,9 @@ const AllUsers = () => {
       });
 
       closeEditModal();
-      getUsers();
     } catch (error) {
       console.log(error);
-      Swal.fire({
-        title: "Error",
-        text: "Could not update user.",
-        icon: "error",
-        background: "#1c1812",
-        color: "#f2ece2",
-        confirmButtonColor: "#e8a33d",
-      });
+      showErrorAlert(error, "Could not update user.");
     } finally {
       setSaving(false);
     }
@@ -238,6 +259,7 @@ const AllUsers = () => {
             <tbody>
               {filteredUsers.map((item) => {
                 const online = isUserOnline(item._id);
+                const isRowBusy = actionLoadingId === item._id;
 
                 return (
                   <tr key={item._id}>
@@ -283,6 +305,7 @@ const AllUsers = () => {
                         <button
                           className="btn btn-sm btn-outline-warning"
                           onClick={() => openEditModal(item)}
+                          disabled={isRowBusy}
                         >
                           Edit
                         </button>
@@ -292,15 +315,17 @@ const AllUsers = () => {
                             item.isBlocked ? "btn-outline-warning" : "btn-outline-danger"
                           }`}
                           onClick={() => handleBlockToggle(item)}
+                          disabled={isRowBusy}
                         >
-                          {item.isBlocked ? "Unblock" : "Block"}
+                          {isRowBusy ? "..." : item.isBlocked ? "Unblock" : "Block"}
                         </button>
 
                         <button
                           className="btn btn-sm btn-outline-dark"
                           onClick={() => handleDelete(item)}
+                          disabled={isRowBusy}
                         >
-                          Delete
+                          {isRowBusy ? "..." : "Delete"}
                         </button>
                       </div>
                     </td>
@@ -321,7 +346,7 @@ const AllUsers = () => {
           <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
             <div className="d-flex justify-content-between align-items-center mb-4">
               <h4 className="fw-bold m-0">Edit User</h4>
-              <button className="modal-close-btn" onClick={closeEditModal}>
+              <button className="modal-close-btn" onClick={closeEditModal} disabled={saving}>
                 &times;
               </button>
             </div>
@@ -350,6 +375,7 @@ const AllUsers = () => {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   required
+                  disabled={saving}
                 />
               </div>
 
@@ -361,6 +387,7 @@ const AllUsers = () => {
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
                   required
+                  disabled={saving}
                 />
               </div>
 
@@ -369,6 +396,7 @@ const AllUsers = () => {
                   type="button"
                   className="btn btn-sm btn-outline-dark"
                   onClick={closeEditModal}
+                  disabled={saving}
                 >
                   Cancel
                 </button>
