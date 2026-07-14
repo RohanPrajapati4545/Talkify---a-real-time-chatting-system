@@ -22,7 +22,7 @@ const UserSchema=new mongoose.Schema({
   },
      role:{
         type:String,
-        enum:['user', 'admin'], //list ke form me data pass krne pr enum lete he array form me
+        enum:['user', 'admin'],
         default:'user'
     },
    blockedUsers: [
@@ -31,9 +31,11 @@ const UserSchema=new mongoose.Schema({
         ref: "User",
         default: [],
       },
-      
     ],
-      
+    isBlocked: {
+      type: Boolean,
+      default: false
+    },
 
 });
 const User=new mongoose.model("User",UserSchema)

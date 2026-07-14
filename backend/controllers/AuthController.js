@@ -40,15 +40,19 @@ const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        if (!email || !password) {
+            return res.status(400).json({ msg: "All fields are required" })
+        }
+
         const userExist = await userSchema.findOne({ email })
         if (!userExist) {
             return res.status(400).json({ msg: " you are not registered user" })
         }
 
-        if (!email || !password) {
-            return res.status(400).json({ msg: "All fields are required" })
+        // 🔒 blocked check — password verify se pehle
+        if (userExist.isBlocked) {
+            return res.status(403).json({ msg: "You have been blocked by admin" })
         }
-        
 
         const passwordMatch = await bcrypt.compare(password, userExist.password);
         if (!passwordMatch) {
