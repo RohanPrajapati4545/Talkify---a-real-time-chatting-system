@@ -21,7 +21,7 @@ const Dashboard = () => {
   const getUsers = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/admin/get-all-user",
+        `${process.env.REACT_APP_API_URL}/api/admin/get-all-user`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -39,7 +39,7 @@ const Dashboard = () => {
   const getGroups = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/admin/get-all-group",
+        `${process.env.REACT_APP_API_URL}/api/admin/get-all-group`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -56,7 +56,7 @@ const Dashboard = () => {
   const getMessagesCount = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/admin/get-messages-count",
+        `${process.env.REACT_APP_API_URL}/api/admin/get-messages-count`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -73,7 +73,7 @@ const Dashboard = () => {
   const getReports = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/admin/get-reported-messages",
+        `${process.env.REACT_APP_API_URL}/api/admin/get-reported-messages`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -109,7 +109,7 @@ const Dashboard = () => {
       if (result.isConfirmed) {
         try {
           await axios.post(
-            `http://localhost:5000/api/admin/${action}-report`,
+            `${process.env.REACT_APP_API_URL}/api/admin/${action}-report`,
             { reportId: report._id },
             {
               headers: {
