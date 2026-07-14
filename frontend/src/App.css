@@ -3628,3 +3628,356 @@ body.cv-chat-open {
   line-height: 1;
  
 }
+
+/* ============================================
+   CHATVERSE ADMIN — "Telegraph" theme extension
+   Reuses the root tokens from the main site so
+   the admin panel feels like part of Chatverse,
+   not a bolted-on Bootstrap dashboard.
+   ============================================ */
+
+/* ============== LAYOUT ============== */
+
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-body);
+}
+
+.desktop-sidebar {
+  width: 264px;
+  flex-shrink: 0;
+}
+
+.admin-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+  background: var(--ink);
+  overflow-x: hidden;
+}
+
+/* ============== SIDEBAR ============== */
+
+.admin-sidebar {
+  width: 264px;
+  min-height: 100vh;
+  background: var(--panel-2);
+  border-right: 1px solid var(--hairline);
+  color: var(--paper);
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+}
+
+.admin-sidebar .logo-section {
+  padding: 8px 8px 0;
+}
+
+.admin-sidebar .logo-section h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--paper);
+  cursor: pointer;
+  margin: 0;
+}
+
+.admin-sidebar .menu-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 20px 8px 8px;
+}
+
+.admin-sidebar .sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-sidebar .sidebar-link i {
+  width: 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  transition: color 0.15s ease;
+}
+
+.admin-sidebar .sidebar-link:hover {
+  background: var(--panel-3);
+  color: var(--paper);
+}
+
+.admin-sidebar .sidebar-link:hover i {
+  color: var(--amber);
+}
+
+.admin-sidebar .sidebar-link.active {
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-weight: 600;
+}
+
+.admin-sidebar .sidebar-link.active i {
+  color: var(--amber);
+}
+
+.admin-sidebar .sidebar-footer {
+  margin-top: auto;
+  padding: 16px 0 24px;
+  border-top: 1px solid var(--hairline);
+  margin-left: -8px;
+  margin-right: -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.admin-sidebar .logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--hairline);
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-sidebar .logout-btn:hover {
+  background: rgba(217, 89, 76, 0.12);
+  border-color: var(--danger);
+}
+
+/* ============== DASHBOARD ============== */
+
+.dashboard-wrapper {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 32px !important;
+}
+
+.dashboard-wrapper h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--paper);
+}
+
+.dashboard-wrapper .text-muted {
+  color: var(--muted) !important;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+/* stat cards */
+
+.stats-card {
+  background: var(--panel-2) !important;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  color: var(--paper);
+}
+
+.stats-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--amber);
+}
+
+.stats-card h6 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted) !important;
+}
+
+.stats-card h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--paper);
+  font-size: 30px;
+}
+
+.stats-card small {
+  color: var(--muted);
+}
+
+.stats-card svg {
+  color: var(--amber) !important;
+}
+
+/* panels (reported messages / recent users) */
+
+.bg-white.rounded-4.shadow-sm {
+  background: var(--panel-2) !important;
+  border: 1px solid var(--hairline);
+  box-shadow: none !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+.dashboard-wrapper h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--paper);
+  font-size: 18px;
+}
+
+.dashboard-wrapper .badge.bg-dark {
+  background: var(--amber) !important;
+  color: var(--ink) !important;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+/* tables */
+
+.dashboard-wrapper .table {
+  color: var(--paper);
+  margin-bottom: 0;
+}
+
+.dashboard-wrapper .table thead th {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--hairline);
+  font-weight: 600;
+  padding-bottom: 12px;
+}
+
+.dashboard-wrapper .table td {
+  border-color: var(--hairline);
+  vertical-align: middle;
+  font-size: 13.5px;
+}
+
+.dashboard-wrapper .table tbody tr:hover {
+  background: var(--panel-3);
+}
+
+.dashboard-wrapper .table img {
+  border: 1px solid var(--hairline);
+}
+
+/* badges for online/offline */
+
+.dashboard-wrapper .badge.bg-success {
+  background: #22c55e !important;
+}
+
+.dashboard-wrapper .badge.bg-secondary {
+  background: var(--panel-3) !important;
+  color: var(--muted) !important;
+  border: 1px solid var(--hairline);
+}
+
+/* moderation action buttons */
+
+.dashboard-wrapper .btn-outline-warning {
+  color: var(--amber);
+  border-color: var(--amber);
+  background: transparent;
+}
+
+.dashboard-wrapper .btn-outline-warning:hover {
+  background: var(--amber);
+  color: var(--ink);
+}
+
+.dashboard-wrapper .btn-outline-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: transparent;
+}
+
+.dashboard-wrapper .btn-outline-danger:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.dashboard-wrapper .btn-outline-dark {
+  color: var(--muted);
+  border-color: var(--hairline);
+  background: transparent;
+}
+
+.dashboard-wrapper .btn-outline-dark:hover {
+  background: var(--panel-3);
+  color: var(--paper);
+  border-color: var(--muted);
+}
+
+.dashboard-wrapper .btn-sm {
+  font-size: 11.5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+}
+
+/* ============== MOBILE TOGGLE / OFFCANVAS ============== */
+
+.admin-content > .btn-light,
+.admin-layout .btn-light {
+  background: var(--panel-3);
+  border: 1px solid var(--hairline);
+  color: var(--paper);
+}
+
+.offcanvas {
+  background: var(--panel-2) !important;
+  color: var(--paper) !important;
+  border-right: 1px solid var(--hairline) !important;
+}
+
+.offcanvas .btn-close {
+  filter: invert(1) grayscale(1);
+  opacity: 0.7;
+}
+
+/* ============== MOBILE ============== */
+
+@media (max-width: 767.98px) {
+  .admin-content {
+    padding-top: 60px;
+  }
+
+  .dashboard-wrapper {
+    padding: 20px !important;
+  }
+
+  #adminSidebar {
+    width: 264px;
+  }
+
+  #adminSidebar .admin-sidebar {
+    width: 100%;
+    position: static;
+  }
+}

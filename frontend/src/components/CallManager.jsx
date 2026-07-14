@@ -35,10 +35,10 @@ const getIceServers = async () => {
     const data = await res.json();
     const servers = Array.isArray(data) ? data : data?.iceServers;
     if (!servers || servers.length === 0) throw new Error("Empty ICE servers");
-    console.log("✅ Fresh TURN credentials fetched:", servers);
+    console.log(" Fresh TURN credentials fetched:", servers);
     return servers;
   } catch (err) {
-    console.log("⚠️ TURN fetch failed, falling back to static config:", err);
+    console.log(" TURN fetch failed, falling back to static config:", err);
     return ICE_CONFIG.iceServers;
   }
 };
@@ -52,7 +52,6 @@ const CallManager = ({ user }) => {
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [needsPlaybackUnlock, setNeedsPlaybackUnlock] = useState(false);
-  // 👇 NAYA — kis camera se video ja rahi hai (front/back) aur switch progress lock
   const [facingMode, setFacingMode] = useState("user");
   const switchingCameraRef = useRef(false);
 
@@ -78,7 +77,6 @@ const CallManager = ({ user }) => {
   const [groupDuration, setGroupDuration] = useState(0);
   const [groupMicOn, setGroupMicOn] = useState(true);
   const [groupCamOn, setGroupCamOn] = useState(true);
-  // 👇 NAYA — group call ke liye front/back camera state
   const [groupFacingMode, setGroupFacingMode] = useState("user");
   const switchingGroupCameraRef = useRef(false);
 
@@ -142,12 +140,7 @@ const CallManager = ({ user }) => {
     attachStream(remoteAudioRef.current, remoteStreamRef.current);
   };
 
-  // 👇 NAYA — camera stream lene ka robust helper, kai fallback strategies ke saath.
-  // "exact" facingMode kai devices/browsers pe turant OverconstrainedError de deta hai
-  // (agar us exact camera ki availability guarantee nahi ho paati), isliye pehle
-  // camera count check karte hain, fir "exact" -> "ideal" -> deviceId fallback chain
-  // try karte hain, aur akhir me verify karte hain ki actually camera badla ya nahi
-  // (kyunki "ideal" kabhi throw nahi karta, chahe wahi purana camera wapas de de).
+
   const acquireCameraStream = async (newFacingMode, currentDeviceId) => {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoInputs = devices.filter((d) => d.kind === "videoinput");
@@ -164,7 +157,7 @@ const CallManager = ({ user }) => {
       const track = stream.getVideoTracks()[0];
       const gotDeviceId = track?.getSettings?.().deviceId;
       if (currentDeviceId && gotDeviceId && gotDeviceId === currentDeviceId) {
-        console.log("📷 Got the same physical camera back, rejecting this attempt");
+        console.log(" Got the same physical camera back, rejecting this attempt");
         track.stop();
         return false;
       }
@@ -179,10 +172,9 @@ const CallManager = ({ user }) => {
       });
       if (verifyDifferentCamera(stream)) return stream;
     } catch (err) {
-      console.log("📷 Camera exact facingMode failed:", err.name);
+      console.log("Camera exact facingMode failed:", err.name);
     }
 
-    // Attempt 2 — ideal facingMode (never throws, but may silently return the same camera)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
@@ -190,12 +182,10 @@ const CallManager = ({ user }) => {
       });
       if (verifyDifferentCamera(stream)) return stream;
     } catch (err) {
-      console.log("📷 Camera ideal facingMode failed:", err.name);
+      console.log("Camera ideal facingMode failed:", err.name);
     }
 
-    // Attempt 3 — explicitly pick a different physical camera by deviceId.
-    // Prefer one whose label hints at the target facing direction, else just
-    // pick any device that isn't the one currently in use.
+    
     const labelHint = newFacingMode === "environment" ? ["back", "rear", "environment"] : ["front", "user", "face"];
     const byLabel = videoInputs.find((d) =>
       labelHint.some((hint) => d.label?.toLowerCase().includes(hint))
@@ -223,21 +213,21 @@ const CallManager = ({ user }) => {
 
   const attachIceDebug = (peer, label) => {
     peer.on("connect", () => {
-      console.log(`✅ [${label}] PEER DATA CHANNEL CONNECTED`);
+      console.log(` [${label}] PEER DATA CHANNEL CONNECTED`);
     });
     if (peer._pc) {
       peer._pc.oniceconnectionstatechange = () => {
-        console.log(`🧊 [${label}] ICE STATE:`, peer._pc.iceConnectionState);
+        console.log(` [${label}] ICE STATE:`, peer._pc.iceConnectionState);
       };
       peer._pc.onconnectionstatechange = () => {
-        console.log(`🔗 [${label}] CONNECTION STATE:`, peer._pc.connectionState);
+        console.log(` [${label}] CONNECTION STATE:`, peer._pc.connectionState);
       };
     }
   };
 
   const flushPendingCandidates = (peer, label) => {
     if (pendingCandidatesRef.current.length > 0) {
-      console.log(`📤 [${label}] Flushing ${pendingCandidatesRef.current.length} buffered ICE candidates`);
+      console.log(` [${label}] Flushing ${pendingCandidatesRef.current.length} buffered ICE candidates`);
       pendingCandidatesRef.current.forEach((c) => peer.signal(c));
       pendingCandidatesRef.current = [];
     }
@@ -296,7 +286,7 @@ const CallManager = ({ user }) => {
     });
 
     peer.on("stream", (remoteStream) => {
-      console.log("🎥 GROUP — remote stream received from", remoteUserInfo._id);
+      console.log(" GROUP — remote stream received from", remoteUserInfo._id);
       groupStreamsRef.current[remoteUserInfo._id] = remoteStream;
       attachStream(groupVideoElsRef.current[remoteUserInfo._id], remoteStream);
       setGroupParticipants((prev) => ({
@@ -307,7 +297,7 @@ const CallManager = ({ user }) => {
 
     peer.on("close", () => removeGroupPeer(remoteUserInfo._id));
     peer.on("error", (err) => {
-      console.log("🔴 GROUP PEER ERROR:", remoteUserInfo._id, err);
+      console.log(" GROUP PEER ERROR:", remoteUserInfo._id, err);
       removeGroupPeer(remoteUserInfo._id);
     });
 
@@ -435,7 +425,7 @@ const CallManager = ({ user }) => {
     }
   };
 
-  // 👇 NAYA — front/back camera switch (group video call)
+  //  front/back camera switch (group video call)
   // Sabhi connected group peers me naya video track replace karte hain.
   const switchGroupCamera = async () => {
     if (groupCallType !== "video" || !groupLocalStreamRef.current || switchingGroupCameraRef.current) return;
@@ -449,12 +439,12 @@ const CallManager = ({ user }) => {
     try {
       newStream = await acquireCameraStream(newFacingMode, oldDeviceId);
     } catch (err) {
-      console.log("🔴 Group camera switch attempt 1 failed, releasing old camera and retrying:", err);
+      console.log("Group camera switch attempt 1 failed, releasing old camera and retrying:", err);
       oldVideoTrack?.stop();
       try {
         newStream = await acquireCameraStream(newFacingMode, oldDeviceId);
       } catch (err2) {
-        console.log("🔴 Group camera switch failed completely:", err2);
+        console.log(" Group camera switch failed completely:", err2);
         toast.error(
           err2?.message === "This device only has one camera"
             ? "This device only has one camera"
@@ -475,7 +465,7 @@ const CallManager = ({ user }) => {
             restoredTrack.enabled = groupCamOn;
             attachStream(groupMyVideoRef.current, groupLocalStreamRef.current);
           } catch (restoreErr) {
-            console.log("🔴 Could not restore original camera:", restoreErr);
+            console.log("Could not restore original camera:", restoreErr);
           }
         }
         switchingGroupCameraRef.current = false;
@@ -532,7 +522,7 @@ const CallManager = ({ user }) => {
       setGroupCallType(callType);
       setGroupCallState("incoming");
       ringtoneRef.current?.play().catch((err) => {
-        console.log("🔔 Ringtone play failed:", err.name, err.message);
+        console.log(" Ringtone play failed:", err.name, err.message);
       });
     });
 
@@ -673,7 +663,7 @@ const CallManager = ({ user }) => {
 
       peer.on("close", () => cleanupCall());
       peer.on("error", (err) => {
-        console.log("🔴 CALLER PEER ERROR:", err);
+        console.log("CALLER PEER ERROR:", err);
         cleanupCall();
       });
     };
@@ -690,7 +680,7 @@ const CallManager = ({ user }) => {
       setCallType(callType);
       setCallState("incoming");
       ringtoneRef.current?.play().catch((err) => {
-        console.log("🔔 Ringtone play failed:", err.name, err.message);
+        console.log("Ringtone play failed:", err.name, err.message);
       });
     });
 
@@ -717,7 +707,7 @@ const CallManager = ({ user }) => {
     });
 
     socket.on("iceCandidate", ({ signalData }) => {
-      console.log("🧊 RECEIVED iceCandidate from server, peerRef exists:", !!peerRef.current, signalData);
+      console.log("RECEIVED iceCandidate from server, peerRef exists:", !!peerRef.current, signalData);
       if (!peerRef.current) {
         pendingCandidatesRef.current.push(signalData);
         return;
@@ -807,7 +797,7 @@ const CallManager = ({ user }) => {
 
     peer.on("close", () => cleanupCall());
     peer.on("error", (err) => {
-      console.log("🔴 RECEIVER PEER ERROR:", err);
+      console.log(" RECEIVER PEER ERROR:", err);
       cleanupCall();
     });
 
@@ -882,10 +872,7 @@ const CallManager = ({ user }) => {
     }
   };
 
-  // 👇 NAYA — front/back camera switch (1-1 video call)
-  // Naya video track banate hain, peer connection me purane track ki jagah
-  // replaceTrack se badal dete hain (renegotiation ki zarurat nahi padti),
-  // aur local stream + preview bhi update kar dete hain.
+ 
   const switchCamera = async () => {
     if (callType !== "video" || !localStreamRef.current || switchingCameraRef.current) return;
     switchingCameraRef.current = true;
@@ -898,22 +885,20 @@ const CallManager = ({ user }) => {
     try {
       newStream = await acquireCameraStream(newFacingMode, oldDeviceId);
     } catch (err) {
-      // Kai phones ek time pe do camera stream simultaneously allow nahi karte —
-      // purana camera release karke ek baar aur try karte hain
-      console.log("🔴 Camera switch attempt 1 failed, releasing old camera and retrying:", err);
+   
+      console.log("Camera switch attempt 1 failed, releasing old camera and retrying:", err);
       oldVideoTrack?.stop();
       try {
         newStream = await acquireCameraStream(newFacingMode, oldDeviceId);
       } catch (err2) {
-        console.log("🔴 Camera switch failed completely:", err2);
+        console.log("Camera switch failed completely:", err2);
         toast.error(
           err2?.message === "This device only has one camera"
             ? "This device only has one camera"
             : "Could not switch camera"
         );
 
-        // Purana track already stop ho chuka hai — same facing mode se
-        // fresh stream lekar video wapas restore karte hain taaki call na tooté
+      
         if (oldVideoTrack) {
           try {
             const restored = await acquireCameraStream(facingMode, null);
@@ -926,7 +911,7 @@ const CallManager = ({ user }) => {
             restoredTrack.enabled = camOn;
             attachStream(myVideoRef.current, localStreamRef.current);
           } catch (restoreErr) {
-            console.log("🔴 Could not restore original camera:", restoreErr);
+            console.log(" Could not restore original camera:", restoreErr);
           }
         }
         switchingCameraRef.current = false;
@@ -962,10 +947,7 @@ const CallManager = ({ user }) => {
   const groupTileCount = groupParticipantList.length + 1;
   const showOverlay = callState !== "idle" || groupCallState !== "idle";
 
-  // 🔧 FIX — ringtone <audio> ab hamesha ek hi jagah render hota hai
-  // (pehle idle vs non-idle render ke beech ye element unmount/remount ho raha tha,
-  // jiski wajah se .play() call fire hone ke turant baad element hi destroy ho jata tha
-  // aur ringtone kabhi baj nahi paati thi). Ab ye component ke top level pe permanently mounted hai.
+ 
   return (
     <>
       <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden preload="auto" />
@@ -992,7 +974,7 @@ const CallManager = ({ user }) => {
                 fontSize: "14px",
               }}
             >
-              🔊 Tap to enable audio/video
+               Tap to enable audio/video
             </button>
           )}
 

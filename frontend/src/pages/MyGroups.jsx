@@ -100,7 +100,7 @@ const MyGroups = () => {
   const [unreadCounts, setUnreadCounts] = useState({ groups: {}, users: {} });
   const [privateChatMap, setPrivateChatMap] = useState({});
 
-  // NAYA — voice message ko reliably track karne ke liye
+
   const [mediaKind, setMediaKind] = useState(null); // "voice" | null
 
   const [actionLoading, setActionLoading] = useState(false);
@@ -139,7 +139,7 @@ const MyGroups = () => {
         const ext = mimeType.includes("webm") ? "webm" : "m4a";
         const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: mimeType });
         setMedia(file);
-        setMediaKind("voice"); // 👈 explicit flag — mimetype pe bharosa nahi karte
+        setMediaKind("voice");
         stream.getTracks().forEach((t) => t.stop());
       };
 
@@ -598,8 +598,8 @@ const MyGroups = () => {
     });
   };
 
-  // ✅ FIX — pehle "if (media)" tha (galat, current composer ka media),
-  // ab "if (mediaFile)" hai jo forwardingMsg se fetch kiya gaya blob hai
+
+
   const sendForward = async () => {
     if (!forwardingMsg) return;
 
@@ -781,7 +781,7 @@ const MyGroups = () => {
     }
 
     setMedia(file);
-    setMediaKind(null); // 👈 file-picker se aaya hai, voice nahi
+    setMediaKind(null); // file-picker se aaya hai, voice nahi
   };
 
   const addUserToGroup = async () => {
@@ -1487,7 +1487,8 @@ const MyGroups = () => {
       formData.append("media", media);
       console.log("media =", media);
       console.log("mediaKind =", mediaKind);
-      if (mediaKind === "voice") {          // ✅ FIX — reliable flag
+      if (mediaKind === "voice") {
+
         formData.append("isVoice", "true");
       }
     }
@@ -1519,7 +1520,7 @@ const MyGroups = () => {
 
       setMessage("");
       setMedia(null);
-      setMediaKind(null);        // ✅ FIX — pehle group send ke baad reset nahi hota tha
+      setMediaKind(null);
       setReplyingTo(null);
       setShowEmojiPicker(false);
     } catch (error) {
@@ -1601,7 +1602,7 @@ const MyGroups = () => {
       formData.append("media", media);
       console.log("media =", media);
       console.log("mediaKind =", mediaKind);
-      if (mediaKind === "voice") {          // ✅ FIX — reliable flag
+      if (mediaKind === "voice") {
         formData.append("isVoice", "true");
       }
     }
@@ -2082,7 +2083,7 @@ const MyGroups = () => {
   const isPrivateUserTyping = Boolean(
     selectedUser && privateTypingStatus[selectedUser._id]
   );
-useEffect(() => {
+  useEffect(() => {
     const vv = window.visualViewport;
 
     const setVH = () => {
@@ -2100,8 +2101,7 @@ useEffect(() => {
       window.removeEventListener("resize", setVH);
     };
   }, []);
-  // 👈 NAYA — jab chat page open ho, body pe class lagao taaki
-  // global header/footer ko mobile par hide kar sakein
+
   useEffect(() => {
     document.body.classList.add("cv-chat-active");
     return () => document.body.classList.remove("cv-chat-active");
@@ -2608,7 +2608,7 @@ useEffect(() => {
                         <button
                           type="button"
                           className="cv-send"
-                            onMouseDown={(e) => e.preventDefault()}  
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={
                             sendingMessage
                               ? undefined
@@ -3233,7 +3233,7 @@ useEffect(() => {
                     <button
                       type="button"
                       className="cv-send"
-                        onMouseDown={(e) => e.preventDefault()}  
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={
                         sendingMessage
                           ? undefined

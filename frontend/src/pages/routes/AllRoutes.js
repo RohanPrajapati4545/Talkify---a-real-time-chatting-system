@@ -9,6 +9,8 @@ import About from "../About";
 import MyGroups from "../MyGroups";
 import Profile from "../Profile";
 import Layout from "./Layout";
+import AdminLayout from "../Admin/AdminLayout";
+import Dashboard from "../Admin/Dashboard";
 
 const AllRoutes = () => {
   const { isAuth } = useSelector((state) => state.auth);
@@ -92,6 +94,14 @@ const AllRoutes = () => {
         />
 
         <Route path="*" element={<Navigate to="/" replace />} />
+
+
+
+
+          <Route path='/admin' element={<AdminLayout />}>
+                        <Route index element={<Dashboard />} />
+                    </Route>
+
       </Routes>
     </BrowserRouter>
   );

@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { login } from "../redux/AuthSlice";
 
 const Login = () => {
@@ -17,7 +17,9 @@ const Login = () => {
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
-
+  const { token, user } = useSelector(
+    (state) => state.auth
+  );
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -112,6 +114,13 @@ const Login = () => {
       setLoading(false);
     }
   };
+    useEffect(() => {
+  if (token && user?.role === "admin") {
+    navigate("/admin");
+  } else if (token) {
+    navigate("/");
+  }
+}, [token, user]);
 
   return (
     <div className="cv-auth-page">
