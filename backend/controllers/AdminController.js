@@ -128,3 +128,20 @@ exports.getUserById = async (req, res) => {
   }
 };
 
+exports.updateUser = async (req, res) => {
+  try {
+    const { userId, name, email } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { name, email },
+      { new: true }
+    ).select("-password");
+
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    res.status(200).json({ user });
+  } catch (error) {
+    res.status(500).json({ msg: "Failed to update user" });
+  }
+};
