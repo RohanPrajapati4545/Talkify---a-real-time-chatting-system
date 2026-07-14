@@ -32,4 +32,12 @@ router.post("/edit-group-message", authMiddleware, adminMiddleware, upload.singl
 router.post("/delete-group-message", authMiddleware, adminMiddleware, (AdminController.deleteGroupMessage));
 router.post("/clear-group-chat", authMiddleware, adminMiddleware, (AdminController.clearGroupChat));
 
+// private (1-to-1) chat moderation
+router.get("/get-user-chats/:userId", authMiddleware, adminMiddleware, (AdminController.getUserChats));
+router.get("/get-private-messages/:chatId", authMiddleware, adminMiddleware, (AdminController.getPrivateChatMessages));
+router.post("/edit-private-message", authMiddleware, adminMiddleware, upload.single("image"), (AdminController.editPrivateMessage));
+router.post("/delete-private-message", authMiddleware, adminMiddleware, (AdminController.deletePrivateMessage));
+router.post("/clear-private-chat", authMiddleware, adminMiddleware, (AdminController.clearPrivateChat));
+router.post("/delete-private-chat", authMiddleware, adminMiddleware, (AdminController.deletePrivateChatAdmin));
+
 module.exports = router
