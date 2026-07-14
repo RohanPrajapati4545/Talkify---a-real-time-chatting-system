@@ -14,6 +14,7 @@ import Dashboard from "../Admin/Dashboard";
 import AdminProfile from "../Admin/AdminProfile";
 import AllUsers from "../Admin/AllUsers";
 import AllGroups from "../Admin/AllGroups";
+import ChatMonitor from "../Admin/ChatMonitor";
 
 const AllRoutes = () => {
   const { isAuth, user } = useSelector((state) => state.auth);
@@ -128,6 +129,7 @@ const AllRoutes = () => {
           <Route path="all-users" element={<AllUsers />} />
           <Route path="all-groups" element={<AllGroups />} />
           <Route path="profile" element={<AdminProfile />} />
+          <Route path="chat-monitor" element={<ChatMonitor />} />
         </Route>
 
         <Route

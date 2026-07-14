@@ -47,7 +47,7 @@ const AdminSideBar = () => {
         Groups
       </NavLink>
 
-      <NavLink to="/admin/admin-chat" className="sidebar-link">
+      <NavLink to="/admin/chat-monitor" className="sidebar-link">
         <i className="fa-solid fa-message"></i>
         Chat Monitor
       </NavLink>
