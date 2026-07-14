@@ -78,8 +78,7 @@ exports.blockReport = async (req, res) => {
       return res.status(404).json({ msg: "Report not found" });
     }
 
-    // FIX: use isBlocked (not isBanned) to stay consistent with
-    // blockUser/unblockUser and the frontend's member?.isBlocked checks
+    // uses isBlocked to stay consistent with blockUser/unblockUser + frontend checks
     await User.findByIdAndUpdate(report.sender, { isBlocked: true });
 
     report.status = "resolved";
@@ -201,7 +200,6 @@ exports.deleteGroup = async (req, res) => {
 
     if (!group) return res.status(404).json({ msg: "Group not found" });
 
-    // FIX: MessageSchema field is "groupId", not "group"
     await GroupMessage.deleteMany({ groupId: groupId });
 
     res.status(200).json({ msg: "Group deleted" });
@@ -252,7 +250,6 @@ exports.getGroupMessages = async (req, res) => {
   try {
     const { groupId } = req.params;
 
-    // FIX: query by "groupId" field to match MessageSchema
     const messages = await GroupMessage.find({ groupId: groupId })
       .populate("sender", "name image")
       .sort({ createdAt: 1 });
@@ -268,15 +265,35 @@ exports.editGroupMessage = async (req, res) => {
   try {
     const { messageId, message } = req.body;
 
+    const existing = await GroupMessage.findById(messageId);
+    if (!existing) return res.status(404).json({ msg: "Message not found" });
+
+    const updateData = {
+      message,
+      isEdited: true,
+    };
+
+    // If admin uploaded a new image/video/audio, replace the existing media
+    if (req.file) {
+      updateData.media = req.file.path;
+
+      if (req.file.mimetype.startsWith("image")) {
+        updateData.mediaType = "image";
+      } else if (req.file.mimetype.startsWith("video")) {
+        updateData.mediaType = "video";
+      } else if (req.file.mimetype.startsWith("audio")) {
+        updateData.mediaType = "audio";
+      }
+    }
+
     const updated = await GroupMessage.findByIdAndUpdate(
       messageId,
-      { message, isEdited: true },
+      updateData,
       { new: true }
     ).populate("sender", "name image");
 
     if (!updated) return res.status(404).json({ msg: "Message not found" });
 
-    // FIX: use updated.groupId instead of updated.group
     const io = req.app.get("io");
     if (io) io.to(updated.groupId.toString()).emit("groupMessageUpdated", updated);
 
@@ -295,7 +312,6 @@ exports.deleteGroupMessage = async (req, res) => {
 
     if (!deleted) return res.status(404).json({ msg: "Message not found" });
 
-    // FIX: use deleted.groupId instead of deleted.group
     const io = req.app.get("io");
     if (io)
       io.to(deleted.groupId.toString()).emit("groupMessageDeleted", {
@@ -307,5 +323,25 @@ exports.deleteGroupMessage = async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).json({ msg: "Failed to delete message" });
+  }
+};
+
+// Clears every message in a group's chat (admin moderation action)
+exports.clearGroupChat = async (req, res) => {
+  try {
+    const { groupId } = req.body;
+
+    const group = await Group.findById(groupId);
+    if (!group) return res.status(404).json({ msg: "Group not found" });
+
+    await GroupMessage.deleteMany({ groupId: groupId });
+
+    const io = req.app.get("io");
+    if (io) io.to(groupId.toString()).emit("groupChatCleared", { groupId });
+
+    res.status(200).json({ msg: "Chat cleared successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ msg: "Failed to clear chat" });
   }
 };

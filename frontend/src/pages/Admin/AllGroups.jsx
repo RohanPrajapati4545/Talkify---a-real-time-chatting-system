@@ -29,7 +29,10 @@ const AllGroups = () => {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingMessageText, setEditingMessageText] = useState("");
+  const [editingMessageImage, setEditingMessageImage] = useState(null);
+  const [editingMessageImagePreview, setEditingMessageImagePreview] = useState("");
   const [messageActionId, setMessageActionId] = useState(null);
+  const [clearingChat, setClearingChat] = useState(false);
 
   const getGroups = async () => {
     try {
@@ -362,21 +365,42 @@ const AllGroups = () => {
   const startEditMessage = (msg) => {
     setEditingMessageId(msg._id);
     setEditingMessageText(msg.message || "");
+    setEditingMessageImage(null);
+    setEditingMessageImagePreview(msg.mediaType === "image" ? msg.media : "");
   };
 
   const cancelEditMessage = () => {
     setEditingMessageId(null);
     setEditingMessageText("");
+    setEditingMessageImage(null);
+    setEditingMessageImagePreview("");
+  };
+
+  const handleEditMessageImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setEditingMessageImage(file);
+    setEditingMessageImagePreview(URL.createObjectURL(file));
   };
 
   const saveEditMessage = async (msg) => {
     try {
       setMessageActionId(msg._id);
 
+      const formData = new FormData();
+      formData.append("messageId", msg._id);
+      formData.append("message", editingMessageText);
+      if (editingMessageImage) formData.append("image", editingMessageImage);
+
       const res = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/admin/edit-group-message`,
-        { messageId: msg._id, message: editingMessageText },
-        { headers: { Authorization: `Bearer ${token}` } }
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
       );
 
       const updated = res.data.message;
@@ -392,6 +416,51 @@ const AllGroups = () => {
     } finally {
       setMessageActionId(null);
     }
+  };
+
+  // ============== CLEAR ALL CHAT ==============
+
+  const handleClearChat = () => {
+    if (!chatGroup) return;
+
+    Swal.fire({
+      title: "Clear All Chat?",
+      text: `This will permanently delete every message in "${chatGroup.groupName}". This cannot be undone.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, clear it",
+      confirmButtonColor: "#dc3545",
+      background: "#1c1812",
+      color: "#f2ece2",
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+
+      try {
+        setClearingChat(true);
+
+        await axios.post(
+          `${process.env.REACT_APP_API_URL}/api/admin/clear-group-chat`,
+          { groupId: chatGroup._id },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setMessages([]);
+
+        Swal.fire({
+          title: "Cleared",
+          text: "All messages have been removed.",
+          icon: "success",
+          background: "#1c1812",
+          color: "#f2ece2",
+          confirmButtonColor: "#e8a33d",
+        });
+      } catch (error) {
+        console.log(error);
+        showErrorAlert(error, "Could not clear chat.");
+      } finally {
+        setClearingChat(false);
+      }
+    });
   };
 
   const handleDeleteMessage = (msg) => {
@@ -868,29 +937,63 @@ const AllGroups = () => {
                             </div>
 
                             {isEditing ? (
-                              <div className="d-flex gap-2">
-                                <input
-                                  type="text"
-                                  className="form-control admin-input"
-                                  value={editingMessageText}
-                                  onChange={(e) => setEditingMessageText(e.target.value)}
-                                  disabled={isBusy}
-                                  autoFocus
-                                />
-                                <button
-                                  className="btn btn-sm btn-warning"
-                                  onClick={() => saveEditMessage(msg)}
-                                  disabled={isBusy}
-                                >
-                                  {isBusy ? "..." : "Save"}
-                                </button>
-                                <button
-                                  className="btn btn-sm btn-outline-dark"
-                                  onClick={cancelEditMessage}
-                                  disabled={isBusy}
-                                >
-                                  Cancel
-                                </button>
+                              <div>
+                                {editingMessageImagePreview && (
+                                  <img
+                                    src={editingMessageImagePreview}
+                                    alt=""
+                                    style={{
+                                      maxWidth: "160px",
+                                      maxHeight: "160px",
+                                      borderRadius: "8px",
+                                      objectFit: "cover",
+                                      display: "block",
+                                      marginBottom: "8px",
+                                    }}
+                                  />
+                                )}
+
+                                <div className="d-flex gap-2 align-items-center flex-wrap">
+                                  <input
+                                    type="text"
+                                    className="form-control admin-input"
+                                    value={editingMessageText}
+                                    onChange={(e) => setEditingMessageText(e.target.value)}
+                                    disabled={isBusy}
+                                    autoFocus
+                                    style={{ minWidth: "160px", flex: "1 1 160px" }}
+                                  />
+
+                                  <label
+                                    htmlFor={`editMsgImage-${msg._id}`}
+                                    className="btn btn-sm btn-outline-warning mb-0"
+                                  >
+                                    {editingMessageImagePreview ? "Change Image" : "Add Image"}
+                                  </label>
+                                  <input
+                                    id={`editMsgImage-${msg._id}`}
+                                    type="file"
+                                    accept="image/*"
+                                    className="d-none"
+                                    onChange={handleEditMessageImageChange}
+                                    disabled={isBusy}
+                                  />
+
+                                  <button
+                                    className="btn btn-sm btn-warning"
+                                    onClick={() => saveEditMessage(msg)}
+                                    disabled={isBusy}
+                                  >
+                                    {isBusy ? "..." : "Save"}
+                                  </button>
+                                  <button
+                                    className="btn btn-sm btn-outline-dark"
+                                    onClick={cancelEditMessage}
+                                    disabled={isBusy}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
                               </div>
                             ) : (
                               <>
@@ -935,7 +1038,17 @@ const AllGroups = () => {
                     })}
                 </div>
 
-                <div className="modal-footer">
+                <div className="modal-footer d-flex justify-content-between">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={handleClearChat}
+                    disabled={clearingChat || messages.length === 0}
+                  >
+                    <FaTrash size={11} className="me-1" />
+                    {clearingChat ? "Clearing..." : "Clear All Chat"}
+                  </button>
+
                   <button
                     type="button"
                     className="btn btn-sm btn-outline-dark"

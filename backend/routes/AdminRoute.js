@@ -28,7 +28,8 @@ router.post("/remove-group-member", authMiddleware, adminMiddleware, (AdminContr
 
 // group chat moderation
 router.get("/get-group-messages/:groupId", authMiddleware, adminMiddleware, (AdminController.getGroupMessages));
-router.post("/edit-group-message", authMiddleware, adminMiddleware, (AdminController.editGroupMessage));
+router.post("/edit-group-message", authMiddleware, adminMiddleware, upload.single("image"), (AdminController.editGroupMessage));
 router.post("/delete-group-message", authMiddleware, adminMiddleware, (AdminController.deleteGroupMessage));
+router.post("/clear-group-chat", authMiddleware, adminMiddleware, (AdminController.clearGroupChat));
 
 module.exports = router
