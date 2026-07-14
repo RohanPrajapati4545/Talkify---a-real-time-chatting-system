@@ -11,6 +11,9 @@ import Profile from "../Profile";
 import Layout from "./Layout";
 import AdminLayout from "../Admin/AdminLayout";
 import Dashboard from "../Admin/Dashboard";
+import AdminProfile from "../Admin/AdminProfile";
+import AllUsers from "../Admin/AllUsers";
+import AllGroups from "../Admin/AllGroups";
 
 const AllRoutes = () => {
   const { isAuth, user } = useSelector((state) => state.auth);
@@ -122,6 +125,9 @@ const AllRoutes = () => {
           }
         >
           <Route index element={<Dashboard />} />
+          <Route path="all-users" element={<AllUsers />} />
+          <Route path="all-groups" element={<AllGroups />} />
+          <Route path="profile" element={<AdminProfile />} />
         </Route>
 
         <Route

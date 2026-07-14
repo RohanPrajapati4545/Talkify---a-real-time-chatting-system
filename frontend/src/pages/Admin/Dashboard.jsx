@@ -152,7 +152,7 @@ const Dashboard = () => {
         <img
           className="clickable"
           onClick={() => navigate("/admin/profile")}
-          src={`${mediaUrl}${user?.image}`}
+          src={`${user?.image}`}
           alt=""
           style={{
             width: "60px",
@@ -310,7 +310,7 @@ const Dashboard = () => {
                       <td>
                         <div className="d-flex align-items-center gap-2">
                           <img
-                            src={`${mediaUrl}${item.image}`}
+                            src={`${item.image}`}
                             alt=""
                             style={{
                               width: "40px",
