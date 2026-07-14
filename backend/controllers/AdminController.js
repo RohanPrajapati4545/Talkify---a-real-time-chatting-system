@@ -78,7 +78,9 @@ exports.blockReport = async (req, res) => {
       return res.status(404).json({ msg: "Report not found" });
     }
 
-    await User.findByIdAndUpdate(report.sender, { isBanned: true });
+    // FIX: use isBlocked (not isBanned) to stay consistent with
+    // blockUser/unblockUser and the frontend's member?.isBlocked checks
+    await User.findByIdAndUpdate(report.sender, { isBlocked: true });
 
     report.status = "resolved";
     await report.save();
@@ -199,8 +201,8 @@ exports.deleteGroup = async (req, res) => {
 
     if (!group) return res.status(404).json({ msg: "Group not found" });
 
-    // optional: also clean up messages belonging to this group
-    await GroupMessage.deleteMany({ group: groupId });
+    // FIX: MessageSchema field is "groupId", not "group"
+    await GroupMessage.deleteMany({ groupId: groupId });
 
     res.status(200).json({ msg: "Group deleted" });
   } catch (error) {
@@ -250,7 +252,8 @@ exports.getGroupMessages = async (req, res) => {
   try {
     const { groupId } = req.params;
 
-    const messages = await GroupMessage.find({ group: groupId })
+    // FIX: query by "groupId" field to match MessageSchema
+    const messages = await GroupMessage.find({ groupId: groupId })
       .populate("sender", "name image")
       .sort({ createdAt: 1 });
 
@@ -273,9 +276,9 @@ exports.editGroupMessage = async (req, res) => {
 
     if (!updated) return res.status(404).json({ msg: "Message not found" });
 
-    // notify connected clients in that group in real-time
+    // FIX: use updated.groupId instead of updated.group
     const io = req.app.get("io");
-    if (io) io.to(updated.group.toString()).emit("groupMessageUpdated", updated);
+    if (io) io.to(updated.groupId.toString()).emit("groupMessageUpdated", updated);
 
     res.status(200).json({ message: updated, msg: "Message updated" });
   } catch (error) {
@@ -292,11 +295,12 @@ exports.deleteGroupMessage = async (req, res) => {
 
     if (!deleted) return res.status(404).json({ msg: "Message not found" });
 
+    // FIX: use deleted.groupId instead of deleted.group
     const io = req.app.get("io");
     if (io)
-      io.to(deleted.group.toString()).emit("groupMessageDeleted", {
+      io.to(deleted.groupId.toString()).emit("groupMessageDeleted", {
         _id: messageId,
-        groupId: deleted.group,
+        groupId: deleted.groupId,
       });
 
     res.status(200).json({ msg: "Message deleted" });

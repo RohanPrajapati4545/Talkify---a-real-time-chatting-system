@@ -866,9 +866,7 @@ const AllGroups = () => {
                 </div>
 
                 <div className="modal-footer">
-                  <span className="text-muted" style={{ fontSize: "12px" }}>
-                    Admin can edit or delete messages here. Sending new messages as admin isn't available.
-                  </span>
+                 
                   <button
                     type="button"
                     className="btn btn-sm btn-outline-dark"
