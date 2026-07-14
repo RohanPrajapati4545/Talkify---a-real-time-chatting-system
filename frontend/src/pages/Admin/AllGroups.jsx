@@ -426,6 +426,63 @@ const AllGroups = () => {
     });
   };
 
+  // Renders the media attached to a message (image / video / audio),
+  // falling back to nothing if the message has no media.
+  const renderMessageMedia = (msg) => {
+    if (!msg.media) return null;
+
+    const commonStyle = {
+      maxWidth: "260px",
+      maxHeight: "260px",
+      borderRadius: "10px",
+      display: "block",
+      marginTop: msg.message ? "6px" : "0",
+    };
+
+    if (msg.mediaType === "image") {
+      return (
+        <img
+          src={msg.media}
+          alt="attachment"
+          style={{ ...commonStyle, objectFit: "cover", cursor: "pointer" }}
+          onClick={() => window.open(msg.media, "_blank")}
+        />
+      );
+    }
+
+    if (msg.mediaType === "video") {
+      return (
+        <video
+          src={msg.media}
+          controls
+          style={{ ...commonStyle, background: "#000" }}
+        />
+      );
+    }
+
+    if (msg.mediaType === "audio") {
+      return (
+        <audio
+          src={msg.media}
+          controls
+          style={{ marginTop: msg.message ? "6px" : "0", maxWidth: "260px" }}
+        />
+      );
+    }
+
+    // mediaType missing/unknown but a media URL exists — still give admin a link
+    return (
+      <a
+        href={msg.media}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ display: "block", marginTop: msg.message ? "6px" : "0" }}
+      >
+        View attachment
+      </a>
+    );
+  };
+
   const filteredGroups = groups.filter((g) =>
     g.groupName?.toLowerCase().includes(search.toLowerCase())
   );
@@ -836,7 +893,20 @@ const AllGroups = () => {
                                 </button>
                               </div>
                             ) : (
-                              <div className="chat-message-text">{msg.message}</div>
+                              <>
+                                {msg.message && (
+                                  <div
+                                    className="chat-message-text"
+                                    style={{
+                                      fontFamily:
+                                        "inherit, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'",
+                                    }}
+                                  >
+                                    {msg.message}
+                                  </div>
+                                )}
+                                {renderMessageMedia(msg)}
+                              </>
                             )}
                           </div>
 
@@ -866,7 +936,6 @@ const AllGroups = () => {
                 </div>
 
                 <div className="modal-footer">
-                 
                   <button
                     type="button"
                     className="btn btn-sm btn-outline-dark"
