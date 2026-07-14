@@ -282,7 +282,7 @@ app.use("/api/auth", AuthRoute);
 app.use("/api/user", GroupRoute);
 app.use("/api/users", UserRoute);
 app.use("/api/private", PrivateChatRoute);
-app.use("./api/admin",AdminRoute)
+app.use("/api/admin",AdminRoute)
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
