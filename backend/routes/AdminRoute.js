@@ -14,7 +14,7 @@ router.get("/get-reported-messages", authMiddleware, adminMiddleware, (AdminCont
 router.post("/warn-report", authMiddleware, adminMiddleware,(AdminController.warnReport));
 router.post("/block-report", authMiddleware, adminMiddleware, (AdminController.blockReport));
 router.post("/delete-report", authMiddleware, adminMiddleware, (AdminController.deleteReport));
-
+router.get("/get-user/:id", authMiddleware, adminMiddleware, (AdminController.getUserById));
 
 
 module.exports=router

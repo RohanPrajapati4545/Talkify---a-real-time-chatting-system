@@ -3981,3 +3981,37 @@ body.cv-chat-open {
     position: static;
   }
 }
+/* group members expand panel */
+
+.expand-toggle {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.members-row td {
+  padding: 0 !important;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.members-panel {
+  background: var(--panel-3);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.member-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--hairline);
+}
+
+.member-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
