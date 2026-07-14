@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { FaChevronDown, FaChevronUp, FaPen, FaUserPlus, FaPlus, FaTimes } from "react-icons/fa";
+import { FaChevronDown, FaChevronUp, FaPen, FaUserPlus } from "react-icons/fa";
 
 const AllGroups = () => {
   const { token } = useSelector((state) => state.auth);
@@ -27,15 +27,6 @@ const AllGroups = () => {
   const [addMemberGroup, setAddMemberGroup] = useState(null);
   const [addMemberSearch, setAddMemberSearch] = useState("");
   const [addingMemberId, setAddingMemberId] = useState(null);
-
-  // create group modal
-  const [createGroupModal, setCreateGroupModal] = useState(false);
-  const [newGroupName, setNewGroupName] = useState("");
-  const [newGroupImage, setNewGroupImage] = useState(null);
-  const [newGroupPreview, setNewGroupPreview] = useState("");
-  const [newGroupMembers, setNewGroupMembers] = useState([]);
-  const [newGroupMemberSearch, setNewGroupMemberSearch] = useState("");
-  const [creatingGroup, setCreatingGroup] = useState(false);
 
   const getGroups = async () => {
     try {
@@ -267,98 +258,6 @@ const AllGroups = () => {
     });
   };
 
-  // ============== CREATE GROUP ==============
-
-  const openCreateGroupModal = () => {
-    setNewGroupName("");
-    setNewGroupImage(null);
-    setNewGroupPreview("");
-    setNewGroupMembers([]);
-    setNewGroupMemberSearch("");
-    setCreateGroupModal(true);
-  };
-
-  const closeCreateGroupModal = () => {
-    if (creatingGroup) return;
-    setCreateGroupModal(false);
-    setNewGroupName("");
-    setNewGroupImage(null);
-    setNewGroupPreview("");
-    setNewGroupMembers([]);
-    setNewGroupMemberSearch("");
-  };
-
-  const handleNewGroupImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setNewGroupImage(file);
-    setNewGroupPreview(URL.createObjectURL(file));
-  };
-
-  const toggleNewGroupMember = (userId) => {
-    setNewGroupMembers((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    );
-  };
-
-  const handleCreateGroupSubmit = async (e) => {
-    e.preventDefault();
-
-    if (newGroupMembers.length === 0) {
-      Swal.fire({
-        title: "Add Members",
-        text: "Select at least one member for the group.",
-        icon: "warning",
-        background: "#1c1812",
-        color: "#f2ece2",
-        confirmButtonColor: "#e8a33d",
-      });
-      return;
-    }
-
-    try {
-      setCreatingGroup(true);
-
-      const formData = new FormData();
-      formData.append("groupName", newGroupName);
-      if (newGroupImage) formData.append("image", newGroupImage);
-      newGroupMembers.forEach((id) => formData.append("members[]", id));
-
-      const res = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/admin/create-group`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      const createdGroup = res.data.group;
-
-      setGroups((prev) => (createdGroup ? [createdGroup, ...prev] : prev));
-
-      Swal.fire({
-        title: "Group Created",
-        text: `"${newGroupName}" has been created successfully.`,
-        icon: "success",
-        background: "#1c1812",
-        color: "#f2ece2",
-        confirmButtonColor: "#e8a33d",
-      });
-
-      closeCreateGroupModal();
-
-      if (!createdGroup) loadAll();
-    } catch (error) {
-      console.log(error);
-      showErrorAlert(error, "Could not create group.");
-    } finally {
-      setCreatingGroup(false);
-    }
-  };
-
   // ============== ADD MEMBER ==============
 
   const openAddMemberModal = (group) => {
@@ -500,21 +399,14 @@ const AllGroups = () => {
           <p className="text-muted mb-0">Manage active groups and their members</p>
         </div>
 
-        <div className="d-flex align-items-center gap-2 flex-wrap">
-          <input
-            type="text"
-            className="form-control admin-search"
-            placeholder="Search by group name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ maxWidth: "280px" }}
-          />
-
-          <button className="btn btn-sm btn-warning" onClick={openCreateGroupModal}>
-            <FaPlus size={11} className="me-1" />
-            Create Group
-          </button>
-        </div>
+        <input
+          type="text"
+          className="form-control admin-search"
+          placeholder="Search by group name..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ maxWidth: "280px" }}
+        />
       </div>
 
       <div className="bg-white rounded-4 shadow-sm p-4">
@@ -916,210 +808,6 @@ const AllGroups = () => {
                     onClick={closeAddMemberModal}
                   >
                     Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
-
-      {/* ============== CREATE GROUP MODAL ============== */}
-      {createGroupModal && (
-        <>
-          <div
-            className="modal fade show d-block admin-edit-modal"
-            tabIndex="-1"
-            role="dialog"
-            onClick={closeCreateGroupModal}
-          >
-            <div
-              className="modal-dialog modal-dialog-centered modal-lg"
-              role="document"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title fw-bold">Create New Group</h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={closeCreateGroupModal}
-                    disabled={creatingGroup}
-                    aria-label="Close"
-                  ></button>
-                </div>
-
-                <div className="modal-body">
-                  <div className="d-flex align-items-center gap-3 mb-4">
-                    <img
-                      src={newGroupPreview || "https://via.placeholder.com/64?text=%20"}
-                      alt=""
-                      style={{
-                        width: "64px",
-                        height: "64px",
-                        borderRadius: "50%",
-                        objectFit: "cover",
-                        border: "2px solid var(--hairline)",
-                        background: "var(--panel-2)",
-                      }}
-                    />
-                    <div>
-                      <label
-                        htmlFor="newGroupImageInput"
-                        className="btn btn-sm btn-outline-warning mb-0"
-                      >
-                        {newGroupPreview ? "Change Photo" : "Add Photo"}
-                      </label>
-                      <input
-                        id="newGroupImageInput"
-                        type="file"
-                        accept="image/*"
-                        className="d-none"
-                        onChange={handleNewGroupImageChange}
-                        disabled={creatingGroup}
-                      />
-                    </div>
-                  </div>
-
-                  <form id="createGroupForm" onSubmit={handleCreateGroupSubmit}>
-                    <div className="mb-3">
-                      <label className="form-label admin-label">Group Name</label>
-                      <input
-                        type="text"
-                        className="form-control admin-input"
-                        value={newGroupName}
-                        onChange={(e) => setNewGroupName(e.target.value)}
-                        required
-                        disabled={creatingGroup}
-                      />
-                    </div>
-
-                    <div className="mb-2 d-flex justify-content-between align-items-center">
-                      <label className="form-label admin-label m-0">
-                        Members ({newGroupMembers.length} selected)
-                      </label>
-                    </div>
-
-                    {newGroupMembers.length > 0 && (
-                      <div className="d-flex flex-wrap gap-2 mb-2">
-                        {newGroupMembers.map((id) => {
-                          const u = usersMap[id];
-                          if (!u) return null;
-                          return (
-                            <span
-                              key={id}
-                              className="badge bg-dark d-flex align-items-center gap-1"
-                              style={{ fontSize: "11px", padding: "6px 8px" }}
-                            >
-                              {u.name}
-                              <FaTimes
-                                size={9}
-                                style={{ cursor: "pointer" }}
-                                onClick={() => toggleNewGroupMember(id)}
-                              />
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    <input
-                      type="text"
-                      className="form-control admin-input mb-2"
-                      placeholder="Search users to add..."
-                      value={newGroupMemberSearch}
-                      onChange={(e) => setNewGroupMemberSearch(e.target.value)}
-                      disabled={creatingGroup}
-                    />
-
-                    <div style={{ maxHeight: "260px", overflowY: "auto" }}>
-                      {Object.values(usersMap)
-                        .filter((u) => {
-                          const q = newGroupMemberSearch.toLowerCase();
-                          return (
-                            !q ||
-                            u.name?.toLowerCase().includes(q) ||
-                            u.email?.toLowerCase().includes(q)
-                          );
-                        })
-                        .map((user) => {
-                          const isSelected = newGroupMembers.includes(user._id);
-
-                          return (
-                            <div className="member-row" key={user._id}>
-                              <div className="d-flex align-items-center gap-2">
-                                <img
-                                  src={user.image}
-                                  alt=""
-                                  style={{
-                                    width: "32px",
-                                    height: "32px",
-                                    borderRadius: "50%",
-                                    objectFit: "cover",
-                                    background: "var(--panel-2)",
-                                  }}
-                                />
-                                <div>
-                                  <div className="fw-semibold" style={{ fontSize: "13px" }}>
-                                    {user.name}
-                                    {user.isBlocked && (
-                                      <span
-                                        className="badge bg-danger ms-2"
-                                        style={{ fontSize: "9px" }}
-                                      >
-                                        Blocked
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-muted" style={{ fontSize: "11.5px" }}>
-                                    {user.email}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <button
-                                type="button"
-                                className={`btn btn-sm ${
-                                  isSelected ? "btn-dark" : "btn-outline-success"
-                                }`}
-                                onClick={() => toggleNewGroupMember(user._id)}
-                                disabled={user.isBlocked || creatingGroup}
-                                title={
-                                  user.isBlocked
-                                    ? "Blocked users can't be added"
-                                    : isSelected
-                                    ? "Remove"
-                                    : "Add"
-                                }
-                              >
-                                {isSelected ? "Selected" : "Select"}
-                              </button>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </form>
-                </div>
-
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-dark"
-                    onClick={closeCreateGroupModal}
-                    disabled={creatingGroup}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    form="createGroupForm"
-                    className="btn btn-warning btn-sm"
-                    disabled={creatingGroup}
-                  >
-                    {creatingGroup ? "Creating..." : "Create Group"}
                   </button>
                 </div>
               </div>
