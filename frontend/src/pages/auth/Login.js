@@ -17,9 +17,7 @@ const Login = () => {
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
-  const { token, user } = useSelector(
-    (state) => state.auth
-  );
+  const { token, user } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -51,7 +49,9 @@ const Login = () => {
 
       setEmail("");
       setPassword("");
-      navigate("/");
+      // ❌ removed: navigate("/") — this was firing unconditionally
+      // and always beat the role-based redirect in the useEffect below.
+      // The useEffect now handles where the user lands.
     } catch (error) {
       toast.error(error.response?.data?.msg || "Login failed");
     } finally {
@@ -107,20 +107,20 @@ const Login = () => {
       setPhone("");
       setOtp("");
       setOtpSent(false);
-      navigate("/");
     } catch (error) {
       toast.error(error.response?.data?.msg || "Invalid or expired OTP");
     } finally {
       setLoading(false);
     }
   };
-    useEffect(() => {
-  if (token && user?.role === "admin") {
-    navigate("/admin");
-  } else if (token) {
-    navigate("/");
-  }
-}, [token, user]);
+
+  useEffect(() => {
+    if (token && user?.role === "admin") {
+      navigate("/admin");
+    } else if (token) {
+      navigate("/");
+    }
+  }, [token, user]);
 
   return (
     <div className="cv-auth-page">
@@ -251,11 +251,7 @@ const Login = () => {
 
                   <div className="cv-auth-switch">
                     <p>Didn't get the code?</p>
-                    <span
-                     
-                    >
-                      Change number / resend
-                    </span>
+                    <span>Change number / resend</span>
                   </div>
                 </>
               )}

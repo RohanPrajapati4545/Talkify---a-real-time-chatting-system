@@ -13,28 +13,40 @@ import AdminLayout from "../Admin/AdminLayout";
 import Dashboard from "../Admin/Dashboard";
 
 const AllRoutes = () => {
-  const { isAuth } = useSelector((state) => state.auth);
+  const { isAuth, user } = useSelector((state) => state.auth);
+  const isAdmin = isAuth && user?.role === "admin";
+
+  // where a logged-in user should land if they hit /login or /register again
+  const homeForUser = isAdmin ? "/admin" : "/chat";
 
   return (
     <BrowserRouter>
       <Routes>
 
-        {/* Public Pages */}
+        {/* Public Pages — admin never sees these, always bounced to /admin */}
         <Route
           path="/"
           element={
-            <Layout>
-              <Home />
-            </Layout>
+            isAdmin ? (
+              <Navigate to="/admin" replace />
+            ) : (
+              <Layout>
+                <Home />
+              </Layout>
+            )
           }
         />
 
         <Route
           path="/about"
           element={
-            <Layout>
-              <About />
-            </Layout>
+            isAdmin ? (
+              <Navigate to="/admin" replace />
+            ) : (
+              <Layout>
+                <About />
+              </Layout>
+            )
           }
         />
 
@@ -43,7 +55,7 @@ const AllRoutes = () => {
           path="/login"
           element={
             isAuth ? (
-              <Navigate to="/chat" replace />
+              <Navigate to={homeForUser} replace />
             ) : (
               <Layout>
                 <Login />
@@ -56,21 +68,22 @@ const AllRoutes = () => {
           path="/register"
           element={
             isAuth ? (
-              <Navigate to="/chat" replace />
+              <Navigate to={homeForUser} replace />
             ) : (
-               <Layout>
+              <Layout>
                 <Register />
-               </Layout>
-              
+              </Layout>
             )
           }
         />
 
-        {/* Protected Routes */}
+        {/* Protected Routes — admin never sees these, always bounced to /admin */}
         <Route
           path="/chat"
           element={
-            isAuth ? (
+            isAdmin ? (
+              <Navigate to="/admin" replace />
+            ) : isAuth ? (
               <Layout>
                 <MyGroups />
               </Layout>
@@ -83,7 +96,9 @@ const AllRoutes = () => {
         <Route
           path="/profile"
           element={
-            isAuth ? (
+            isAdmin ? (
+              <Navigate to="/admin" replace />
+            ) : isAuth ? (
               <Layout>
                 <Profile />
               </Layout>
@@ -93,14 +108,26 @@ const AllRoutes = () => {
           }
         />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Admin Routes — guarded: must be authenticated AND role === "admin" */}
+        <Route
+          path="/admin"
+          element={
+            isAdmin ? (
+              <AdminLayout />
+            ) : isAuth ? (
+              <Navigate to="/chat" replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        >
+          <Route index element={<Dashboard />} />
+        </Route>
 
-
-
-
-          <Route path='/admin' element={<AdminLayout />}>
-                        <Route index element={<Dashboard />} />
-                    </Route>
+        <Route
+          path="*"
+          element={<Navigate to={isAdmin ? "/admin" : "/"} replace />}
+        />
 
       </Routes>
     </BrowserRouter>

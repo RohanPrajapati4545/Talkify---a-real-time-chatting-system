@@ -277,12 +277,12 @@ const AuthRoute = require("./routes/AuthRoute");
 const GroupRoute = require("./routes/GroupRoute");
 const UserRoute = require("./routes/UserRoute");
 const PrivateChatRoute = require("./routes/PrivateChatRoute");
-
+const AdminRoute=require("./routes/AdminRoute")
 app.use("/api/auth", AuthRoute);
 app.use("/api/user", GroupRoute);
 app.use("/api/users", UserRoute);
 app.use("/api/private", PrivateChatRoute);
-
+app.use("./api/admin",AdminRoute)
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
