@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { FaChevronDown, FaChevronUp } from "react-icons/fa";
+import { FaChevronDown, FaChevronUp, FaPen, FaTrash, FaComments } from "react-icons/fa";
 
 const AllGroups = () => {
   const { token } = useSelector((state) => state.auth);
@@ -14,6 +14,22 @@ const AllGroups = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [expandedGroup, setExpandedGroup] = useState(null);
+  const [memberActionId, setMemberActionId] = useState(null);
+
+  // edit group modal
+  const [editGroup, setEditGroup] = useState(null);
+  const [editGroupName, setEditGroupName] = useState("");
+  const [editGroupImage, setEditGroupImage] = useState(null);
+  const [editGroupPreview, setEditGroupPreview] = useState("");
+  const [savingGroup, setSavingGroup] = useState(false);
+
+  // chats modal
+  const [chatGroup, setChatGroup] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingMessageText, setEditingMessageText] = useState("");
+  const [messageActionId, setMessageActionId] = useState(null);
 
   const getGroups = async () => {
     try {
@@ -54,8 +70,19 @@ const AllGroups = () => {
     loadAll();
   }, []);
 
-  // fallback: fetch a single user by id if they weren't in the bulk users list
-  // (e.g. get-all-user is paginated/limited and doesn't include every user)
+  const showErrorAlert = (error, fallbackText) => {
+    const backendMsg = error?.response?.data?.msg || error?.response?.data?.message;
+
+    Swal.fire({
+      title: "Error",
+      text: backendMsg || fallbackText,
+      icon: "error",
+      background: "#1c1812",
+      color: "#f2ece2",
+      confirmButtonColor: "#e8a33d",
+    });
+  };
+
   const fetchMemberIfMissing = async (memberId) => {
     if (usersMap[memberId] || memberCache[memberId] || fetchingIds.has(memberId)) return;
 
@@ -93,6 +120,8 @@ const AllGroups = () => {
     }
   };
 
+  // ============== DELETE GROUP ==============
+
   const handleDeleteGroup = (group) => {
     Swal.fire({
       title: "Delete Group?",
@@ -125,9 +154,12 @@ const AllGroups = () => {
         loadAll();
       } catch (error) {
         console.log(error);
+        showErrorAlert(error, "Could not delete group.");
       }
     });
   };
+
+  // ============== REMOVE MEMBER / BLOCK ==============
 
   const handleRemoveMember = (group, memberId) => {
     const member = getMember(memberId);
@@ -146,10 +178,20 @@ const AllGroups = () => {
       if (!result.isConfirmed) return;
 
       try {
+        setMemberActionId(memberId);
+
         await axios.post(
           `${process.env.REACT_APP_API_URL}/api/admin/remove-group-member`,
           { groupId: group._id, userId: memberId },
           { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setGroups((prev) =>
+          prev.map((g) =>
+            g._id === group._id
+              ? { ...g, members: g.members.filter((m) => m !== memberId) }
+              : g
+          )
         );
 
         Swal.fire({
@@ -160,18 +202,11 @@ const AllGroups = () => {
           color: "#f2ece2",
           confirmButtonColor: "#e8a33d",
         });
-
-        loadAll();
       } catch (error) {
         console.log(error);
-        Swal.fire({
-          title: "Error",
-          text: "Could not remove member.",
-          icon: "error",
-          background: "#1c1812",
-          color: "#f2ece2",
-          confirmButtonColor: "#e8a33d",
-        });
+        showErrorAlert(error, "Could not remove member.");
+      } finally {
+        setMemberActionId(null);
       }
     });
   };
@@ -193,10 +228,20 @@ const AllGroups = () => {
       if (!result.isConfirmed) return;
 
       try {
+        setMemberActionId(memberId);
+
         await axios.post(
           `${process.env.REACT_APP_API_URL}/api/admin/block-user`,
           { userId: memberId },
           { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setUsersMap((prev) => ({
+          ...prev,
+          [memberId]: { ...prev[memberId], isBlocked: true },
+        }));
+        setMemberCache((prev) =>
+          prev[memberId] ? { ...prev, [memberId]: { ...prev[memberId], isBlocked: true } } : prev
         );
 
         Swal.fire({
@@ -207,18 +252,176 @@ const AllGroups = () => {
           color: "#f2ece2",
           confirmButtonColor: "#e8a33d",
         });
-
-        loadAll();
       } catch (error) {
         console.log(error);
-        Swal.fire({
-          title: "Error",
-          text: "Could not block user.",
-          icon: "error",
-          background: "#1c1812",
-          color: "#f2ece2",
-          confirmButtonColor: "#e8a33d",
-        });
+        showErrorAlert(error, "Could not block user.");
+      } finally {
+        setMemberActionId(null);
+      }
+    });
+  };
+
+  // ============== EDIT GROUP (name + photo) ==============
+
+  const openEditGroup = (group) => {
+    setEditGroup(group);
+    setEditGroupName(group.groupName || "");
+    setEditGroupImage(null);
+    setEditGroupPreview(group.groupImage || "");
+  };
+
+  const closeEditGroup = () => {
+    if (savingGroup) return;
+    setEditGroup(null);
+    setEditGroupName("");
+    setEditGroupImage(null);
+    setEditGroupPreview("");
+  };
+
+  const handleGroupImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setEditGroupImage(file);
+    setEditGroupPreview(URL.createObjectURL(file));
+  };
+
+  const handleEditGroupSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      setSavingGroup(true);
+
+      const formData = new FormData();
+      formData.append("groupId", editGroup._id);
+      formData.append("groupName", editGroupName);
+      if (editGroupImage) formData.append("image", editGroupImage);
+
+      const res = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/admin/update-group`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      const updatedGroup = res.data.group;
+
+      setGroups((prev) =>
+        prev.map((g) => (g._id === editGroup._id ? { ...g, ...updatedGroup } : g))
+      );
+
+      Swal.fire({
+        title: "Updated",
+        text: "Group details updated successfully.",
+        icon: "success",
+        background: "#1c1812",
+        color: "#f2ece2",
+        confirmButtonColor: "#e8a33d",
+      });
+
+      closeEditGroup();
+    } catch (error) {
+      console.log(error);
+      showErrorAlert(error, "Could not update group.");
+    } finally {
+      setSavingGroup(false);
+    }
+  };
+
+  // ============== VIEW / MODERATE CHATS ==============
+
+  const openChatsModal = async (group) => {
+    setChatGroup(group);
+    setLoadingMessages(true);
+    setMessages([]);
+
+    try {
+      const res = await axios.get(
+        `${process.env.REACT_APP_API_URL}/api/admin/get-group-messages/${group._id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessages(res.data.messages || []);
+    } catch (error) {
+      console.log(error);
+      showErrorAlert(error, "Could not load chat messages.");
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const closeChatsModal = () => {
+    setChatGroup(null);
+    setMessages([]);
+    setEditingMessageId(null);
+    setEditingMessageText("");
+  };
+
+  const startEditMessage = (msg) => {
+    setEditingMessageId(msg._id);
+    setEditingMessageText(msg.message || "");
+  };
+
+  const cancelEditMessage = () => {
+    setEditingMessageId(null);
+    setEditingMessageText("");
+  };
+
+  const saveEditMessage = async (msg) => {
+    try {
+      setMessageActionId(msg._id);
+
+      const res = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/admin/edit-group-message`,
+        { messageId: msg._id, message: editingMessageText },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const updated = res.data.message;
+
+      setMessages((prev) =>
+        prev.map((m) => (m._id === msg._id ? { ...m, ...updated } : m))
+      );
+
+      cancelEditMessage();
+    } catch (error) {
+      console.log(error);
+      showErrorAlert(error, "Could not update message.");
+    } finally {
+      setMessageActionId(null);
+    }
+  };
+
+  const handleDeleteMessage = (msg) => {
+    Swal.fire({
+      title: "Delete Message?",
+      text: "This message will be permanently removed.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete",
+      confirmButtonColor: "#dc3545",
+      background: "#1c1812",
+      color: "#f2ece2",
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+
+      try {
+        setMessageActionId(msg._id);
+
+        await axios.post(
+          `${process.env.REACT_APP_API_URL}/api/admin/delete-group-message`,
+          { messageId: msg._id },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setMessages((prev) => prev.filter((m) => m._id !== msg._id));
+      } catch (error) {
+        console.log(error);
+        showErrorAlert(error, "Could not delete message.");
+      } finally {
+        setMessageActionId(null);
       }
     });
   };
@@ -312,12 +515,32 @@ const AllGroups = () => {
                       </td>
 
                       <td>
-                        <button
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => handleDeleteGroup(group)}
-                        >
-                          Delete
-                        </button>
+                        <div className="d-flex gap-2">
+                          <button
+                            className="btn btn-sm btn-outline-warning"
+                            onClick={() => openEditGroup(group)}
+                            title="Edit group name/photo"
+                          >
+                            <FaPen size={11} className="me-1" />
+                            Edit
+                          </button>
+
+                          <button
+                            className="btn btn-sm btn-outline-info"
+                            onClick={() => openChatsModal(group)}
+                            title="View group chats"
+                          >
+                            <FaComments size={11} className="me-1" />
+                            Chats
+                          </button>
+
+                          <button
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => handleDeleteGroup(group)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
 
@@ -332,6 +555,7 @@ const AllGroups = () => {
                             {group.members?.map((memberId) => {
                               const member = getMember(memberId);
                               const isFetching = fetchingIds.has(memberId);
+                              const isBusy = memberActionId === memberId;
 
                               return (
                                 <div className="member-row" key={memberId}>
@@ -355,6 +579,11 @@ const AllGroups = () => {
                                             Admin
                                           </span>
                                         )}
+                                        {member?.isBlocked && (
+                                          <span className="badge bg-danger ms-2" style={{ fontSize: "9px" }}>
+                                            Blocked
+                                          </span>
+                                        )}
                                       </div>
                                       <div className="text-muted" style={{ fontSize: "11.5px" }}>
                                         {member?.email || memberId}
@@ -366,15 +595,21 @@ const AllGroups = () => {
                                     <button
                                       className="btn btn-sm btn-outline-warning"
                                       onClick={() => handleRemoveMember(group, memberId)}
+                                      disabled={isBusy}
                                     >
-                                      Remove from Group
+                                      {isBusy ? "..." : "Remove from Group"}
                                     </button>
 
                                     <button
                                       className="btn btn-sm btn-outline-danger"
                                       onClick={() => handleBlockMember(memberId)}
+                                      disabled={isBusy || member?.isBlocked}
                                     >
-                                      Block Permanently
+                                      {isBusy
+                                        ? "..."
+                                        : member?.isBlocked
+                                        ? "Blocked"
+                                        : "Block Permanently"}
                                     </button>
                                   </div>
                                 </div>
@@ -395,6 +630,260 @@ const AllGroups = () => {
           )}
         </div>
       </div>
+
+      {/* ============== EDIT GROUP MODAL ============== */}
+      {editGroup && (
+        <>
+          <div
+            className="modal fade show d-block admin-edit-modal"
+            tabIndex="-1"
+            role="dialog"
+            onClick={closeEditGroup}
+          >
+            <div
+              className="modal-dialog modal-dialog-centered"
+              role="document"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title fw-bold">Edit Group</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={closeEditGroup}
+                    disabled={savingGroup}
+                    aria-label="Close"
+                  ></button>
+                </div>
+
+                <div className="modal-body">
+                  <div className="d-flex align-items-center gap-3 mb-4">
+                    <img
+                      src={editGroupPreview}
+                      alt=""
+                      style={{
+                        width: "64px",
+                        height: "64px",
+                        borderRadius: "50%",
+                        objectFit: "cover",
+                        border: "2px solid var(--hairline)",
+                      }}
+                    />
+                    <div>
+                      <label htmlFor="groupImageInput" className="btn btn-sm btn-outline-warning mb-0">
+                        Change Photo
+                      </label>
+                      <input
+                        id="groupImageInput"
+                        type="file"
+                        accept="image/*"
+                        className="d-none"
+                        onChange={handleGroupImageChange}
+                        disabled={savingGroup}
+                      />
+                    </div>
+                  </div>
+
+                  <form id="editGroupForm" onSubmit={handleEditGroupSubmit}>
+                    <div className="mb-1">
+                      <label className="form-label admin-label">Group Name</label>
+                      <input
+                        type="text"
+                        className="form-control admin-input"
+                        value={editGroupName}
+                        onChange={(e) => setEditGroupName(e.target.value)}
+                        required
+                        disabled={savingGroup}
+                      />
+                    </div>
+                  </form>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-dark"
+                    onClick={closeEditGroup}
+                    disabled={savingGroup}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    form="editGroupForm"
+                    className="btn btn-warning btn-sm"
+                    disabled={savingGroup}
+                  >
+                    {savingGroup ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="modal-backdrop fade show"></div>
+        </>
+      )}
+
+      {/* ============== CHATS MODAL ============== */}
+      {chatGroup && (
+        <>
+          <div
+            className="modal fade show d-block admin-edit-modal chats-modal"
+            tabIndex="-1"
+            role="dialog"
+            onClick={closeChatsModal}
+          >
+            <div
+              className="modal-dialog modal-dialog-centered modal-lg"
+              role="document"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-content">
+                <div className="modal-header">
+                  <div className="d-flex align-items-center gap-2">
+                    <img
+                      src={chatGroup.groupImage}
+                      alt=""
+                      style={{
+                        width: "32px",
+                        height: "32px",
+                        borderRadius: "50%",
+                        objectFit: "cover",
+                      }}
+                    />
+                    <h5 className="modal-title fw-bold m-0">
+                      {chatGroup.groupName} — Chat Log
+                    </h5>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={closeChatsModal}
+                    aria-label="Close"
+                  ></button>
+                </div>
+
+                <div className="modal-body chats-modal-body">
+                  {loadingMessages && (
+                    <div className="text-center text-muted py-4">Loading messages...</div>
+                  )}
+
+                  {!loadingMessages && messages.length === 0 && (
+                    <div className="text-center text-muted py-4">No messages in this group yet.</div>
+                  )}
+
+                  {!loadingMessages &&
+                    messages.map((msg) => {
+                      const isEditing = editingMessageId === msg._id;
+                      const isBusy = messageActionId === msg._id;
+
+                      return (
+                        <div className="chat-message-row" key={msg._id}>
+                          <img
+                            src={msg.sender?.image}
+                            alt=""
+                            style={{
+                              width: "32px",
+                              height: "32px",
+                              borderRadius: "50%",
+                              objectFit: "cover",
+                              flexShrink: 0,
+                            }}
+                          />
+
+                          <div className="chat-message-content">
+                            <div className="d-flex align-items-center gap-2 mb-1">
+                              <span className="fw-semibold" style={{ fontSize: "13px" }}>
+                                {msg.sender?.name || "Unknown"}
+                              </span>
+                              <span className="text-muted" style={{ fontSize: "11px" }}>
+                                {msg.createdAt
+                                  ? new Date(msg.createdAt).toLocaleString()
+                                  : ""}
+                              </span>
+                              {msg.isEdited && (
+                                <span className="text-muted" style={{ fontSize: "10.5px" }}>
+                                  (edited)
+                                </span>
+                              )}
+                            </div>
+
+                            {isEditing ? (
+                              <div className="d-flex gap-2">
+                                <input
+                                  type="text"
+                                  className="form-control admin-input"
+                                  value={editingMessageText}
+                                  onChange={(e) => setEditingMessageText(e.target.value)}
+                                  disabled={isBusy}
+                                  autoFocus
+                                />
+                                <button
+                                  className="btn btn-sm btn-warning"
+                                  onClick={() => saveEditMessage(msg)}
+                                  disabled={isBusy}
+                                >
+                                  {isBusy ? "..." : "Save"}
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-outline-dark"
+                                  onClick={cancelEditMessage}
+                                  disabled={isBusy}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="chat-message-text">{msg.message}</div>
+                            )}
+                          </div>
+
+                          {!isEditing && (
+                            <div className="chat-message-actions">
+                              <button
+                                className="btn btn-sm btn-outline-warning"
+                                onClick={() => startEditMessage(msg)}
+                                disabled={isBusy}
+                                title="Edit message"
+                              >
+                                <FaPen size={11} />
+                              </button>
+                              <button
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={() => handleDeleteMessage(msg)}
+                                disabled={isBusy}
+                                title="Delete message"
+                              >
+                                <FaTrash size={11} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+
+                <div className="modal-footer">
+                  <span className="text-muted" style={{ fontSize: "12px" }}>
+                    Admin can edit or delete messages here. Sending new messages as admin isn't available.
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-dark"
+                    onClick={closeChatsModal}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="modal-backdrop fade show"></div>
+        </>
+      )}
     </div>
   );
 };

@@ -4015,3 +4015,141 @@ body.cv-chat-open {
   border-bottom: none;
   padding-bottom: 0;
 }
+/* ============== BOOTSTRAP EDIT MODAL (theme override) ============== */
+
+.admin-edit-modal .modal-content {
+  background: var(--panel-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  color: var(--paper);
+}
+
+.admin-edit-modal .modal-header {
+  border-bottom: 1px solid var(--hairline);
+  padding: 18px 22px;
+}
+
+.admin-edit-modal .modal-title {
+  font-family: var(--font-display);
+  color: var(--paper);
+  font-size: 18px;
+}
+
+.admin-edit-modal .modal-body {
+  padding: 22px;
+}
+
+.admin-edit-modal .modal-footer {
+  border-top: 1px solid var(--hairline);
+  padding: 16px 22px;
+}
+
+.admin-edit-modal .btn-close {
+  filter: invert(1) grayscale(1);
+  opacity: 0.7;
+}
+
+.admin-edit-modal .btn-close:hover {
+  opacity: 1;
+}
+
+.admin-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.admin-input {
+  background: var(--panel-3) !important;
+  border: 1px solid var(--hairline) !important;
+  color: var(--paper) !important;
+  border-radius: var(--radius-sm);
+}
+
+.admin-input:focus {
+  border-color: var(--amber) !important;
+  box-shadow: 0 0 0 3px rgba(232, 163, 61, 0.15) !important;
+}
+
+.admin-input::placeholder {
+  color: var(--muted);
+}
+
+.modal-backdrop {
+  background: #000;
+  opacity: 0.6 !important;
+}
+
+/* avatar online/offline dot — used in modal + table */
+.avatar-status-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.status-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--panel-2);
+}
+
+.status-dot.online {
+  background: #22c55e;
+}
+
+.status-dot.offline {
+  background: var(--muted);
+}
+/* group members panel already exists — adding chat modal styles */
+
+.chats-modal-body {
+  max-height: 55vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chat-message-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--hairline);
+}
+
+.chat-message-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.chat-message-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-message-text {
+  font-size: 13.5px;
+  color: var(--paper);
+  word-break: break-word;
+  background: var(--panel-3);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+}
+
+.chat-message-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.admin-edit-modal.chats-modal .modal-dialog {
+  max-width: 640px;
+}

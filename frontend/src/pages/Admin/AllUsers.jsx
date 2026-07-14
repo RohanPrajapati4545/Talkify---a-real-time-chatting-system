@@ -17,7 +17,6 @@ const AllUsers = () => {
   const [editEmail, setEditEmail] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // track per-row pending actions so buttons disable individually
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
   const socketRef = useRef(null);
@@ -41,7 +40,6 @@ const AllUsers = () => {
     getUsers();
   }, []);
 
-  // real-time online/offline via socket
   useEffect(() => {
     if (!token) return;
 
@@ -100,7 +98,6 @@ const AllUsers = () => {
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        // optimistic local update instead of full refetch
         setUsers((prev) =>
           prev.map((u) =>
             u._id === user._id ? { ...u, isBlocked: res.data.user?.isBlocked ?? !isBlocked } : u
@@ -172,7 +169,7 @@ const AllUsers = () => {
   };
 
   const closeEditModal = () => {
-    if (saving) return; // don't allow closing mid-save
+    if (saving) return;
     setEditUser(null);
     setEditName("");
     setEditEmail("");
@@ -341,72 +338,111 @@ const AllUsers = () => {
         </div>
       </div>
 
+      {/* ============== BOOTSTRAP EDIT MODAL ============== */}
       {editUser && (
-        <div className="admin-modal-overlay" onClick={closeEditModal}>
-          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h4 className="fw-bold m-0">Edit User</h4>
-              <button className="modal-close-btn" onClick={closeEditModal} disabled={saving}>
-                &times;
-              </button>
+        <>
+          <div
+            className="modal fade show d-block admin-edit-modal"
+            tabIndex="-1"
+            role="dialog"
+            onClick={closeEditModal}
+          >
+            <div
+              className="modal-dialog modal-dialog-centered"
+              role="document"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title fw-bold">Edit User</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={closeEditModal}
+                    disabled={saving}
+                    aria-label="Close"
+                  ></button>
+                </div>
+
+                <div className="modal-body">
+                  <div className="d-flex align-items-center gap-3 mb-4">
+                    <div className="avatar-status-wrap">
+                      <img
+                        src={editUser.image}
+                        alt=""
+                        style={{
+                          width: "56px",
+                          height: "56px",
+                          borderRadius: "50%",
+                          objectFit: "cover",
+                          border: "2px solid var(--hairline)",
+                        }}
+                      />
+                      <span
+                        className={`status-dot ${
+                          isUserOnline(editUser._id) ? "online" : "offline"
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <div className="fw-semibold">{editUser.name}</div>
+                      <div className="text-muted" style={{ fontSize: "12.5px" }}>
+                        {isUserOnline(editUser._id) ? "Online" : "Offline"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <form id="editUserForm" onSubmit={handleEditSubmit}>
+                    <div className="mb-3">
+                      <label className="form-label admin-label">Name</label>
+                      <input
+                        type="text"
+                        className="form-control admin-input"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        required
+                        disabled={saving}
+                      />
+                    </div>
+
+                    <div className="mb-1">
+                      <label className="form-label admin-label">Email</label>
+                      <input
+                        type="email"
+                        className="form-control admin-input"
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        required
+                        disabled={saving}
+                      />
+                    </div>
+                  </form>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-dark"
+                    onClick={closeEditModal}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    form="editUserForm"
+                    className="btn btn-warning btn-sm"
+                    disabled={saving}
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </div>
             </div>
-
-            <div className="d-flex align-items-center gap-3 mb-4">
-              <img
-                src={editUser.image}
-                alt=""
-                style={{
-                  width: "56px",
-                  height: "56px",
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  border: "2px solid var(--hairline)",
-                }}
-              />
-              <span className={`status-dot ${isUserOnline(editUser._id) ? "online" : "offline"}`} />
-            </div>
-
-            <form onSubmit={handleEditSubmit}>
-              <div className="mb-3">
-                <label className="form-label admin-label">Name</label>
-                <input
-                  type="text"
-                  className="form-control admin-input"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  required
-                  disabled={saving}
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="form-label admin-label">Email</label>
-                <input
-                  type="email"
-                  className="form-control admin-input"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  required
-                  disabled={saving}
-                />
-              </div>
-
-              <div className="d-flex justify-content-end gap-2">
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-dark"
-                  onClick={closeEditModal}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-warning btn-sm" disabled={saving}>
-                  {saving ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
+
+          <div className="modal-backdrop fade show"></div>
+        </>
       )}
     </div>
   );
