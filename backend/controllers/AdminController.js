@@ -545,3 +545,31 @@ exports.deletePrivateChatAdmin = async (req, res) => {
     res.status(500).json({ msg: "Failed to delete chat" });
   }
 };
+
+exports.addGroupMember = async (req, res) => {
+  try {
+    const { groupId, userId } = req.body;
+
+    const group = await Group.findById(groupId);
+    if (!group) return res.status(404).json({ msg: "Group not found" });
+
+    const alreadyMember = group.members.some((m) => m.toString() === userId);
+    if (alreadyMember) {
+      return res.status(400).json({ msg: "User is already a member of this group" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: "User not found" });
+    if (user.isBlocked) {
+      return res.status(400).json({ msg: "Blocked users cannot be added to a group" });
+    }
+
+    group.members.push(userId);
+    await group.save();
+
+    res.status(200).json({ group, msg: "Member added to group" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ msg: "Failed to add member" });
+  }
+};
