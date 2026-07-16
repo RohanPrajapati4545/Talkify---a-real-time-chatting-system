@@ -9,7 +9,6 @@ const ChatMonitor = () => {
 
   const [activeTab, setActiveTab] = useState("private"); // "private" | "group"
 
-  // ============== PRIVATE CHATS: USERS ==============
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [userSearch, setUserSearch] = useState("");
@@ -24,10 +23,10 @@ const ChatMonitor = () => {
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
-  // ============== USER'S GROUPS MODAL (new) ==============
-  const [groupsModalUser, setGroupsModalUser] = useState(null); // user whose groups we're listing
 
-  // ============== GROUP CHATS ==============
+  const [groupsModalUser, setGroupsModalUser] = useState(null); // jiska group dekh rhe h 
+
+
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [groupSearch, setGroupSearch] = useState("");
