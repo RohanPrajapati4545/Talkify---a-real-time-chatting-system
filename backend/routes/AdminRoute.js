@@ -25,6 +25,7 @@ router.get("/get-all-group", authMiddleware, adminMiddleware, (AdminController.g
 router.post("/delete-group", authMiddleware, adminMiddleware, (AdminController.deleteGroup));
 router.post("/update-group", authMiddleware, adminMiddleware, upload.single("image"), (AdminController.updateGroup));
 router.post("/remove-group-member", authMiddleware, adminMiddleware, (AdminController.removeGroupMember));
+router.post("/change-group-admin", authMiddleware, adminMiddleware, (AdminController.changeGroupAdmin));
 
 // group chat moderation
 router.get("/get-group-messages/:groupId", authMiddleware, adminMiddleware, (AdminController.getGroupMessages));

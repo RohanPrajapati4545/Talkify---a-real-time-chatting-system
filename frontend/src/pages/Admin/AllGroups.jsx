@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { FaChevronDown, FaChevronUp, FaPen, FaUserPlus } from "react-icons/fa";
+import { FaChevronDown, FaChevronUp, FaPen, FaUserPlus, FaCrown } from "react-icons/fa";
 
 const AllGroups = () => {
   const { token } = useSelector((state) => state.auth);
@@ -157,43 +157,65 @@ const AllGroups = () => {
   };
 
   // ============== REMOVE MEMBER / BLOCK ==============
+  // If the removed member is the current group admin (createdBy), the backend
+  // automatically promotes the next member as the new admin. The group is
+  // never deleted here — backend rejects removal if the admin is the only
+  // member left, so we warn the user upfront instead of firing a request
+  // that will fail.
 
   const handleRemoveMember = (group, memberId) => {
     const member = getMember(memberId);
     const memberName = member?.name || "this user";
+    const isAdmin = group.createdBy === memberId;
+    const onlyMemberLeft = isAdmin && (group.members || []).length === 1;
 
     Swal.fire({
-      title: "Remove Member?",
-      text: `Remove ${memberName} from "${group.groupName}".`,
+      title: onlyMemberLeft ? "Cannot Remove" : "Remove Member?",
+      text: onlyMemberLeft
+        ? `${memberName} is the only member and the group admin. Add another member first, or delete the group instead.`
+        : isAdmin
+        ? `${memberName} is the group admin. Removing them will automatically make the next member the new admin. Group will not be deleted.`
+        : `Remove ${memberName} from "${group.groupName}".`,
       icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, remove",
+      showCancelButton: !onlyMemberLeft,
+      confirmButtonText: onlyMemberLeft ? "OK" : "Yes, remove",
       confirmButtonColor: "#e8a33d",
       background: "#1c1812",
       color: "#f2ece2",
     }).then(async (result) => {
-      if (!result.isConfirmed) return;
+      if (onlyMemberLeft || !result.isConfirmed) return;
 
       try {
         setMemberActionId(memberId);
 
-        await axios.post(
+        const res = await axios.post(
           `${process.env.REACT_APP_API_URL}/api/admin/remove-group-member`,
           { groupId: group._id, userId: memberId },
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
+        const updatedGroup = res.data.group;
+
         setGroups((prev) =>
           prev.map((g) =>
             g._id === group._id
-              ? { ...g, members: g.members.filter((m) => m !== memberId) }
+              ? {
+                  ...g,
+                  members: updatedGroup?.members ?? g.members.filter((m) => m !== memberId),
+                  createdBy: updatedGroup?.createdBy ?? g.createdBy,
+                }
               : g
           )
         );
 
         Swal.fire({
           title: "Removed",
-          text: `${memberName} removed from group.`,
+          text:
+            isAdmin && updatedGroup
+              ? `${memberName} removed. ${
+                  getMember(updatedGroup.createdBy)?.name || "The next member"
+                } is now the group admin.`
+              : `${memberName} removed from group.`,
           icon: "success",
           background: "#1c1812",
           color: "#f2ece2",
@@ -252,6 +274,64 @@ const AllGroups = () => {
       } catch (error) {
         console.log(error);
         showErrorAlert(error, "Could not block user.");
+      } finally {
+        setMemberActionId(null);
+      }
+    });
+  };
+
+  // ============== MAKE ADMIN (transfer ownership) ==============
+  // Admin status is derived from group.createdBy, so making someone the
+  // new admin automatically demotes the old admin to a regular member —
+  // no separate "role" field needs to change.
+
+  const handleMakeAdmin = (group, memberId) => {
+    const member = getMember(memberId);
+    const memberName = member?.name || "this user";
+    const currentAdmin = getMember(group.createdBy);
+
+    Swal.fire({
+      title: "Make Admin?",
+      text: `${memberName} will become the new admin of "${group.groupName}". ${
+        currentAdmin?.name || "The current admin"
+      } will become a regular member.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, make admin",
+      confirmButtonColor: "#e8a33d",
+      background: "#1c1812",
+      color: "#f2ece2",
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+
+      try {
+        setMemberActionId(memberId);
+
+        const res = await axios.post(
+          `${process.env.REACT_APP_API_URL}/api/admin/change-group-admin`,
+          { groupId: group._id, newAdminId: memberId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const updatedGroup = res.data.group;
+
+        setGroups((prev) =>
+          prev.map((g) =>
+            g._id === group._id ? { ...g, createdBy: updatedGroup?.createdBy ?? memberId } : g
+          )
+        );
+
+        Swal.fire({
+          title: "Admin Changed",
+          text: `${memberName} is now the group admin.`,
+          icon: "success",
+          background: "#1c1812",
+          color: "#f2ece2",
+          confirmButtonColor: "#e8a33d",
+        });
+      } catch (error) {
+        console.log(error);
+        showErrorAlert(error, "Could not change admin.");
       } finally {
         setMemberActionId(null);
       }
@@ -518,6 +598,7 @@ const AllGroups = () => {
                               const member = getMember(memberId);
                               const isFetching = fetchingIds.has(memberId);
                               const isBusy = memberActionId === memberId;
+                              const isCurrentAdmin = memberId === group.createdBy;
 
                               return (
                                 <div className="member-row" key={memberId}>
@@ -536,7 +617,7 @@ const AllGroups = () => {
                                     <div>
                                       <div className="fw-semibold" style={{ fontSize: "13px" }}>
                                         {member?.name || (isFetching ? "Loading..." : "Unknown user")}
-                                        {memberId === group.createdBy && (
+                                        {isCurrentAdmin && (
                                           <span className="badge bg-dark ms-2" style={{ fontSize: "9px" }}>
                                             Admin
                                           </span>
@@ -554,6 +635,22 @@ const AllGroups = () => {
                                   </div>
 
                                   <div className="d-flex gap-2">
+                                    {!isCurrentAdmin && (
+                                      <button
+                                        className="btn btn-sm btn-outline-primary"
+                                        onClick={() => handleMakeAdmin(group, memberId)}
+                                        disabled={isBusy || member?.isBlocked}
+                                        title="Make this user the group admin"
+                                      >
+                                        {isBusy ? "..." : (
+                                          <>
+                                            <FaCrown size={11} className="me-1" />
+                                            Make Admin
+                                          </>
+                                        )}
+                                      </button>
+                                    )}
+
                                     <button
                                       className="btn btn-sm btn-outline-warning"
                                       onClick={() => handleRemoveMember(group, memberId)}

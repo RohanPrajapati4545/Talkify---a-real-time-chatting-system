@@ -52,29 +52,7 @@ const AdminSideBar = () => {
         Chat Monitor
       </NavLink>
 
-      <div className="menu-title">MODERATION</div>
-
-      <NavLink to="/admin/reported-messages" className="sidebar-link">
-        <i className="fa-solid fa-flag"></i>
-        Reported Messages
-      </NavLink>
-
-      <NavLink to="/admin/reported-users" className="sidebar-link">
-        <i className="fa-solid fa-user-shield"></i>
-        Reported Users
-      </NavLink>
-
-      <NavLink to="/admin/banned-users" className="sidebar-link">
-        <i className="fa-solid fa-ban"></i>
-        Banned Users
-      </NavLink>
-
-      <div className="menu-title">SETTINGS</div>
-
-      <NavLink to="/admin/profile" className="sidebar-link">
-        <i className="fa-solid fa-gear"></i>
-        Settings
-      </NavLink>
+     
 
       <div className="sidebar-footer">
         <button className="logout-btn" onClick={handleLogout}>

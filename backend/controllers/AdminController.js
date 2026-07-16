@@ -193,7 +193,7 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// ============== GROUP MANAGEMENT (new) ==============
+// ============== GROUP MANAGEMENT (updated) ==============
 
 exports.deleteGroup = async (req, res) => {
   try {
@@ -228,21 +228,78 @@ exports.updateGroup = async (req, res) => {
   }
 };
 
+// Remove a member from a group.
+// If the removed member is the current admin (group.createdBy), the next
+// member in the members array is automatically promoted to admin so the
+// group always keeps an admin and is never deleted as a side effect.
+// If the admin is the ONLY member left, the removal is rejected — the
+// caller should add another member first or delete the group explicitly.
 exports.removeGroupMember = async (req, res) => {
   try {
     const { groupId, userId } = req.body;
 
-    const group = await Group.findByIdAndUpdate(
-      groupId,
-      { $pull: { members: userId } },
-      { new: true }
-    );
-
+    const group = await Group.findById(groupId);
     if (!group) return res.status(404).json({ msg: "Group not found" });
+
+    const isMember = group.members.some((m) => m.toString() === userId);
+    if (!isMember) {
+      return res.status(400).json({ msg: "User is not a member of this group" });
+    }
+
+    const wasAdmin = group.createdBy?.toString() === userId;
+
+    group.members = group.members.filter((m) => m.toString() !== userId);
+
+    if (wasAdmin) {
+      if (group.members.length === 0) {
+        return res.status(400).json({
+          msg: "Cannot remove the only member. Add another member before removing the admin, or delete the group instead.",
+        });
+      }
+      // promote the next member in line as the new admin
+      group.createdBy = group.members[0];
+    }
+
+    await group.save();
 
     res.status(200).json({ group, msg: "Member removed from group" });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ msg: "Failed to remove member" });
+  }
+};
+
+// Manually transfer group adminship to any existing member.
+// Admin status is derived purely from `createdBy`, so setting it to the
+// new member automatically demotes the previous admin to a regular member —
+// no separate role flag needs to be touched.
+exports.changeGroupAdmin = async (req, res) => {
+  try {
+    const { groupId, newAdminId } = req.body;
+
+    if (!newAdminId) {
+      return res.status(400).json({ msg: "newAdminId is required" });
+    }
+
+    const group = await Group.findById(groupId);
+    if (!group) return res.status(404).json({ msg: "Group not found" });
+
+    const isMember = group.members.some((m) => m.toString() === newAdminId);
+    if (!isMember) {
+      return res.status(400).json({ msg: "Selected user is not a member of this group" });
+    }
+
+    if (group.createdBy?.toString() === newAdminId) {
+      return res.status(400).json({ msg: "This user is already the group admin" });
+    }
+
+    group.createdBy = newAdminId;
+    await group.save();
+
+    res.status(200).json({ group, msg: "Group admin changed successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ msg: "Failed to change group admin" });
   }
 };
 
