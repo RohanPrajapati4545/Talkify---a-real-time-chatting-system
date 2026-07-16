@@ -615,7 +615,7 @@ const AllGroups = () => {
                                       }}
                                     />
                                     <div>
-                                      <div className="fw-semibold" style={{ fontSize: "13px" }}>
+                                      <div className="fw-semibold" style={{ fontSize: "13px", color:"white" }}>
                                         {member?.name || (isFetching ? "Loading..." : "Unknown user")}
                                         {isCurrentAdmin && (
                                           <span className="badge bg-dark ms-2" style={{ fontSize: "9px" }}>

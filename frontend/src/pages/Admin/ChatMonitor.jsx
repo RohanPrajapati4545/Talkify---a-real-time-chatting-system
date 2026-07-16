@@ -24,6 +24,9 @@ const ChatMonitor = () => {
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
+  // ============== USER'S GROUPS MODAL (new) ==============
+  const [groupsModalUser, setGroupsModalUser] = useState(null); // user whose groups we're listing
+
   // ============== GROUP CHATS ==============
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
@@ -286,6 +289,35 @@ const ChatMonitor = () => {
         setClearingChat(false);
       }
     });
+  };
+
+  // ============== USER'S GROUPS MODAL (new) ==============
+  // Groups are already loaded for the "Group Chats" tab, so we just filter
+  // that list client-side by membership — no extra API call needed.
+
+  const openGroupsForUser = (user) => {
+    setGroupsModalUser(user);
+  };
+
+  const closeGroupsModal = () => {
+    setGroupsModalUser(null);
+  };
+
+  const getGroupsForUser = (user) => {
+    if (!user) return [];
+    return groups.filter(
+      (g) =>
+        g.members?.includes(user._id) ||
+        g.createdBy === user._id ||
+        g.members?.some((m) => (typeof m === "object" ? m._id === user._id : m === user._id))
+    );
+  };
+
+  // Jump straight from the groups modal into that group's chat log
+  const goToGroupChatFromModal = (group) => {
+    closeGroupsModal();
+    setActiveTab("group");
+    openChatsForGroup(group);
   };
 
   // ============== GROUP CHATS ==============
@@ -660,6 +692,8 @@ const ChatMonitor = () => {
     g.groupName?.toLowerCase().includes(groupSearch.toLowerCase())
   );
 
+  const modalUserGroups = getGroupsForUser(groupsModalUser);
+
   return (
     <div className="dashboard-wrapper p-4">
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
@@ -747,13 +781,24 @@ const ChatMonitor = () => {
                         </div>
                       </div>
 
-                      <button
-                        className="btn btn-sm btn-outline-info"
-                        onClick={() => openChatsForUser(user)}
-                      >
-                        <FaComments size={11} className="me-1" />
-                        View Chats
-                      </button>
+                      <div className="d-flex gap-2">
+                        <button
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={() => openGroupsForUser(user)}
+                          title="See all groups this user is a member of"
+                        >
+                          <FaUsers size={11} className="me-1" />
+                          View Groups
+                        </button>
+
+                        <button
+                          className="btn btn-sm btn-outline-info"
+                          onClick={() => openChatsForUser(user)}
+                        >
+                          <FaComments size={11} className="me-1" />
+                          View Chats
+                        </button>
+                      </div>
                     </div>
                   ))}
               </>
@@ -1019,6 +1064,109 @@ const ChatMonitor = () => {
           </>
         )}
       </div>
+
+      {/* ============== USER'S GROUPS MODAL (new) ============== */}
+      {groupsModalUser && (
+        <>
+          <div
+            className="modal fade show d-block admin-edit-modal"
+            tabIndex="-1"
+            role="dialog"
+            onClick={closeGroupsModal}
+          >
+            <div
+              className="modal-dialog modal-dialog-centered"
+              role="document"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
+                    <img
+                      src={groupsModalUser.image}
+                      alt=""
+                      style={{ width: "28px", height: "28px", borderRadius: "50%", objectFit: "cover" }}
+                    />
+                    {groupsModalUser.name} — Groups
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={closeGroupsModal}
+                    aria-label="Close"
+                  ></button>
+                </div>
+
+                <div className="modal-body">
+                  {modalUserGroups.length === 0 ? (
+                    <div className="text-center text-muted py-3">
+                      This user is not a member of any group.
+                    </div>
+                  ) : (
+                    <div style={{ maxHeight: "360px", overflowY: "auto" }}>
+                      {modalUserGroups.map((group) => {
+                        const isAdmin = group.createdBy === groupsModalUser._id;
+
+                        return (
+                          <div className="member-row" key={group._id}>
+                            <div className="d-flex align-items-center gap-2">
+                              <img
+                                src={group.groupImage}
+                                alt=""
+                                style={{
+                                  width: "36px",
+                                  height: "36px",
+                                  borderRadius: "50%",
+                                  objectFit: "cover",
+                                  background: "var(--panel-2)",
+                                }}
+                              />
+                              <div>
+                                <div className="fw-semibold" style={{ fontSize: "13px" }}>
+                                  {group.groupName}
+                                  {isAdmin && (
+                                    <span className="badge bg-dark ms-2" style={{ fontSize: "9px" }}>
+                                      Admin
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-muted" style={{ fontSize: "11.5px" }}>
+                                  {group.members?.length ?? 0} member
+                                  {group.members?.length === 1 ? "" : "s"}
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              className="btn btn-sm btn-outline-info"
+                              onClick={() => goToGroupChatFromModal(group)}
+                            >
+                              <FaComments size={11} className="me-1" />
+                              View Chat
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-dark"
+                    onClick={closeGroupsModal}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="modal-backdrop fade show"></div>
+        </>
+      )}
     </div>
   );
 };
