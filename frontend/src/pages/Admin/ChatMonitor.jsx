@@ -1,8 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { FaComments, FaUsers, FaPen, FaTrash, FaArrowLeft } from "react-icons/fa";
+import { io } from "socket.io-client";
+import { FaComments, FaUsers, FaPen, FaTrash, FaArrowLeft, FaCircle } from "react-icons/fa";
+
+// ⚠️ If your app already has a shared socket instance/context (e.g. a
+// SocketContext used by the main chat screens), reuse that instead of
+// creating a second connection here. This creates its own connection
+// scoped to the admin panel so it works standalone.
+const SOCKET_URL = process.env.REACT_APP_API_URL;
 
 const ChatMonitor = () => {
   const { token } = useSelector((state) => state.auth);
@@ -43,6 +50,117 @@ const ChatMonitor = () => {
   const [editingMessageImagePreview, setEditingMessageImagePreview] = useState("");
   const [messageActionId, setMessageActionId] = useState(null);
   const [clearingChat, setClearingChat] = useState(false);
+
+  // ============== REAL-TIME (socket.io) ==============
+  const socketRef = useRef(null);
+  const [onlineUserIds, setOnlineUserIds] = useState(new Set());
+
+  // Refs mirror the "currently open" chat/group so socket callbacks
+  // (registered once) always see the latest value instead of a stale
+  // closure from when the listener was attached.
+  const selectedChatRef = useRef(null);
+  const chatGroupRef = useRef(null);
+  const chatUserRef = useRef(null);
+
+  useEffect(() => {
+    selectedChatRef.current = selectedChat;
+  }, [selectedChat]);
+
+  useEffect(() => {
+    chatGroupRef.current = chatGroup;
+  }, [chatGroup]);
+
+  useEffect(() => {
+    chatUserRef.current = chatUser;
+  }, [chatUser]);
+
+  const isUserOnline = (userId) => onlineUserIds.has(userId);
+
+  useEffect(() => {
+    const socket = io(SOCKET_URL, { transports: ["websocket", "polling"] });
+    socketRef.current = socket;
+
+    // ---- live online / offline presence ----
+    socket.on("onlineUsers", (ids) => {
+      setOnlineUserIds(new Set(ids));
+    });
+
+    // ---- live private chat messages ----
+    socket.on("receivePrivateMessage", (msg) => {
+      if (selectedChatRef.current && msg.chatId === selectedChatRef.current._id) {
+        setMessages((prev) =>
+          prev.some((m) => m._id === msg._id) ? prev : [...prev, msg]
+        );
+      }
+
+      setUserChats((prev) => {
+        if (!prev.some((c) => c._id === msg.chatId)) return prev;
+        return prev
+          .map((c) =>
+            c._id === msg.chatId ? { ...c, updatedAt: new Date().toISOString() } : c
+          )
+          .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      });
+    });
+
+    socket.on("privateMessageUpdated", (msg) => {
+      if (selectedChatRef.current && msg.chatId === selectedChatRef.current._id) {
+        setMessages((prev) => prev.map((m) => (m._id === msg._id ? msg : m)));
+      }
+    });
+
+    socket.on("privateMessageDeleted", ({ _id, chatId }) => {
+      if (selectedChatRef.current && chatId === selectedChatRef.current._id) {
+        setMessages((prev) => prev.filter((m) => m._id !== _id));
+      }
+    });
+
+    socket.on("privateChatCleared", ({ chatId }) => {
+      if (selectedChatRef.current && chatId === selectedChatRef.current._id) {
+        setMessages([]);
+      }
+    });
+
+    socket.on("privateChatDeleted", ({ chatId }) => {
+      setUserChats((prev) => prev.filter((c) => c._id !== chatId));
+      if (selectedChatRef.current && chatId === selectedChatRef.current._id) {
+        setSelectedChat(null);
+        setMessages([]);
+        setChatView("list");
+      }
+    });
+
+    // ---- live group chat messages ----
+    socket.on("receiveMessage", (msg) => {
+      if (chatGroupRef.current && msg.groupId === chatGroupRef.current._id) {
+        setGroupMessages((prev) =>
+          prev.some((m) => m._id === msg._id) ? prev : [...prev, msg]
+        );
+      }
+    });
+
+    socket.on("groupMessageUpdated", (msg) => {
+      if (chatGroupRef.current && msg.groupId === chatGroupRef.current._id) {
+        setGroupMessages((prev) => prev.map((m) => (m._id === msg._id ? msg : m)));
+      }
+    });
+
+    socket.on("groupMessageDeleted", ({ _id, groupId }) => {
+      if (chatGroupRef.current && groupId === chatGroupRef.current._id) {
+        setGroupMessages((prev) => prev.filter((m) => m._id !== _id));
+      }
+    });
+
+    socket.on("groupChatCleared", ({ groupId }) => {
+      if (chatGroupRef.current && groupId === chatGroupRef.current._id) {
+        setGroupMessages([]);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const showErrorAlert = (error, fallbackText) => {
     const backendMsg = error?.response?.data?.msg || error?.response?.data?.message;
@@ -136,6 +254,10 @@ const ChatMonitor = () => {
     setChatView("messages");
     setMessages([]);
     setLoadingMessages(true);
+
+    // join the room so live message/edit/delete/clear events for this
+    // conversation reach this admin session
+    socketRef.current?.emit("joinPrivateChat", chat._id);
 
     try {
       const res = await axios.get(
@@ -322,6 +444,10 @@ const ChatMonitor = () => {
     setChatGroup(group);
     setLoadingGroupMessages(true);
     setGroupMessages([]);
+
+    // join the group's room so live message/edit/delete/clear events reach
+    // this admin session
+    socketRef.current?.emit("joinGroup", group._id);
 
     try {
       const res = await axios.get(
@@ -690,12 +816,27 @@ const ChatMonitor = () => {
 
   const modalUserGroups = getGroupsForUser(groupsModalUser);
 
+  // small reusable presence dot, overlaid on an avatar
+  const PresenceDot = ({ online }) => (
+    <FaCircle
+      size={9}
+      style={{
+        position: "absolute",
+        bottom: 0,
+        right: 0,
+        color: online ? "#2ecc71" : "#b0b0b0",
+        background: "#fff",
+        borderRadius: "50%",
+      }}
+    />
+  );
+
   return (
     <div className="dashboard-wrapper p-4">
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
           <h2 className="fw-bold mb-1">Chat Monitor</h2>
-          <p className="text-muted mb-0">View and moderate private &amp; group conversations</p>
+          <p className="text-muted mb-0">View and moderate private &amp; group conversations — live</p>
         </div>
       </div>
 
@@ -751,17 +892,20 @@ const ChatMonitor = () => {
                         style={{ cursor: "pointer" }}
                         onClick={() => openChatsForUser(user)}
                       >
-                        <img
-                          src={user.image}
-                          alt=""
-                          style={{
-                            width: "36px",
-                            height: "36px",
-                            borderRadius: "50%",
-                            objectFit: "cover",
-                            background: "var(--panel-2)",
-                          }}
-                        />
+                        <div style={{ position: "relative" }}>
+                          <img
+                            src={user.image}
+                            alt=""
+                            style={{
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "50%",
+                              objectFit: "cover",
+                              background: "var(--panel-2)",
+                            }}
+                          />
+                          <PresenceDot online={isUserOnline(user._id)} />
+                        </div>
                         <div>
                           <div className="fw-semibold" style={{ fontSize: "13px" }}>
                             {user.name}
@@ -772,6 +916,12 @@ const ChatMonitor = () => {
                             )}
                           </div>
                           <div className="text-muted" style={{ fontSize: "11.5px" }}>
+                            {isUserOnline(user._id) ? (
+                              <span style={{ color: "#2ecc71" }}>Online</span>
+                            ) : (
+                              "Offline"
+                            )}
+                            {" · "}
                             {user.email}
                           </div>
                         </div>
@@ -811,11 +961,14 @@ const ChatMonitor = () => {
                   >
                     <FaArrowLeft size={11} />
                   </button>
-                  <img
-                    src={chatUser.image}
-                    alt=""
-                    style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover" }}
-                  />
+                  <div style={{ position: "relative" }}>
+                    <img
+                      src={chatUser.image}
+                      alt=""
+                      style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover" }}
+                    />
+                    <PresenceDot online={isUserOnline(chatUser._id)} />
+                  </div>
                   <h5 className="fw-bold m-0">{chatUser.name} — Conversations</h5>
                 </div>
 
@@ -841,17 +994,20 @@ const ChatMonitor = () => {
                           style={{ cursor: "pointer" }}
                           onClick={() => openChatMessages(chat)}
                         >
-                          <img
-                            src={other?.image}
-                            alt=""
-                            style={{
-                              width: "36px",
-                              height: "36px",
-                              borderRadius: "50%",
-                              objectFit: "cover",
-                              background: "var(--panel-2)",
-                            }}
-                          />
+                          <div style={{ position: "relative" }}>
+                            <img
+                              src={other?.image}
+                              alt=""
+                              style={{
+                                width: "36px",
+                                height: "36px",
+                                borderRadius: "50%",
+                                objectFit: "cover",
+                                background: "var(--panel-2)",
+                              }}
+                            />
+                            {other && <PresenceDot online={isUserOnline(other._id)} />}
+                          </div>
                           <div>
                             <div className="fw-semibold" style={{ fontSize: "13px" }}>
                               {other?.name || "Unknown user"}
@@ -910,11 +1066,16 @@ const ChatMonitor = () => {
                     >
                       <FaArrowLeft size={11} />
                     </button>
-                    <img
-                      src={getOtherMember(selectedChat)?.image}
-                      alt=""
-                      style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover" }}
-                    />
+                    <div style={{ position: "relative" }}>
+                      <img
+                        src={getOtherMember(selectedChat)?.image}
+                        alt=""
+                        style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover" }}
+                      />
+                      {getOtherMember(selectedChat) && (
+                        <PresenceDot online={isUserOnline(getOtherMember(selectedChat)._id)} />
+                      )}
+                    </div>
                     <h5 className="fw-bold m-0">
                       {chatUser.name} ↔ {getOtherMember(selectedChat)?.name || "Unknown"}
                     </h5>
