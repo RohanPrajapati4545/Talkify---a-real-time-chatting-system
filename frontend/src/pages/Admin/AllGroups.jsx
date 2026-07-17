@@ -485,7 +485,7 @@ const AllGroups = () => {
         </div>
 
         <div className="table-responsive">
-          <table className="table align-middle">
+          <table className="table align-middle ">
             <thead>
               <tr>
                 <th></th>
