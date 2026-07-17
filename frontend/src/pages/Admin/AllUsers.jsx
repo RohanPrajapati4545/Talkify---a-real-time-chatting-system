@@ -4,13 +4,24 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import { io } from "socket.io-client";
 
+const USER_LIMIT = 10;
+const SEARCH_DEBOUNCE_MS = 500;
+
 const AllUsers = () => {
   const { token } = useSelector((state) => state.auth);
 
   const [users, setUsers] = useState([]);
+  const [total, setTotal] = useState(0);
   const [onlineUserIds, setOnlineUserIds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadMoreLoading, setLoadMoreLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+
+  const requestIdRef = useRef(0);
+  const isFirstSearchRef = useRef(true);
 
   const [editUser, setEditUser] = useState(null);
   const [editName, setEditName] = useState("");
@@ -21,24 +32,71 @@ const AllUsers = () => {
 
   const socketRef = useRef(null);
 
-  const getUsers = async () => {
+  const fetchUsers = async (term, pageNum, append = false) => {
+    const currentRequestId = ++requestIdRef.current;
+
+    if (append) setLoadMoreLoading(true);
+    else setLoading(true);
+
     try {
-      setLoading(true);
       const res = await axios.get(
         `${process.env.REACT_APP_API_URL}/api/admin/get-all-user`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          params: { search: term, page: pageNum, limit: USER_LIMIT },
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
-      setUsers(res.data.users);
+
+      // ignore stale responses if a newer request has since been fired
+      if (currentRequestId !== requestIdRef.current) return;
+
+      const list = res.data.users || [];
+      setUsers((prev) => (append ? [...prev, ...list] : list));
+      setHasMore(Boolean(res.data.pagination?.hasMore));
+      setTotal(res.data.pagination?.total ?? list.length);
+      setPage(pageNum);
     } catch (error) {
       console.log(error);
+      if (!append) {
+        setUsers([]);
+        setTotal(0);
+      }
+      setHasMore(false);
     } finally {
       setLoading(false);
+      setLoadMoreLoading(false);
     }
   };
 
+  // initial load — page 1, no search term
   useEffect(() => {
-    getUsers();
+    fetchUsers("", 1, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // debounce search input — 500ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // re-fetch whenever the debounced term changes (skip the very first run,
+  // since the mount effect above already fetched page 1)
+  useEffect(() => {
+    if (isFirstSearchRef.current) {
+      isFirstSearchRef.current = false;
+      return;
+    }
+    fetchUsers(debouncedSearch, 1, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  const handleLoadMore = () => {
+    if (loadMoreLoading || !hasMore) return;
+    fetchUsers(debouncedSearch, page + 1, true);
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -144,6 +202,7 @@ const AllUsers = () => {
         );
 
         setUsers((prev) => prev.filter((u) => u._id !== user._id));
+        setTotal((prev) => Math.max(0, prev - 1));
 
         Swal.fire({
           title: "Deleted",
@@ -211,11 +270,8 @@ const AllUsers = () => {
     }
   };
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.name?.toLowerCase().includes(search.toLowerCase()) ||
-      u.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  // search is now server-side (debounced), so `users` already reflects the
+  // current search term — no client-side filtering needed
 
   return (
     <div className="dashboard-wrapper p-4">
@@ -238,7 +294,7 @@ const AllUsers = () => {
       <div className="bg-white rounded-4 shadow-sm p-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h4 className="fw-bold m-0">Users</h4>
-          <span className="badge bg-dark px-3 py-2">{filteredUsers.length} Users</span>
+          <span className="badge bg-dark px-3 py-2">{total} Users</span>
         </div>
 
         <div className="table-responsive">
@@ -254,7 +310,7 @@ const AllUsers = () => {
             </thead>
 
             <tbody>
-              {filteredUsers.map((item) => {
+              {users.map((item) => {
                 const online = isUserOnline(item._id);
                 const isRowBusy = actionLoadingId === item._id;
 
@@ -332,13 +388,25 @@ const AllUsers = () => {
             </tbody>
           </table>
 
-          {!loading && filteredUsers.length === 0 && (
+          {!loading && users.length === 0 && (
             <div className="text-center py-4">No Users Found</div>
+          )}
+
+          {!loading && hasMore && (
+            <div className="text-center mt-2">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-dark"
+                onClick={handleLoadMore}
+                disabled={loadMoreLoading}
+              >
+                {loadMoreLoading ? "Loading..." : "Load more"}
+              </button>
+            </div>
           )}
         </div>
       </div>
 
- 
       {editUser && (
         <>
           <div

@@ -8,9 +8,8 @@ const PrivateChat = require("./../models/PrivateChatSchema");
 const PrivateMessage = require("./../models/PrivateMessageSchema");
 exports.getAllUsers = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search?.trim() || "";
+    const fetchAll = req.query.all === "true"; // used by lookup-map callers (e.g. AllGroups member resolution)
 
     const query = {};
     if (search) {
@@ -19,6 +18,14 @@ exports.getAllUsers = async (req, res) => {
         { email: { $regex: search, $options: "i" } },
       ];
     }
+
+    if (fetchAll) {
+      const users = await User.find(query).select("-password").sort({ name: 1 });
+      return res.status(200).json({ users });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
 
     const total = await User.countDocuments(query);
 
@@ -73,6 +80,7 @@ exports.getAllGroups = async (req, res) => {
     res.status(500).json({ msg: "Failed to fetch groups" });
   }
 };
+
 exports.getMessagesCount = async (req, res) => {
   try {
     const count = await Message.countDocuments();

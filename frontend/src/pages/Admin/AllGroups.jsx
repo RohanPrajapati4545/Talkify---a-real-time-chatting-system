@@ -1,18 +1,34 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { FaChevronDown, FaChevronUp, FaPen, FaUserPlus, FaCrown } from "react-icons/fa";
 
+const GROUP_LIMIT = 10;
+const SEARCH_DEBOUNCE_MS = 500;
+
 const AllGroups = () => {
   const { token } = useSelector((state) => state.auth);
 
   const [groups, setGroups] = useState([]);
+  const [totalGroups, setTotalGroups] = useState(0);
+  const [groupPage, setGroupPage] = useState(1);
+  const [groupHasMore, setGroupHasMore] = useState(false);
+  const [loadMoreGroupsLoading, setLoadMoreGroupsLoading] = useState(false);
+  const groupRequestIdRef = useRef(0);
+  const isFirstSearchRef = useRef(true);
+
+  // usersMap is a lookup directory (member/creator name resolution +
+  // "Add Member" modal search) — NOT a paginated browse list, so it
+  // fetches the full user directory (all=true) regardless of the groups
+  // list's pagination.
   const [usersMap, setUsersMap] = useState({});
   const [memberCache, setMemberCache] = useState({});
   const [fetchingIds, setFetchingIds] = useState(new Set());
+
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [expandedGroup, setExpandedGroup] = useState(null);
   const [memberActionId, setMemberActionId] = useState(null);
 
@@ -28,15 +44,39 @@ const AllGroups = () => {
   const [addMemberSearch, setAddMemberSearch] = useState("");
   const [addingMemberId, setAddingMemberId] = useState(null);
 
-  const getGroups = async () => {
+  const fetchGroups = async (term, page, append = false) => {
+    const currentRequestId = ++groupRequestIdRef.current;
+
+    if (append) setLoadMoreGroupsLoading(true);
+    else setLoading(true);
+
     try {
       const res = await axios.get(
         `${process.env.REACT_APP_API_URL}/api/admin/get-all-group`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          params: { search: term, page, limit: GROUP_LIMIT },
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
-      setGroups(res.data.groups || []);
+
+      // ignore stale responses if a newer request has since been fired
+      if (currentRequestId !== groupRequestIdRef.current) return;
+
+      const list = res.data.groups || [];
+      setGroups((prev) => (append ? [...prev, ...list] : list));
+      setGroupHasMore(Boolean(res.data.pagination?.hasMore));
+      setTotalGroups(res.data.pagination?.total ?? list.length);
+      setGroupPage(page);
     } catch (error) {
       console.log(error);
+      if (!append) {
+        setGroups([]);
+        setTotalGroups(0);
+      }
+      setGroupHasMore(false);
+    } finally {
+      setLoading(false);
+      setLoadMoreGroupsLoading(false);
     }
   };
 
@@ -44,7 +84,10 @@ const AllGroups = () => {
     try {
       const res = await axios.get(
         `${process.env.REACT_APP_API_URL}/api/admin/get-all-user`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          params: { all: true }, // full directory — not paginated
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
 
       const map = {};
@@ -57,15 +100,36 @@ const AllGroups = () => {
     }
   };
 
-  const loadAll = async () => {
-    setLoading(true);
-    await Promise.all([getGroups(), getUsers()]);
-    setLoading(false);
-  };
-
+  // initial load — groups page 1 + full users directory
   useEffect(() => {
-    loadAll();
+    fetchGroups("", 1, false);
+    getUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // debounce group search input — 500ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // re-fetch groups whenever the debounced term changes (skip the very
+  // first run, since the mount effect above already fetched page 1)
+  useEffect(() => {
+    if (isFirstSearchRef.current) {
+      isFirstSearchRef.current = false;
+      return;
+    }
+    fetchGroups(debouncedSearch, 1, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  const handleLoadMoreGroups = () => {
+    if (loadMoreGroupsLoading || !groupHasMore) return;
+    fetchGroups(debouncedSearch, groupPage + 1, true);
+  };
 
   const showErrorAlert = (error, fallbackText) => {
     const backendMsg = error?.response?.data?.msg || error?.response?.data?.message;
@@ -116,7 +180,6 @@ const AllGroups = () => {
       });
     }
   };
- 
 
   const handleDeleteGroup = (group) => {
     Swal.fire({
@@ -147,7 +210,8 @@ const AllGroups = () => {
           confirmButtonColor: "#e8a33d",
         });
 
-        loadAll();
+        // refresh current search/page-1 view after a deletion
+        fetchGroups(debouncedSearch, 1, false);
       } catch (error) {
         console.log(error);
         showErrorAlert(error, "Could not delete group.");
@@ -155,7 +219,6 @@ const AllGroups = () => {
     });
   };
 
- 
   const handleRemoveMember = (group, memberId) => {
     const member = getMember(memberId);
     const memberName = member?.name || "this user";
@@ -272,7 +335,6 @@ const AllGroups = () => {
       }
     });
   };
- 
 
   const handleMakeAdmin = (group, memberId) => {
     const member = getMember(memberId);
@@ -326,8 +388,6 @@ const AllGroups = () => {
       }
     });
   };
-
- 
 
   const openAddMemberModal = (group) => {
     setAddMemberGroup(group);
@@ -385,8 +445,6 @@ const AllGroups = () => {
       }
     });
   };
-
- 
 
   const openEditGroup = (group) => {
     setEditGroup(group);
@@ -456,9 +514,8 @@ const AllGroups = () => {
     }
   };
 
-  const filteredGroups = groups.filter((g) =>
-    g.groupName?.toLowerCase().includes(search.toLowerCase())
-  );
+  // search is now server-side (debounced), so `groups` already reflects
+  // the current search term — no client-side filtering needed
 
   return (
     <div className="dashboard-wrapper p-4">
@@ -481,7 +538,7 @@ const AllGroups = () => {
       <div className="bg-white rounded-4 shadow-sm p-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h4 className="fw-bold m-0">Groups</h4>
-          <span className="badge bg-dark px-3 py-2">{filteredGroups.length} Groups</span>
+          <span className="badge bg-dark px-3 py-2">{totalGroups} Groups</span>
         </div>
 
         <div className="table-responsive">
@@ -498,7 +555,7 @@ const AllGroups = () => {
             </thead>
 
             <tbody>
-              {filteredGroups.map((group) => {
+              {groups.map((group) => {
                 const isOpen = expandedGroup === group._id;
                 const creator = getMember(group.createdBy);
 
@@ -673,13 +730,25 @@ const AllGroups = () => {
             </tbody>
           </table>
 
-          {!loading && filteredGroups.length === 0 && (
+          {!loading && groups.length === 0 && (
             <div className="text-center py-4">No Groups Found</div>
+          )}
+
+          {!loading && groupHasMore && (
+            <div className="text-center mt-2">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-dark"
+                onClick={handleLoadMoreGroups}
+                disabled={loadMoreGroupsLoading}
+              >
+                {loadMoreGroupsLoading ? "Loading..." : "Load more"}
+              </button>
+            </div>
           )}
         </div>
       </div>
 
-      
       {editGroup && (
         <>
           <div
@@ -774,7 +843,6 @@ const AllGroups = () => {
         </>
       )}
 
- 
       {addMemberGroup && (
         <>
           <div
