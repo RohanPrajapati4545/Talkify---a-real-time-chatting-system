@@ -188,29 +188,31 @@ const MyGroups = () => {
   useEffect(() => {
     privateChatRef.current = privateChat;
   }, [privateChat]);
+const getAllUsers = async () => {
+  try {
+    const res = await axios.get(
+      `${process.env.REACT_APP_API_URL}/api/users/all-users`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  const getAllUsers = async () => {
-    try {
-      const res = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/users/all-users`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      setAllUsers(res.data);
-      const filteredUsers = res.data.filter(
-        (u) => u._id !== user._id
-      );
+    const usersList = res.data.users; 
 
-      setUsers(filteredUsers);
+    setAllUsers(usersList);
 
-    } catch (error) {
-      console.log(error);
-    }
-  };
+    const filteredUsers = usersList.filter(
+      (u) => u._id !== user._id
+    );
 
+    setUsers(filteredUsers);
+
+  } catch (error) {
+    console.log(error);
+  }
+};
   const getBlockedUsers = async () => {
     try {
       const res = await axios.get(

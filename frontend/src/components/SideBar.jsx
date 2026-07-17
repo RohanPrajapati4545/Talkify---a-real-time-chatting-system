@@ -9,7 +9,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
 const GROUP_SEARCH_API = `${API_BASE_URL}/api/user/get-my-group`;
 const USER_SEARCH_API = `${API_BASE_URL}/api/users/all-users`;
 
-const PAGE_LIMIT = 20;
+const PAGE_LIMIT = 5;
 
 const SideBar = ({
   activeTab,
@@ -50,7 +50,7 @@ const SideBar = ({
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedTerm(searchTerm.trim());
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
