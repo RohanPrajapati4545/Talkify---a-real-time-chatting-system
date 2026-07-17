@@ -11,17 +11,29 @@ import { FaComments, FaUsers, FaPen, FaTrash, FaArrowLeft, FaCircle } from "reac
 // scoped to the admin panel so it works standalone.
 const SOCKET_URL = process.env.REACT_APP_API_URL;
 
+// pagination constants — same pattern as SideBar.jsx
+const USER_LIMIT = 10;
+const GROUP_LIMIT = 10;
+const SEARCH_DEBOUNCE_MS = 500;
+
 const ChatMonitor = () => {
   const { token } = useSelector((state) => state.auth);
 
-  const [activeTab, setActiveTab] = useState("private");  
+  const [activeTab, setActiveTab] = useState("private");
 
+  // ============== USERS LIST (paginated + debounced search) ==============
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadMoreUsersLoading, setLoadMoreUsersLoading] = useState(false);
   const [userSearch, setUserSearch] = useState("");
+  const [debouncedUserSearch, setDebouncedUserSearch] = useState("");
+  const [userPage, setUserPage] = useState(1);
+  const [userHasMore, setUserHasMore] = useState(false);
+  const userRequestIdRef = useRef(0);
+  const isFirstUserSearchRef = useRef(true);
 
-  const [chatUser, setChatUser] = useState(null);  
-  const [chatView, setChatView] = useState("list");  
+  const [chatUser, setChatUser] = useState(null);
+  const [chatView, setChatView] = useState("list");
   const [userChats, setUserChats] = useState([]);
   const [loadingChats, setLoadingChats] = useState(false);
   const [chatActionId, setChatActionId] = useState(null);
@@ -30,20 +42,24 @@ const ChatMonitor = () => {
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
+  const [groupsModalUser, setGroupsModalUser] = useState(null);
 
-  const [groupsModalUser, setGroupsModalUser] = useState(null);  
-
-
+  // ============== GROUPS LIST (paginated + debounced search) ==============
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
+  const [loadMoreGroupsLoading, setLoadMoreGroupsLoading] = useState(false);
   const [groupSearch, setGroupSearch] = useState("");
+  const [debouncedGroupSearch, setDebouncedGroupSearch] = useState("");
+  const [groupPage, setGroupPage] = useState(1);
+  const [groupHasMore, setGroupHasMore] = useState(false);
+  const groupRequestIdRef = useRef(0);
+  const isFirstGroupSearchRef = useRef(true);
 
-  const [chatGroup, setChatGroup] = useState(null); 
+  const [chatGroup, setChatGroup] = useState(null);
   const [groupMessages, setGroupMessages] = useState([]);
   const [loadingGroupMessages, setLoadingGroupMessages] = useState(false);
 
- 
-  const [editingType, setEditingType] = useState(null);  
+  const [editingType, setEditingType] = useState(null);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingMessageText, setEditingMessageText] = useState("");
   const [editingMessageImage, setEditingMessageImage] = useState(null);
@@ -175,43 +191,124 @@ const ChatMonitor = () => {
     });
   };
 
- 
+  // ============== FETCH USERS (paginated + searchable) ==============
+  const fetchUsers = async (term, page, append = false) => {
+    const currentRequestId = ++userRequestIdRef.current;
 
-  const getUsers = async () => {
+    if (append) setLoadMoreUsersLoading(true);
+    else setLoadingUsers(true);
+
     try {
-      setLoadingUsers(true);
       const res = await axios.get(
         `${process.env.REACT_APP_API_URL}/api/admin/get-all-user`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          params: { search: term, page, limit: USER_LIMIT },
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
-      setUsers(res.data.users || []);
+
+      // ignore stale responses if a newer request has since been fired
+      if (currentRequestId !== userRequestIdRef.current) return;
+
+      const list = res.data.users || [];
+      setUsers((prev) => (append ? [...prev, ...list] : list));
+      setUserHasMore(Boolean(res.data.pagination?.hasMore));
+      setUserPage(page);
     } catch (error) {
       console.log(error);
+      if (!append) setUsers([]);
+      setUserHasMore(false);
     } finally {
       setLoadingUsers(false);
+      setLoadMoreUsersLoading(false);
     }
   };
 
-  const getGroups = async () => {
+  // ============== FETCH GROUPS (paginated + searchable) ==============
+  const fetchGroups = async (term, page, append = false) => {
+    const currentRequestId = ++groupRequestIdRef.current;
+
+    if (append) setLoadMoreGroupsLoading(true);
+    else setLoadingGroups(true);
+
     try {
-      setLoadingGroups(true);
       const res = await axios.get(
         `${process.env.REACT_APP_API_URL}/api/admin/get-all-group`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          params: { search: term, page, limit: GROUP_LIMIT },
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
-      setGroups(res.data.groups || []);
+
+      if (currentRequestId !== groupRequestIdRef.current) return;
+
+      const list = res.data.groups || [];
+      setGroups((prev) => (append ? [...prev, ...list] : list));
+      setGroupHasMore(Boolean(res.data.pagination?.hasMore));
+      setGroupPage(page);
     } catch (error) {
       console.log(error);
+      if (!append) setGroups([]);
+      setGroupHasMore(false);
     } finally {
       setLoadingGroups(false);
+      setLoadMoreGroupsLoading(false);
     }
   };
 
+  // initial load — page 1, no search term
   useEffect(() => {
-    getUsers();
-    getGroups();
+    fetchUsers("", 1, false);
+    fetchGroups("", 1, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
- 
+
+  // debounce user search input — 500ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedUserSearch(userSearch.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [userSearch]);
+
+  // debounce group search input — 500ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedGroupSearch(groupSearch.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [groupSearch]);
+
+  // re-fetch users whenever the debounced term changes (skip the very
+  // first run, since the mount effect above already fetched page 1)
+  useEffect(() => {
+    if (isFirstUserSearchRef.current) {
+      isFirstUserSearchRef.current = false;
+      return;
+    }
+    fetchUsers(debouncedUserSearch, 1, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedUserSearch]);
+
+  // re-fetch groups whenever the debounced term changes
+  useEffect(() => {
+    if (isFirstGroupSearchRef.current) {
+      isFirstGroupSearchRef.current = false;
+      return;
+    }
+    fetchGroups(debouncedGroupSearch, 1, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedGroupSearch]);
+
+  const handleLoadMoreUsers = () => {
+    if (loadMoreUsersLoading || !userHasMore) return;
+    fetchUsers(debouncedUserSearch, userPage + 1, true);
+  };
+
+  const handleLoadMoreGroups = () => {
+    if (loadMoreGroupsLoading || !groupHasMore) return;
+    fetchGroups(debouncedGroupSearch, groupPage + 1, true);
+  };
 
   const getOtherMember = (chat) => {
     if (!chatUser) return null;
@@ -411,8 +508,6 @@ const ChatMonitor = () => {
     });
   };
 
- 
-
   const openGroupsForUser = (user) => {
     setGroupsModalUser(user);
   };
@@ -421,6 +516,13 @@ const ChatMonitor = () => {
     setGroupsModalUser(null);
   };
 
+  // ⚠️ NOTE: `groups` now only holds the currently-loaded page(s) of the
+  // main Groups list (paginated, 10 at a time). This modal filters from
+  // that same in-memory array, so if the user is a member of a group that
+  // hasn't been loaded/paginated into `groups` yet, it won't show up here.
+  // For fully accurate results regardless of pagination, add a dedicated
+  // backend route (e.g. GET /api/admin/get-groups-for-user/:userId that
+  // queries `{ members: userId }` directly) and call that here instead.
   const getGroupsForUser = (user) => {
     if (!user) return [];
     return groups.filter(
@@ -431,14 +533,11 @@ const ChatMonitor = () => {
     );
   };
 
- 
   const goToGroupChatFromModal = (group) => {
     closeGroupsModal();
     setActiveTab("group");
     openChatsForGroup(group);
   };
-
- 
 
   const openChatsForGroup = async (group) => {
     setChatGroup(group);
@@ -511,8 +610,6 @@ const ChatMonitor = () => {
       }
     });
   };
-
-   
 
   const startEditMessage = (msg, type) => {
     setEditingType(type);
@@ -620,7 +717,6 @@ const ChatMonitor = () => {
     });
   };
 
-  
   const renderMessageMedia = (msg) => {
     if (!msg.media) return null;
 
@@ -669,7 +765,6 @@ const ChatMonitor = () => {
     );
   };
 
- 
   const renderMessageRow = (msg, type) => {
     const isEditing = editingType === type && editingMessageId === msg._id;
     const isBusy = messageActionId === msg._id;
@@ -804,16 +899,8 @@ const ChatMonitor = () => {
     );
   };
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.email?.toLowerCase().includes(userSearch.toLowerCase())
-  );
-
-  const filteredGroups = groups.filter((g) =>
-    g.groupName?.toLowerCase().includes(groupSearch.toLowerCase())
-  );
-
+  // search is now server-side (debounced), so `users` / `groups` already
+  // reflect the current search term — no client-side filtering needed
   const modalUserGroups = getGroupsForUser(groupsModalUser);
 
   // small reusable presence dot, overlaid on an avatar
@@ -841,7 +928,6 @@ const ChatMonitor = () => {
       </div>
 
       <div className="bg-white rounded-4 shadow-sm p-4">
- 
         <div className="d-flex gap-2 mb-4">
           <button
             className={`btn btn-sm ${activeTab === "private" ? "btn-warning" : "btn-outline-dark"}`}
@@ -859,7 +945,6 @@ const ChatMonitor = () => {
           </button>
         </div>
 
- 
         {activeTab === "private" && (
           <>
             {!chatUser && (
@@ -880,12 +965,12 @@ const ChatMonitor = () => {
                   <div className="text-center text-muted py-4">Loading users...</div>
                 )}
 
-                {!loadingUsers && filteredUsers.length === 0 && (
+                {!loadingUsers && users.length === 0 && (
                   <div className="text-center text-muted py-4">No users found.</div>
                 )}
 
                 {!loadingUsers &&
-                  filteredUsers.map((user) => (
+                  users.map((user) => (
                     <div className="member-row" key={user._id}>
                       <div
                         className="d-flex align-items-center gap-2"
@@ -947,6 +1032,17 @@ const ChatMonitor = () => {
                       </div>
                     </div>
                   ))}
+
+                {!loadingUsers && userHasMore && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-dark w-100 mt-2"
+                    onClick={handleLoadMoreUsers}
+                    disabled={loadMoreUsersLoading}
+                  >
+                    {loadMoreUsersLoading ? "Loading..." : "Load more"}
+                  </button>
+                )}
               </>
             )}
 
@@ -1107,7 +1203,7 @@ const ChatMonitor = () => {
             )}
           </>
         )}
- 
+
         {activeTab === "group" && (
           <>
             {!chatGroup && (
@@ -1128,12 +1224,12 @@ const ChatMonitor = () => {
                   <div className="text-center text-muted py-4">Loading groups...</div>
                 )}
 
-                {!loadingGroups && filteredGroups.length === 0 && (
+                {!loadingGroups && groups.length === 0 && (
                   <div className="text-center text-muted py-4">No groups found.</div>
                 )}
 
                 {!loadingGroups &&
-                  filteredGroups.map((group) => (
+                  groups.map((group) => (
                     <div className="member-row" key={group._id}>
                       <div
                         className="d-flex align-items-center gap-2"
@@ -1171,6 +1267,17 @@ const ChatMonitor = () => {
                       </button>
                     </div>
                   ))}
+
+                {!loadingGroups && groupHasMore && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-dark w-100 mt-2"
+                    onClick={handleLoadMoreGroups}
+                    disabled={loadMoreGroupsLoading}
+                  >
+                    {loadMoreGroupsLoading ? "Loading..." : "Load more"}
+                  </button>
+                )}
               </>
             )}
 
@@ -1221,7 +1328,6 @@ const ChatMonitor = () => {
         )}
       </div>
 
-      
       {groupsModalUser && (
         <>
           <div

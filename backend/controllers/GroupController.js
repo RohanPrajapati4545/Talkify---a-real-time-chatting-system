@@ -150,38 +150,34 @@ if (req.file) {
   }
 };
 
-
 const getMessages = async (req, res) => {
   try {
+    const { groupId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
 
-    const messages = await Message.find({
-      groupId: req.params.groupId,
-    })
-      .populate(
-        "sender",
-        "name image"
-      )
-      .populate({
-    path:"replyTo",
-    populate:{
-        path:"sender",
-        select:"name image"
-    }
-})
-      .sort({ createdAt: 1 });
+    const total = await Message.countDocuments({ groupId });
 
-    res.status(200).json(messages);
+    const messages = await Message.find({ groupId })
+      .populate("sender", "name image")
+      .populate({ path: "replyTo", populate: { path: "sender", select: "name image" } })
+      .sort({ createdAt: -1 })   // newest first for pagination...
+      .skip((page - 1) * limit)
+      .limit(limit);
 
-  } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
+    res.status(200).json({
+      messages: messages.reverse(), // ...then flip to chronological for rendering
+      pagination: {
+        page,
+        limit,
+        total,
+        hasMore: page * limit < total,
+      },
     });
-
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 
 const deleteGroup = async (req, res) => {

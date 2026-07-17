@@ -6,11 +6,37 @@ const Report = require("./../models/ReportSchema");
 const GroupMessage = require("./../models/MessageSchema"); // ⚠️ confirm this model name/path
 const PrivateChat = require("./../models/PrivateChatSchema");
 const PrivateMessage = require("./../models/PrivateMessageSchema");
-
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password");
-    res.status(200).json({ users });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search?.trim() || "";
+
+    const query = {};
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const total = await User.countDocuments(query);
+
+    const users = await User.find(query)
+      .select("-password")
+      .sort({ name: 1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    res.status(200).json({
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        hasMore: page * limit < total,
+      },
+    });
   } catch (error) {
     res.status(500).json({ msg: "Failed to fetch users" });
   }
@@ -18,13 +44,35 @@ exports.getAllUsers = async (req, res) => {
 
 exports.getAllGroups = async (req, res) => {
   try {
-    const groups = await Group.find();
-    res.status(200).json({ groups });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search?.trim() || "";
+
+    const query = {};
+    if (search) {
+      query.groupName = { $regex: search, $options: "i" };
+    }
+
+    const total = await Group.countDocuments(query);
+
+    const groups = await Group.find(query)
+      .sort({ updatedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    res.status(200).json({
+      groups,
+      pagination: {
+        page,
+        limit,
+        total,
+        hasMore: page * limit < total,
+      },
+    });
   } catch (error) {
     res.status(500).json({ msg: "Failed to fetch groups" });
   }
 };
-
 exports.getMessagesCount = async (req, res) => {
   try {
     const count = await Message.countDocuments();

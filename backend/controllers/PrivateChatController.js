@@ -32,20 +32,31 @@ const openPrivateChat = async (req, res) => {
     });
   }
 };
-
-// logged-in user ke saare private chats laane ke liye
 const getMyChats = async (req, res) => {
   try {
-    const chats = await PrivateChat.find({
-      members: req.user.id,
-    }).populate("members", "name image email");
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
 
-    res.status(200).json(chats);
+    const query = { members: req.user.id };
+    const total = await PrivateChat.countDocuments(query);
 
-  } catch (error) {
-    res.status(500).json({
-      message: "Something went wrong",
+    const chats = await PrivateChat.find(query)
+      .populate("members", "name email image")
+      .sort({ updatedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    res.status(200).json({
+      chats,
+      pagination: {
+        page,
+        limit,
+        total,
+        hasMore: page * limit < total,
+      },
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 

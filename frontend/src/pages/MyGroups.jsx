@@ -189,7 +189,7 @@ const MyGroups = () => {
     privateChatRef.current = privateChat;
   }, [privateChat]);
 
-  
+
 const getAllUsers = async () => {
   try {
     const res = await axios.get(
@@ -201,7 +201,7 @@ const getAllUsers = async () => {
       }
     );
 
-    const usersList = res.data.users; // 👈 ab object hai, andar se array nikala
+    const usersList = res.data.users;
 
     setAllUsers(usersList);
 
