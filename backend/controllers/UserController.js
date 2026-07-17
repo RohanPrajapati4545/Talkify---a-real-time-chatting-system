@@ -2,12 +2,36 @@ const User = require("./../models/UserSchema");
 const groupSchema=require("./../models/GroupSchema")
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find(
-      { _id: { $ne: req.user.id } },
-      "name email image"
-    );
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search?.trim() || "";
 
-    res.status(200).json(users);
+    const query = { _id: { $ne: req.user.id } };
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const total = await User.countDocuments(query);
+
+    const users = await User.find(query, "name email image")
+      .sort({ name: 1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    res.status(200).json({
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      },
+    });
   } catch (error) {
     res.status(500).json({
       message: "Error fetching users",

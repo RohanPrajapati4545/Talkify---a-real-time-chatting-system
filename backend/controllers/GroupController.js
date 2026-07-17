@@ -45,37 +45,49 @@ const createGroup = async (req, res) => {
     });
   }
 };
-
 const getMyGroup = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search?.trim() || "";
 
-    const groups = await GroupSchema.find({
+    const baseQuery = {
       $or: [
         { createdBy: req.user.id },
         { members: req.user.id }
       ]
-    })
-      .populate(
-        "members",
-        "name email image"
-      )
-      .populate(
-        "createdBy",
-        "_id name"
-      );
+    };
+
+    if (search) {
+      baseQuery.groupName = { $regex: search, $options: "i" };
+    }
+
+    const total = await GroupSchema.countDocuments(baseQuery);
+
+    const groups = await GroupSchema.find(baseQuery)
+      .populate("members", "name email image")
+      .populate("createdBy", "_id name")
+      .sort({ updatedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
 
     res.status(200).json({
       success: true,
       groups,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      },
     });
 
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
