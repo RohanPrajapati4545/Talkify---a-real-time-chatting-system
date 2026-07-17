@@ -338,7 +338,7 @@ const AllUsers = () => {
         </div>
       </div>
 
-      {/* ============== BOOTSTRAP EDIT MODAL ============== */}
+ 
       {editUser && (
         <>
           <div

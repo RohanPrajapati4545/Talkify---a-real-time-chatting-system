@@ -12,8 +12,48 @@ const Register = () => {
   const [confirm_password, setConfirmPassword] = useState("");
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(""); // "weak" | "medium" | "strong" | ""
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const navigate = useNavigate();
+
+  const MAX_PASSWORD_LENGTH = 15;
+
+  // ---------- Password strength checker ----------
+  const getPasswordStrength = (pwd) => {
+    if (!pwd) return "";
+
+    if (pwd.length < 6) return "weak";
+
+    let score = 0;
+    if (pwd.length >= 6) score++;
+    if (pwd.length >= 10) score++;
+    if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++;
+    if (/\d/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++; // special char
+
+    if (score <= 2) return "weak";
+    if (score === 3) return "medium";
+    return "strong";
+  };
+
+  const handlePasswordChange = (e) => {
+    const value = e.target.value.slice(0, MAX_PASSWORD_LENGTH); // 15 char ke baad allow nahi
+    setPassword(value);
+    setPasswordStrength(getPasswordStrength(value));
+  };
+
+  const handleConfirmPasswordChange = (e) => {
+    const value = e.target.value.slice(0, MAX_PASSWORD_LENGTH);
+    setConfirmPassword(value);
+  };
+
+  const strengthLabel = {
+    weak: "Weak",
+    medium: "Medium",
+    strong: "Strong",
+  };
 
   const register = async (e) => {
     e.preventDefault();
@@ -33,6 +73,15 @@ const Register = () => {
 
     if (!emailRegex.test(email)) {
       return toast.error("Please enter a valid email address");
+    }
+
+    // ---------- Password length validation ----------
+    if (password.length < 6) {
+      return toast.error("Password must be at least 6 characters");
+    }
+
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      return toast.error(`Password must be at most ${MAX_PASSWORD_LENGTH} characters`);
     }
 
     if (password !== confirm_password) {
@@ -62,6 +111,9 @@ const Register = () => {
       setPassword("");
       setConfirmPassword("");
       setImage(null);
+      setPasswordStrength("");
+      setShowPassword(false);
+      setShowConfirmPassword(false);
 
       navigate("/login");
     } catch (error) {
@@ -124,21 +176,43 @@ const Register = () => {
             <div className="cv-auth-field">
               <i className="fa-solid fa-lock"></i>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="Password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                maxLength={MAX_PASSWORD_LENGTH}
+                onChange={handlePasswordChange}
               />
+              <i
+                className={`fa-solid ${showPassword ? "fa-eye-slash" : "fa-eye"} cv-toggle-password`}
+                onClick={() => setShowPassword((prev) => !prev)}
+              ></i>
             </div>
+
+            {/* ---------- Password strength indicator ---------- */}
+            {password && (
+              <div className={`cv-password-strength cv-strength-${passwordStrength}`}>
+                <div className="cv-strength-bar">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <p>{strengthLabel[passwordStrength]}</p>
+              </div>
+            )}
 
             <div className="cv-auth-field">
               <i className="fa-solid fa-key"></i>
               <input
-                type="password"
+                type={showConfirmPassword ? "text" : "password"}
                 placeholder="Confirm password"
                 value={confirm_password}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                maxLength={MAX_PASSWORD_LENGTH}
+                onChange={handleConfirmPasswordChange}
               />
+              <i
+                className={`fa-solid ${showConfirmPassword ? "fa-eye-slash" : "fa-eye"} cv-toggle-password`}
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+              ></i>
             </div>
 
             <label className="cv-auth-upload">

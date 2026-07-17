@@ -11,6 +11,7 @@ const Login = () => {
   // password login state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // otp login state
   const [phone, setPhone] = useState("");
@@ -24,6 +25,11 @@ const Login = () => {
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const phoneRegex = /^[6-9]\d{9}$/; // 10-digit Indian mobile number
+  const MAX_PASSWORD_LENGTH = 15;
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value.slice(0, MAX_PASSWORD_LENGTH));
+  };
 
   const loginUser = async (e) => {
     e.preventDefault();
@@ -49,6 +55,7 @@ const Login = () => {
 
       setEmail("");
       setPassword("");
+      setShowPassword(false);
       // ❌ removed: navigate("/") — this was firing unconditionally
       // and always beat the role-based redirect in the useEffect below.
       // The useEffect now handles where the user lands.
@@ -164,11 +171,16 @@ const Login = () => {
               <div className="cv-auth-field">
                 <i className="fa-solid fa-lock"></i>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="Password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  maxLength={MAX_PASSWORD_LENGTH}
+                  onChange={handlePasswordChange}
                 />
+                <i
+                  className={`fa-solid ${showPassword ? "fa-eye-slash" : "fa-eye"} cv-toggle-password`}
+                  onClick={() => setShowPassword((prev) => !prev)}
+                ></i>
               </div>
 
               <button

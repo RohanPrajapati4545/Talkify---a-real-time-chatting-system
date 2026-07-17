@@ -20,6 +20,10 @@ router.post("/block-user", authMiddleware, adminMiddleware, (AdminController.blo
 router.post("/unblock-user", authMiddleware, adminMiddleware, (AdminController.unblockUser));
 router.post("/delete-user", authMiddleware, adminMiddleware, (AdminController.deleteUser));
 
+// admin's own profile / settings (AdminProfile.jsx)
+router.post("/update-profile", authMiddleware, adminMiddleware, upload.single("image"), (AdminController.updateProfile));
+router.post("/change-password", authMiddleware, adminMiddleware, (AdminController.changePassword));
+
 // groups
 router.get("/get-all-group", authMiddleware, adminMiddleware, (AdminController.getAllGroups));
 router.post("/delete-group", authMiddleware, adminMiddleware, (AdminController.deleteGroup));

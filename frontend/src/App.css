@@ -4153,3 +4153,55 @@ body.cv-chat-open {
 .admin-edit-modal.chats-modal .modal-dialog {
   max-width: 640px;
 }
+.cv-password-strength {
+  margin: -8px 0 12px;
+}
+
+.cv-strength-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.cv-strength-bar span {
+  height: 4px;
+  flex: 1;
+  border-radius: 2px;
+  background: #e2e2e2;
+  transition: background 0.2s ease;
+}
+
+.cv-password-strength p {
+  font-size: 12px;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Weak */
+.cv-strength-weak .cv-strength-bar span:nth-child(1) { background: #e63946; }
+.cv-strength-weak p { color: #e63946; }
+
+/* Medium */
+.cv-strength-medium .cv-strength-bar span:nth-child(1),
+.cv-strength-medium .cv-strength-bar span:nth-child(2) { background: #f4a261; }
+.cv-strength-medium p { color: #f4a261; }
+
+/* Strong */
+.cv-strength-strong .cv-strength-bar span { background: #2a9d8f; }
+.cv-strength-strong p { color: #2a9d8f; }
+.cv-auth-field {
+  position: relative;
+}
+
+.cv-toggle-password {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #888;
+}
+
+.cv-toggle-password:hover {
+  color: #333;
+}

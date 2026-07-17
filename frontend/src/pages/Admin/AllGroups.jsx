@@ -116,8 +116,7 @@ const AllGroups = () => {
       });
     }
   };
-
-  // ============== DELETE GROUP ==============
+ 
 
   const handleDeleteGroup = (group) => {
     Swal.fire({
@@ -156,13 +155,7 @@ const AllGroups = () => {
     });
   };
 
-  // ============== REMOVE MEMBER / BLOCK ==============
-  // If the removed member is the current group admin (createdBy), the backend
-  // automatically promotes the next member as the new admin. The group is
-  // never deleted here — backend rejects removal if the admin is the only
-  // member left, so we warn the user upfront instead of firing a request
-  // that will fail.
-
+ 
   const handleRemoveMember = (group, memberId) => {
     const member = getMember(memberId);
     const memberName = member?.name || "this user";
@@ -279,11 +272,7 @@ const AllGroups = () => {
       }
     });
   };
-
-  // ============== MAKE ADMIN (transfer ownership) ==============
-  // Admin status is derived from group.createdBy, so making someone the
-  // new admin automatically demotes the old admin to a regular member —
-  // no separate "role" field needs to change.
+ 
 
   const handleMakeAdmin = (group, memberId) => {
     const member = getMember(memberId);
@@ -338,7 +327,7 @@ const AllGroups = () => {
     });
   };
 
-  // ============== ADD MEMBER ==============
+ 
 
   const openAddMemberModal = (group) => {
     setAddMemberGroup(group);
@@ -397,7 +386,7 @@ const AllGroups = () => {
     });
   };
 
-  // ============== EDIT GROUP (name + photo) ==============
+ 
 
   const openEditGroup = (group) => {
     setEditGroup(group);
@@ -690,7 +679,7 @@ const AllGroups = () => {
         </div>
       </div>
 
-      {/* ============== EDIT GROUP MODAL ============== */}
+      
       {editGroup && (
         <>
           <div
@@ -785,7 +774,7 @@ const AllGroups = () => {
         </>
       )}
 
-      {/* ============== ADD MEMBER MODAL ============== */}
+ 
       {addMemberGroup && (
         <>
           <div

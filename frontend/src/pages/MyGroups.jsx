@@ -2290,7 +2290,7 @@ const MyGroups = () => {
                 ) : (
                   <>
 
-                    {/* HEADER */}
+                
                     <div className="cv-thread-header">
 
                       <div className="cv-thread-id" onClick={() => setShowUserInfo(true)}>
@@ -2342,10 +2342,10 @@ const MyGroups = () => {
 
                     </div>
 
-                    {/* 🔍 MESSAGE SEARCH BAR — private chat */}
+               
                     {showMsgSearch && renderMsgSearchBar()}
 
-                    {/* MESSAGES */}
+         
                     <div className="cv-thread" ref={privateMessagesRef}>
 
                       {privateMessages.length === 0 ? (
@@ -2998,7 +2998,7 @@ const MyGroups = () => {
 
                   </div>
 
-                  {/* 🔍 MESSAGE SEARCH BAR — group chat */}
+          
                   {showMsgSearch && renderMsgSearchBar()}
 
                   <div className="cv-thread" ref={messagesContainerRef}>
@@ -3281,7 +3281,7 @@ const MyGroups = () => {
 
     </div>
 
-    {/* modal for creating group */}
+    
 
     <div className="modal fade" id="createGroupModal" tabIndex="-1">
       <div className="modal-dialog modal-dialog-centered">
@@ -3408,7 +3408,7 @@ const MyGroups = () => {
       </div>
     </div>
 
-    {/* join group modal */}
+  
 
     <div
       className="modal fade"
@@ -3485,8 +3485,7 @@ const MyGroups = () => {
       </div>
     </div>
 
-    {/* forward message modal */}
-
+     
     <div className={`modal fade ${showForwardModal ? "show d-block" : ""}`} tabIndex="-1">
 
       <div className="modal-dialog modal-dialog-centered">
@@ -3652,7 +3651,7 @@ const MyGroups = () => {
 
     </div>
 
-    {/* add member modal */}
+    
 
     <div className={`modal fade ${showAddUserModal ? "show d-block" : ""}`} tabIndex="-1">
 

@@ -1,3 +1,4 @@
+const bcrypt = require("bcrypt"); // used by changePassword to verify/hash the admin's own password
 const User = require("./../models/UserSchema");
 const Group = require("./../models/GroupSchema");
 const Message = require("./../models/MessageSchema");
@@ -146,6 +147,72 @@ exports.updateUser = async (req, res) => {
     res.status(200).json({ user });
   } catch (error) {
     res.status(500).json({ msg: "Failed to update user" });
+  }
+};
+
+// ============== ADMIN SELF PROFILE / SETTINGS (new — AdminProfile.jsx) ==============
+
+// Updates the logged-in admin's own name/email/avatar.
+// Uses the id from the verified token (req.user), NOT a userId in the body —
+// an admin should only ever be able to edit their own profile through this route.
+exports.updateProfile = async (req, res) => {
+  try {
+    const adminId = req.user?.id || req.user?._id; // set by authMiddleware after verifying the JWT
+    const { name, email } = req.body;
+
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (req.file?.path) updateData.image = req.file.path;
+
+    const user = await User.findByIdAndUpdate(adminId, updateData, {
+      new: true,
+    }).select("-password");
+
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    res.status(200).json({ user, msg: "Profile updated successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ msg: "Failed to update profile" });
+  }
+};
+
+// Changes the logged-in admin's own password.
+// Verifies the current password before allowing the change.
+exports.changePassword = async (req, res) => {
+  try {
+    const adminId = req.user?.id || req.user?._id; // set by authMiddleware after verifying the JWT
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ message: "Old and new password are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "New password must be at least 6 characters" });
+    }
+
+    const user = await User.findById(adminId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Failed to change password" });
   }
 };
 

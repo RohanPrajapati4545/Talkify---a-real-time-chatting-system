@@ -7,14 +7,14 @@ import { FaComments, FaUsers, FaPen, FaTrash, FaArrowLeft } from "react-icons/fa
 const ChatMonitor = () => {
   const { token } = useSelector((state) => state.auth);
 
-  const [activeTab, setActiveTab] = useState("private"); // "private" | "group"
+  const [activeTab, setActiveTab] = useState("private");  
 
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [userSearch, setUserSearch] = useState("");
 
-  const [chatUser, setChatUser] = useState(null); // the user whose chats we're viewing
-  const [chatView, setChatView] = useState("list"); // "list" | "messages"
+  const [chatUser, setChatUser] = useState(null);  
+  const [chatView, setChatView] = useState("list");  
   const [userChats, setUserChats] = useState([]);
   const [loadingChats, setLoadingChats] = useState(false);
   const [chatActionId, setChatActionId] = useState(null);
@@ -24,19 +24,19 @@ const ChatMonitor = () => {
   const [loadingMessages, setLoadingMessages] = useState(false);
 
 
-  const [groupsModalUser, setGroupsModalUser] = useState(null); // jiska group dekh rhe h 
+  const [groupsModalUser, setGroupsModalUser] = useState(null);  
 
 
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [groupSearch, setGroupSearch] = useState("");
 
-  const [chatGroup, setChatGroup] = useState(null); // the group whose chat we're viewing
+  const [chatGroup, setChatGroup] = useState(null); 
   const [groupMessages, setGroupMessages] = useState([]);
   const [loadingGroupMessages, setLoadingGroupMessages] = useState(false);
 
-  // ============== SHARED MESSAGE EDIT STATE ==============
-  const [editingType, setEditingType] = useState(null); // "private" | "group"
+ 
+  const [editingType, setEditingType] = useState(null);  
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingMessageText, setEditingMessageText] = useState("");
   const [editingMessageImage, setEditingMessageImage] = useState(null);
@@ -57,7 +57,7 @@ const ChatMonitor = () => {
     });
   };
 
-  // ============== LOAD USERS / GROUPS ==============
+ 
 
   const getUsers = async () => {
     try {
@@ -93,8 +93,7 @@ const ChatMonitor = () => {
     getUsers();
     getGroups();
   }, []);
-
-  // ============== PRIVATE CHATS: LIST OF CONVERSATIONS ==============
+ 
 
   const getOtherMember = (chat) => {
     if (!chatUser) return null;
@@ -290,9 +289,7 @@ const ChatMonitor = () => {
     });
   };
 
-  // ============== USER'S GROUPS MODAL (new) ==============
-  // Groups are already loaded for the "Group Chats" tab, so we just filter
-  // that list client-side by membership — no extra API call needed.
+ 
 
   const openGroupsForUser = (user) => {
     setGroupsModalUser(user);
@@ -312,14 +309,14 @@ const ChatMonitor = () => {
     );
   };
 
-  // Jump straight from the groups modal into that group's chat log
+ 
   const goToGroupChatFromModal = (group) => {
     closeGroupsModal();
     setActiveTab("group");
     openChatsForGroup(group);
   };
 
-  // ============== GROUP CHATS ==============
+ 
 
   const openChatsForGroup = async (group) => {
     setChatGroup(group);
@@ -389,7 +386,7 @@ const ChatMonitor = () => {
     });
   };
 
-  // ============== MESSAGE EDIT / DELETE (shared, private + group) ==============
+   
 
   const startEditMessage = (msg, type) => {
     setEditingType(type);
@@ -497,7 +494,7 @@ const ChatMonitor = () => {
     });
   };
 
-  // Renders the media attached to a message (image / video / audio)
+  
   const renderMessageMedia = (msg) => {
     if (!msg.media) return null;
 
@@ -546,7 +543,7 @@ const ChatMonitor = () => {
     );
   };
 
-  // Shared renderer for a single message row (works for both private & group)
+ 
   const renderMessageRow = (msg, type) => {
     const isEditing = editingType === type && editingMessageId === msg._id;
     const isBusy = messageActionId === msg._id;
@@ -703,7 +700,7 @@ const ChatMonitor = () => {
       </div>
 
       <div className="bg-white rounded-4 shadow-sm p-4">
-        {/* ============== TABS ============== */}
+ 
         <div className="d-flex gap-2 mb-4">
           <button
             className={`btn btn-sm ${activeTab === "private" ? "btn-warning" : "btn-outline-dark"}`}
@@ -721,7 +718,7 @@ const ChatMonitor = () => {
           </button>
         </div>
 
-        {/* ============== PRIVATE CHATS TAB ============== */}
+ 
         {activeTab === "private" && (
           <>
             {!chatUser && (
@@ -949,8 +946,7 @@ const ChatMonitor = () => {
             )}
           </>
         )}
-
-        {/* ============== GROUP CHATS TAB ============== */}
+ 
         {activeTab === "group" && (
           <>
             {!chatGroup && (
@@ -1064,7 +1060,7 @@ const ChatMonitor = () => {
         )}
       </div>
 
-      {/* ============== USER'S GROUPS MODAL (new) ============== */}
+      
       {groupsModalUser && (
         <>
           <div

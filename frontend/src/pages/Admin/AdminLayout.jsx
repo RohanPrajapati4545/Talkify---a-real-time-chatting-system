@@ -7,12 +7,12 @@ const AdminLayout = () => {
 
   return (
     <div className="admin-layout">
-      {/* Desktop Sidebar */}
+   
       <div className="desktop-sidebar d-none d-md-block">
         <AdminSideBar />
       </div>
 
-      {/* Mobile Toggle */}
+      
       {!sidebarOpen && (
         <button
           className="btn btn-light d-md-none position-fixed"
@@ -30,7 +30,7 @@ const AdminLayout = () => {
         </button>
       )}
 
-      {/* Mobile Sidebar */}
+    
       <div
         className="offcanvas offcanvas-start"
         tabIndex="-1"
@@ -51,7 +51,7 @@ const AdminLayout = () => {
         </div>
       </div>
 
-      {/* Main Content */}
+ 
       <div
         className="admin-content"
         
