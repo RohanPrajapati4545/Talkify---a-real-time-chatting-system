@@ -18,12 +18,58 @@ const AdminProfile = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(""); // "weak" | "medium" | "strong" | ""
+
+  // show/hide toggles for each password field
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const MAX_PASSWORD_LENGTH = 15;
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setImage(file);
     setPreview(URL.createObjectURL(file));
+  };
+
+  // ---------- Password strength checker (same logic as Register) ----------
+  const getPasswordStrength = (pwd) => {
+    if (!pwd) return "";
+
+    if (pwd.length < 6) return "weak";
+
+    let score = 0;
+    if (pwd.length >= 6) score++;
+    if (pwd.length >= 10) score++;
+    if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++;
+    if (/\d/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++; // special char
+
+    if (score <= 2) return "weak";
+    if (score === 3) return "medium";
+    return "strong";
+  };
+
+  const strengthLabel = {
+    weak: "Weak",
+    medium: "Medium",
+    strong: "Strong",
+  };
+
+  const handleNewPasswordChange = (e) => {
+    const value = e.target.value.slice(0, MAX_PASSWORD_LENGTH);
+    setNewPassword(value);
+    setPasswordStrength(getPasswordStrength(value));
+  };
+
+  const handleConfirmPasswordChange = (e) => {
+    setConfirmPassword(e.target.value.slice(0, MAX_PASSWORD_LENGTH));
+  };
+
+  const handleOldPasswordChange = (e) => {
+    setOldPassword(e.target.value.slice(0, MAX_PASSWORD_LENGTH));
   };
 
   const handleProfileSubmit = async (e) => {
@@ -34,7 +80,7 @@ const AdminProfile = () => {
 
       const formData = new FormData();
       formData.append("name", name);
-      formData.append("email", email);
+      // email intentionally not sent — field is disabled/read-only
       if (image) formData.append("image", image);
 
       const res = await axios.post(
@@ -76,6 +122,30 @@ const AdminProfile = () => {
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
 
+    if (newPassword.length < 6) {
+      Swal.fire({
+        title: "Too Short",
+        text: "New password must be at least 6 characters.",
+        icon: "warning",
+        background: "#1c1812",
+        color: "#f2ece2",
+        confirmButtonColor: "#e8a33d",
+      });
+      return;
+    }
+
+    if (newPassword.length > MAX_PASSWORD_LENGTH) {
+      Swal.fire({
+        title: "Too Long",
+        text: `New password must be at most ${MAX_PASSWORD_LENGTH} characters.`,
+        icon: "warning",
+        background: "#1c1812",
+        color: "#f2ece2",
+        confirmButtonColor: "#e8a33d",
+      });
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       Swal.fire({
         title: "Mismatch",
@@ -109,6 +179,10 @@ const AdminProfile = () => {
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setPasswordStrength("");
+      setShowOldPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
     } catch (error) {
       console.log(error);
       Swal.fire({
@@ -180,8 +254,9 @@ const AdminProfile = () => {
                   type="email"
                   className="form-control admin-input"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+                  disabled
+                  readOnly
+                  title="Email cannot be changed"
                 />
               </div>
 
@@ -199,37 +274,70 @@ const AdminProfile = () => {
             <form onSubmit={handlePasswordSubmit}>
               <div className="mb-3">
                 <label className="form-label admin-label">Current Password</label>
-                <input
-                  type="password"
-                  className="form-control admin-input"
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  required
-                />
+                <div className="cv-auth-field position-relative">
+                  <input
+                    type={showOldPassword ? "text" : "password"}
+                    className="form-control admin-input"
+                    value={oldPassword}
+                    onChange={handleOldPasswordChange}
+                    maxLength={MAX_PASSWORD_LENGTH}
+                    required
+                  />
+                  <i
+                    className={`fa-solid ${showOldPassword ? "fa-eye-slash" : "fa-eye"} cv-toggle-password`}
+                    onClick={() => setShowOldPassword((prev) => !prev)}
+                  ></i>
+                </div>
               </div>
 
               <div className="mb-3">
                 <label className="form-label admin-label">New Password</label>
-                <input
-                  type="password"
-                  className="form-control admin-input"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
+                <div className="cv-auth-field position-relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    className="form-control admin-input"
+                    value={newPassword}
+                    onChange={handleNewPasswordChange}
+                    required
+                    minLength={6}
+                    maxLength={MAX_PASSWORD_LENGTH}
+                  />
+                  <i
+                    className={`fa-solid ${showNewPassword ? "fa-eye-slash" : "fa-eye"} cv-toggle-password`}
+                    onClick={() => setShowNewPassword((prev) => !prev)}
+                  ></i>
+                </div>
+
+                {/* ---------- Password strength indicator (same as Register) ---------- */}
+                {newPassword && (
+                  <div className={`cv-password-strength cv-strength-${passwordStrength}`}>
+                    <div className="cv-strength-bar">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                    <p>{strengthLabel[passwordStrength]}</p>
+                  </div>
+                )}
               </div>
 
               <div className="mb-4">
                 <label className="form-label admin-label">Confirm New Password</label>
-                <input
-                  type="password"
-                  className="form-control admin-input"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
+                <div className="cv-auth-field position-relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    className="form-control admin-input"
+                    value={confirmPassword}
+                    onChange={handleConfirmPasswordChange}
+                    required
+                    minLength={6}
+                    maxLength={MAX_PASSWORD_LENGTH}
+                  />
+                  <i
+                    className={`fa-solid ${showConfirmPassword ? "fa-eye-slash" : "fa-eye"} cv-toggle-password`}
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  ></i>
+                </div>
               </div>
 
               <button type="submit" className="btn btn-warning" disabled={changingPassword}>
