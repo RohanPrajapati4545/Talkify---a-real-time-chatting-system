@@ -199,7 +199,7 @@ const getAllUsers = async () => {
       }
     );
 
-    const usersList = res.data.users; 
+    const usersList = res.data.users; // 👈 ab object hai, andar se array nikala
 
     setAllUsers(usersList);
 

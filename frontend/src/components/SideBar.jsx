@@ -2,14 +2,13 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-// ⚠️ .env file me REACT_APP_API_URL set hona chahiye (e.g. https://your-backend.onrender.com)
-// Change karne ke baad dev server restart / redeploy zaroori hai
+
 const API_BASE_URL = process.env.REACT_APP_API_URL;
 
 const GROUP_SEARCH_API = `${API_BASE_URL}/api/user/get-my-group`;
 const USER_SEARCH_API = `${API_BASE_URL}/api/users/all-users`;
 
-const PAGE_LIMIT = 5;
+const PAGE_LIMIT = 10;
 
 const SideBar = ({
   activeTab,
