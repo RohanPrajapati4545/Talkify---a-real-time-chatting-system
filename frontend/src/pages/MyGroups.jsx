@@ -188,6 +188,8 @@ const MyGroups = () => {
   useEffect(() => {
     privateChatRef.current = privateChat;
   }, [privateChat]);
+
+  
 const getAllUsers = async () => {
   try {
     const res = await axios.get(

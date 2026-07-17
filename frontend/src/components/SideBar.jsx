@@ -34,14 +34,13 @@ const SideBar = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedTerm, setDebouncedTerm] = useState("");
 
-  // ---- ab list hamesha backend se paginated aayegi (search ho ya na ho) ----
   const [listResults, setListResults] = useState([]);
   const [listPage, setListPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadMoreLoading, setLoadMoreLoading] = useState(false);
 
-  const requestIdRef = useRef(0); // race-condition guard for fast typing/tab switching
+  const requestIdRef = useRef(0); 
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -49,16 +48,6 @@ const SideBar = ({
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
-
-  useEffect(() => {
-  setSearchTerm("");
-  setDebouncedTerm("");
-  setListResults([]);   
-  setHasMore(false);
-  setListPage(1);
-}, [activeTab]);
-
-
 
   const fetchList = useCallback(
     async (term, page, append = false) => {
@@ -77,12 +66,12 @@ const SideBar = ({
           },
         });
 
-        // stale response ignore karo agar naya request already start ho chuka hai
+
         if (currentRequestId !== requestIdRef.current) return;
 
         const items = activeTab === "groups" ? data.groups : data.users;
 
-        setListResults((prev) => (append ? [...prev, ...items] : items));
+        setListResults((prev) => (append ? [...prev, ...(items || [])] : (items || [])));
         setHasMore(Boolean(data.pagination?.hasMore));
         setListPage(page);
       } catch (err) {
@@ -97,10 +86,29 @@ const SideBar = ({
     [activeTab]
   );
 
-  // debouncedTerm ya activeTab change hote hi page 1 se fetch karo
   useEffect(() => {
-    fetchList(debouncedTerm, 1, false);
-  }, [debouncedTerm, activeTab, fetchList]);
+    setSearchTerm("");
+    setDebouncedTerm("");
+    setListResults([]);
+    setHasMore(false);
+    setListPage(1);
+    fetchList("", 1, false);
+
+  }, [activeTab]);
+
+
+
+
+
+useEffect(() => {
+  if (debouncedTerm === "") return;
+  fetchList(debouncedTerm, 1, false);
+
+}, [debouncedTerm]);
+
+
+
+
 
   const handleLoadMore = () => {
     if (loadMoreLoading || !hasMore) return;
@@ -295,7 +303,7 @@ const SideBar = ({
                       >
                         {isGroupTyping
                           ? "typing…"
-                          : `${group.members.length} members`}
+                          : `${group.members?.length || 0} members`}
                       </div>
                     </div>
 
