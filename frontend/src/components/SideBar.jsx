@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-
 const API_BASE_URL = process.env.REACT_APP_API_URL;
 
 const GROUP_SEARCH_API = `${API_BASE_URL}/api/user/get-my-group`;
@@ -13,8 +12,6 @@ const PAGE_LIMIT = 10;
 const SideBar = ({
   activeTab,
   setActiveTab,
-  sortedGroup,
-  sortedUsers,
   setSelectedGroup,
   setSelectedUser,
   openPrivateChat,
@@ -37,14 +34,14 @@ const SideBar = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedTerm, setDebouncedTerm] = useState("");
 
-  // ---- server-side search state (separate from real-time props) ----
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchPage, setSearchPage] = useState(1);
-  const [searchHasMore, setSearchHasMore] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
+  // ---- ab list hamesha backend se paginated aayegi (search ho ya na ho) ----
+  const [listResults, setListResults] = useState([]);
+  const [listPage, setListPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [loadMoreLoading, setLoadMoreLoading] = useState(false);
 
-  const requestIdRef = useRef(0); // race-condition guard for fast typing
+  const requestIdRef = useRef(0); // race-condition guard for fast typing/tab switching
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -54,21 +51,23 @@ const SideBar = ({
   }, [searchTerm]);
 
   useEffect(() => {
-    setSearchTerm("");
-    setDebouncedTerm("");
-    setSearchResults([]);
-    setSearchHasMore(false);
-    setSearchPage(1);
-  }, [activeTab]);
+  setSearchTerm("");
+  setDebouncedTerm("");
+  setListResults([]);   
+  setHasMore(false);
+  setListPage(1);
+}, [activeTab]);
 
-  const fetchSearchResults = useCallback(
+
+
+  const fetchList = useCallback(
     async (term, page, append = false) => {
       const currentRequestId = ++requestIdRef.current;
       const url = activeTab === "groups" ? GROUP_SEARCH_API : USER_SEARCH_API;
       const token = localStorage.getItem("token");
 
       if (append) setLoadMoreLoading(true);
-      else setSearchLoading(true);
+      else setLoading(true);
 
       try {
         const { data } = await axios.get(url, {
@@ -83,41 +82,35 @@ const SideBar = ({
 
         const items = activeTab === "groups" ? data.groups : data.users;
 
-        setSearchResults((prev) => (append ? [...prev, ...items] : items));
-        setSearchHasMore(Boolean(data.pagination?.hasMore));
-        setSearchPage(page);
+        setListResults((prev) => (append ? [...prev, ...items] : items));
+        setHasMore(Boolean(data.pagination?.hasMore));
+        setListPage(page);
       } catch (err) {
-        console.error("Search API failed:", err);
-        if (!append) setSearchResults([]);
-        setSearchHasMore(false);
+        console.error("Fetch list failed:", err);
+        if (!append) setListResults([]);
+        setHasMore(false);
       } finally {
-        setSearchLoading(false);
+        setLoading(false);
         setLoadMoreLoading(false);
       }
     },
     [activeTab]
   );
 
+  // debouncedTerm ya activeTab change hote hi page 1 se fetch karo
   useEffect(() => {
-    if (!debouncedTerm) {
-      setSearchResults([]);
-      setSearchHasMore(false);
-      setSearchPage(1);
-      return;
-    }
-    fetchSearchResults(debouncedTerm, 1, false);
-  }, [debouncedTerm, fetchSearchResults]);
+    fetchList(debouncedTerm, 1, false);
+  }, [debouncedTerm, activeTab, fetchList]);
 
   const handleLoadMore = () => {
-    if (loadMoreLoading || !searchHasMore) return;
-    fetchSearchResults(debouncedTerm, searchPage + 1, true);
+    if (loadMoreLoading || !hasMore) return;
+    fetchList(debouncedTerm, listPage + 1, true);
   };
 
-  // ---- decide what to render: server search results vs live props ----
   const isSearchMode = Boolean(debouncedTerm);
 
-  const displayedGroups = isSearchMode ? searchResults : sortedGroup;
-  const displayedUsers = isSearchMode ? searchResults : sortedUsers;
+  const displayedGroups = activeTab === "groups" ? listResults : [];
+  const displayedUsers = activeTab === "chats" ? listResults : [];
 
   const totalGroupUnread = useMemo(
     () =>
@@ -259,8 +252,8 @@ const SideBar = ({
       </div>
 
       <div className="cv-list">
-        {searchLoading ? (
-          <div className="cv-empty-list">Searching...</div>
+        {loading ? (
+          <div className="cv-empty-list">Loading...</div>
         ) : activeTab === "groups" ? (
           displayedGroups.length > 0 ? (
             <>
@@ -317,7 +310,7 @@ const SideBar = ({
                 );
               })}
 
-              {isSearchMode && searchHasMore && (
+              {hasMore && (
                 <button
                   type="button"
                   className="cv-load-more-btn"
@@ -330,7 +323,7 @@ const SideBar = ({
             </>
           ) : (
             <div className="cv-empty-list">
-              {debouncedTerm ? "No groups found" : "No groups yet"}
+              {isSearchMode ? "No groups found" : "No groups yet"}
             </div>
           )
         ) : displayedUsers.length > 0 ? (
@@ -374,7 +367,7 @@ const SideBar = ({
               );
             })}
 
-            {isSearchMode && searchHasMore && (
+            {hasMore && (
               <button
                 type="button"
                 className="cv-load-more-btn"
@@ -387,7 +380,7 @@ const SideBar = ({
           </>
         ) : (
           <div className="cv-empty-list">
-            {debouncedTerm ? "No users found" : "No users found"}
+            {isSearchMode ? "No users found" : "No users found"}
           </div>
         )}
       </div>
