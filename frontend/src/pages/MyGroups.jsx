@@ -787,52 +787,51 @@ const getAllUsers = async () => {
     setMedia(file);
     setMediaKind(null); // file-picker se aaya hai, voice nahi
   };
+  const [selectedMemberToAdd, setSelectedMemberToAdd] = useState("");
+const addUserToGroup = async () => {
+  if (!selectedMemberToAdd) {
+    return toast.error("Please select a user");
+  }
 
-  const addUserToGroup = async () => {
-    setActionLoading(true);
-    try {
-      const res = await axios.put(
-        `${process.env.REACT_APP_API_URL}/api/users/add-user`,
-        {
-          groupId: selectedGroup._id,
-          userId: selectedUser,
+  setActionLoading(true);
+  try {
+    const res = await axios.put(
+      `${process.env.REACT_APP_API_URL}/api/users/add-user`,
+      {
+        groupId: selectedGroup._id,
+        userId: selectedMemberToAdd,   // ← fix
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      }
+    );
 
-      toast.success(
-        res.data.message
-      );
+    toast.success(res.data.message);
 
-      setSelectedGroup(
-        res.data.group
-      );
+    setSelectedGroup(res.data.group);
 
-      setGroups((prev) =>
-        prev.map((group) =>
-          group._id ===
-            res.data.group._id
-            ? res.data.group
-            : group
-        )
-      );
+    setGroups((prev) =>
+      prev.map((group) =>
+        group._id === res.data.group._id
+          ? res.data.group
+          : group
+      )
+    );
 
-      setSelectedUser("");
+    setSelectedMemberToAdd("");   // ← fix
 
-    } catch (error) {
-      toast.error(
-        error.response?.data
-          ?.message ||
-        "Something went wrong"
-      );
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  } catch (error) {
+    toast.error(
+      error.response?.data
+        ?.message ||
+      "Something went wrong"
+    );
+  } finally {
+    setActionLoading(false);
+  }
+};
   const deleteMessage = async (id) => {
 
     const res = await axios.delete(
@@ -3686,8 +3685,7 @@ const [sidebarRefreshSignal, setSidebarRefreshSignal] = useState(0);
     </div>
 
     
-
-    <div className={`modal fade ${showAddUserModal ? "show d-block" : ""}`} tabIndex="-1">
+<div className={`modal fade ${showAddUserModal ? "show d-block" : ""}`} tabIndex="-1">
 
       <div className="modal-dialog modal-dialog-centered">
 
@@ -3697,15 +3695,22 @@ const [sidebarRefreshSignal, setSidebarRefreshSignal] = useState(0);
 
           <div className="modal-header cv-modal-header">
             <h5>Add member</h5>
-            <button type="button" className="btn-close" onClick={() => setShowAddUserModal(false)}></button>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => {
+                setShowAddUserModal(false);
+                setSelectedMemberToAdd("");
+              }}
+            ></button>
           </div>
 
           <div className="modal-body">
 
             <select
               className="form-select cv-input"
-              value={selectedUser}
-              onChange={(e) => setSelectedUser(e.target.value)}
+              value={selectedMemberToAdd}
+              onChange={(e) => setSelectedMemberToAdd(e.target.value)}
             >
               <option value="">Select user</option>
 
@@ -3721,7 +3726,16 @@ const [sidebarRefreshSignal, setSidebarRefreshSignal] = useState(0);
           </div>
 
           <div className="modal-footer border-0">
-            <button type="button" className="cv-btn-ghost" onClick={() => setShowAddUserModal(false)}>Cancel</button>
+            <button
+              type="button"
+              className="cv-btn-ghost"
+              onClick={() => {
+                setShowAddUserModal(false);
+                setSelectedMemberToAdd("");
+              }}
+            >
+              Cancel
+            </button>
             <button
               type="button"
               className="cv-btn-primary"
@@ -3740,21 +3754,8 @@ const [sidebarRefreshSignal, setSidebarRefreshSignal] = useState(0);
 
     </div>
 
-    {previewImage && (
-      <div className="cv-lightbox" onClick={() => setPreviewImage(null)}>
-        <div className="cv-lightbox-content" onClick={(e) => e.stopPropagation()}>
-          <img src={previewImage} alt="" />
-          <div className="cv-lightbox-actions">
-            <a href={previewImage} download target="_blank" rel="noreferrer">
-              <i className="fa-solid fa-download"></i>
-            </a>
-            <button type="button" onClick={() => setPreviewImage(null)}>
-              <i className="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
+    {showAddUserModal && <div className="modal-backdrop fade show"></div>}
+   
 
   </>
   );
