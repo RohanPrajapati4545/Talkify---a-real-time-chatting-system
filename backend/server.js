@@ -111,16 +111,37 @@ io.on("connection", (socket) => {
     console.log(`${socket.id} joined Private Chat ${chatId}`);
   });
 
+  // Deliver to the chatId room (for anyone who already has that
+  // conversation open) AND the receiver's personal user_${id} room (which
+  // they join automatically on login via "userOnline") — this guarantees
+  // delivery even if the receiver hasn't opened/joined this specific chat
+  // room yet (e.g. a brand new conversation). Socket.IO dedupes rooms
+  // automatically, so a socket in both rooms still only gets the event once.
   socket.on("sendPrivateMessage", (msg) => {
-    io.to(msg.chatId).emit("receivePrivateMessage", msg);
+    const receiverId = msg.receiver?._id || msg.receiver;
+
+    let target = io.to(msg.chatId);
+    if (receiverId) target = target.to(`user_${receiverId}`);
+
+    target.emit("receivePrivateMessage", msg);
   });
 
   socket.on("privateMessageUpdated", (msg) => {
-    io.to(msg.chatId).emit("privateMessageUpdated", msg);
+    const receiverId = msg.receiver?._id || msg.receiver;
+
+    let target = io.to(msg.chatId);
+    if (receiverId) target = target.to(`user_${receiverId}`);
+
+    target.emit("privateMessageUpdated", msg);
   });
 
   socket.on("privateMessageDeleted", (msg) => {
-    io.to(msg.chatId).emit("privateMessageDeleted", msg);
+    const receiverId = msg.receiver?._id || msg.receiver;
+
+    let target = io.to(msg.chatId);
+    if (receiverId) target = target.to(`user_${receiverId}`);
+
+    target.emit("privateMessageDeleted", msg);
   });
 
   socket.on("iceCandidate", ({ toUserId, signalData }) => {
@@ -130,11 +151,17 @@ io.on("connection", (socket) => {
   });
 
   socket.on("typingPrivate", ({ chatId, senderId, receiverId, userName }) => {
-    socket.to(chatId).emit("userTypingPrivate", { chatId, senderId, receiverId, userName });
+    let target = socket.to(chatId);
+    if (receiverId) target = target.to(`user_${receiverId}`);
+
+    target.emit("userTypingPrivate", { chatId, senderId, receiverId, userName });
   });
 
   socket.on("stopTypingPrivate", ({ chatId, senderId, receiverId }) => {
-    socket.to(chatId).emit("userStopTypingPrivate", { chatId, senderId, receiverId });
+    let target = socket.to(chatId);
+    if (receiverId) target = target.to(`user_${receiverId}`);
+
+    target.emit("userStopTypingPrivate", { chatId, senderId, receiverId });
   });
 
   socket.on("markPrivateMessageSeen", async ({ chatId, messageId, seenBy }) => {
