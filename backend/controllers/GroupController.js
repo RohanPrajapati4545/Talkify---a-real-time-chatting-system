@@ -179,13 +179,11 @@ const getMessages = async (req, res) => {
   }
 };
 
-
 const deleteGroup = async (req, res) => {
   try {
     const { groupId } = req.params;
 
-    const group =
-      await GroupSchema.findById(groupId);
+    const group = await GroupSchema.findById(groupId);
 
     if (!group) {
       return res.status(404).json({
@@ -212,6 +210,11 @@ const deleteGroup = async (req, res) => {
     await GroupSchema.findByIdAndDelete(
       groupId
     );
+
+    // notify everyone in the group's room (including the deleter's own
+    // socket, since they're already joined) so all sidebars update live
+    const io = req.app.get("io");
+    if (io) io.to(groupId).emit("groupDeleted", { groupId });
 
     res.status(200).json({
       success: true,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import socket from "../socket/Socket"; // ⚠️ adjust this path if your project structure differs
 
 const API_BASE_URL = process.env.REACT_APP_API_URL;
 
@@ -28,6 +29,12 @@ const SideBar = ({
   user,
   groupTypingUsers = {},
   privateTypingStatus = {},
+  // General-purpose escape hatch: bump this (e.g. a counter you
+  // increment) from the parent after any group mutation that doesn't
+  // already have a socket event wired up (create group, join by code,
+  // edit group name/image, etc.) and SideBar will silently refetch the
+  // current tab/search page 1 to stay in sync.
+  refreshSignal = 0,
 }) => {
   const navigate = useNavigate();
 
@@ -40,7 +47,13 @@ const SideBar = ({
   const [loading, setLoading] = useState(false);
   const [loadMoreLoading, setLoadMoreLoading] = useState(false);
 
-  const requestIdRef = useRef(0); 
+  const requestIdRef = useRef(0);
+  const activeTabRef = useRef(activeTab);
+  const isFirstRefreshSignalRef = useRef(true);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -106,7 +119,55 @@ useEffect(() => {
 
 }, [debouncedTerm]);
 
+  // general-purpose fallback: parent bumps `refreshSignal` after any group
+  // mutation that isn't already covered by a socket listener below (e.g.
+  // creating a group, joining via invite code, editing name/photo)
+  useEffect(() => {
+    if (isFirstRefreshSignalRef.current) {
+      isFirstRefreshSignalRef.current = false;
+      return;
+    }
+    fetchList(debouncedTerm, 1, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshSignal]);
 
+  // ============== REAL-TIME: keep the Groups list in sync ==============
+  // Covers: a group being deleted, and a member (including the admin)
+  // leaving — both cases the sidebar previously only picked up after a
+  // full page refresh, since it fetches its own copy of the list.
+  useEffect(() => {
+    const handleGroupDeleted = ({ groupId }) => {
+      if (activeTabRef.current !== "groups") return;
+      setListResults((prev) => prev.filter((g) => g._id !== groupId));
+    };
+
+    const handleGroupMemberLeft = ({ groupId, userId, group }) => {
+      if (activeTabRef.current !== "groups") return;
+
+      // I'm the one who left — remove the group from my own list
+      if (userId === user?._id) {
+        setListResults((prev) => prev.filter((g) => g._id !== groupId));
+        return;
+      }
+
+      // someone else left (possibly triggering an admin promotion) —
+      // update that group's members/admin in place so member counts and
+      // the "Admin" tag elsewhere stay accurate without a refetch
+      if (group) {
+        setListResults((prev) =>
+          prev.map((g) => (g._id === groupId ? { ...g, ...group } : g))
+        );
+      }
+    };
+
+    socket.on("groupDeleted", handleGroupDeleted);
+    socket.on("groupMemberLeft", handleGroupMemberLeft);
+
+    return () => {
+      socket.off("groupDeleted", handleGroupDeleted);
+      socket.off("groupMemberLeft", handleGroupMemberLeft);
+    };
+  }, [user?._id]);
 
 
 

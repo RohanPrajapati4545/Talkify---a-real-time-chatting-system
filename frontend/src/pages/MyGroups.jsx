@@ -915,43 +915,10 @@ const getAllUsers = async () => {
 
   };
 
-  const leaveGroup = async () => {
-    setActionLoading(true);
-    try {
-      const res = await axios.put(
-        `${process.env.REACT_APP_API_URL}/api/users/leave-group`,
-        {
-          groupId: selectedGroup._id,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      toast.success(res.data.message);
-
-      setGroups((prev) =>
-        prev.filter(
-          (group) =>
-            group._id !== selectedGroup._id
-        )
-      );
-
-      setSelectedGroup(null);
-      setShowGroupInfo(false);
-
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message ||
-        "Something went wrong"
-      );
-    } finally {
-      setActionLoading(false);
-    }
-  };
+ 
 const handleLeaveGroup = () => {
+  if (!selectedGroup) return;
+
   const isAdmin = selectedGroup?.createdBy?._id === user?._id;
   const onlyMemberLeft = selectedGroup?.members?.length === 1;
 
@@ -970,15 +937,19 @@ const handleLeaveGroup = () => {
     if (!result.isConfirmed) return;
 
     try {
-      const res = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/user/leave-group`,
+      const res = await axios.put(
+        `${process.env.REACT_APP_API_URL}/api/users/leave-group`,
         { groupId: selectedGroup._id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      // remove the group from the sidebar list either way (left it, or it
+      // got deleted because we were the last member)
       setGroups((prev) => prev.filter((g) => g._id !== selectedGroup._id));
+
       setSelectedGroup(null);
       setShowGroupInfo(false);
+      setMessages([]);
 
       toast.success(res.data.message || "You left the group");
     } catch (error) {
@@ -987,7 +958,44 @@ const handleLeaveGroup = () => {
     }
   });
 };
+const selectedGroupRef = useRef(null);
 
+useEffect(() => {
+  selectedGroupRef.current = selectedGroup;
+}, [selectedGroup]);
+useEffect(() => {
+  socket.on("groupMemberLeft", ({ groupId, userId, newCreatedBy, group }) => {
+    // update the group's members/admin everywhere it's referenced
+    setGroups((prev) =>
+      prev.map((g) => (g._id === groupId ? { ...g, ...group } : g))
+    );
+
+    setSelectedGroup((prev) =>
+      prev && prev._id === groupId ? { ...prev, ...group } : prev
+    );
+
+    // if I'm the one who was just promoted to admin, let me know
+    if (newCreatedBy?._id === user?._id && userId !== user?._id) {
+      toast.info("You are now the admin of this group");
+    }
+  });
+
+  socket.on("groupDeleted", ({ groupId }) => {
+    setGroups((prev) => prev.filter((g) => g._id !== groupId));
+
+    if (selectedGroupRef.current?._id === groupId) {
+      setSelectedGroup(null);
+      setShowGroupInfo(false);
+      setMessages([]);
+      toast.info("This group was deleted");
+    }
+  });
+
+  return () => {
+    socket.off("groupMemberLeft");
+    socket.off("groupDeleted");
+  };
+}, [user?._id]);
   const deleteChat = async () => {
     setActionLoading(true);
     try {
@@ -1197,7 +1205,7 @@ const handleLeaveGroup = () => {
 
   const [groupName, setGroupName] = useState("");
   const [groupImage, setGroupImage] = useState(null);
-
+const [sidebarRefreshSignal, setSidebarRefreshSignal] = useState(0);
   const [members, setMembers] = useState([]);
   const [memberEmail, setMemberEmail] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
@@ -1243,6 +1251,7 @@ const handleLeaveGroup = () => {
       );
 
       getMyGroups()
+      setSidebarRefreshSignal((n) => n + 1);
       const modalEl = document.getElementById("createGroupModal");
       const modal = window.bootstrap?.Modal?.getInstance(modalEl);
       modal?.hide();
@@ -2166,6 +2175,7 @@ const handleLeaveGroup = () => {
               user={user}
               groupTypingUsers={groupTypingUsers}
               privateTypingStatus={privateTypingStatus}
+              refreshSignal={sidebarRefreshSignal}
             />
           </div>
 
