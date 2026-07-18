@@ -951,21 +951,42 @@ const getAllUsers = async () => {
       setActionLoading(false);
     }
   };
+const handleLeaveGroup = () => {
+  const isAdmin = selectedGroup?.createdBy?._id === user?._id;
+  const onlyMemberLeft = selectedGroup?.members?.length === 1;
 
-  const handleLeaveGroup = () => {
-    Swal.fire({
-      title: "Leave Group?",
-      text: "You will no longer receive messages from this group.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      confirmButtonText: "Leave Group",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        leaveGroup();
-      }
-    });
-  };
+  Swal.fire({
+    title: "Leave Group?",
+    text: isAdmin
+      ? onlyMemberLeft
+        ? "You're the only member. Leaving will delete this group permanently."
+        : "You're the admin. The next member in the group will automatically become the new admin."
+      : "You will no longer receive messages from this group.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, leave",
+    confirmButtonColor: "#dc3545",
+  }).then(async (result) => {
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/user/leave-group`,
+        { groupId: selectedGroup._id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setGroups((prev) => prev.filter((g) => g._id !== selectedGroup._id));
+      setSelectedGroup(null);
+      setShowGroupInfo(false);
+
+      toast.success(res.data.message || "You left the group");
+    } catch (error) {
+      console.log(error);
+      toast.error(error.response?.data?.message || "Could not leave group");
+    }
+  });
+};
 
   const deleteChat = async () => {
     setActionLoading(true);
@@ -1422,7 +1443,7 @@ const getAllUsers = async () => {
         }
       );
 
-      setMessages(res.data);
+     setMessages(res.data.messages || []);
     } catch (error) {
       console.log(error);
     } finally {
@@ -2725,15 +2746,14 @@ const getAllUsers = async () => {
                       </div>
                     )}
 
-                    {selectedGroup?.createdBy?._id !== user?._id && (
+                  
                       <div className="cv-action danger" onClick={handleLeaveGroup}>
                         <div className="cv-action-circle">
                           <i className="fa-solid fa-right-from-bracket"></i>
                         </div>
                         <p>Leave</p>
                       </div>
-                    )}
-
+                 
                     {selectedGroup?.createdBy?._id === user?._id && (
                       <div className="cv-action danger" onClick={handleDeleteGroup}>
                         <div className="cv-action-circle">

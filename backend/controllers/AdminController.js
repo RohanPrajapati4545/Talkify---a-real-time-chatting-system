@@ -757,3 +757,64 @@ exports.addGroupMember = async (req, res) => {
     res.status(500).json({ msg: "Failed to add member" });
   }
 };
+
+// One-time (or as-needed) cleanup: strips any member IDs from every group
+// that no longer correspond to an existing User document (e.g. leftover
+// from user deletions that happened before cascade-cleanup was added to
+// deleteUser). Also reassigns admin / deletes now-empty groups, same as
+// the logic inside deleteUser.
+exports.cleanupOrphanedGroupMembers = async (req, res) => {
+  try {
+    const allUserIds = new Set(
+      (await User.find().select("_id")).map((u) => u._id.toString())
+    );
+
+    const groups = await Group.find();
+    const io = req.app.get("io");
+
+    let groupsFixed = 0;
+    let groupsDeleted = 0;
+    let membersRemoved = 0;
+
+    for (const group of groups) {
+      const originalCount = group.members.length;
+      const validMembers = group.members.filter((m) => allUserIds.has(m.toString()));
+
+      if (validMembers.length === originalCount) continue; // nothing orphaned here
+
+      membersRemoved += originalCount - validMembers.length;
+      group.members = validMembers;
+
+      if (validMembers.length === 0) {
+        await GroupMessage.deleteMany({ groupId: group._id });
+        await Group.findByIdAndDelete(group._id);
+        groupsDeleted++;
+        if (io) io.to(group._id.toString()).emit("groupDeleted", { groupId: group._id });
+        continue;
+      }
+
+      const creatorMissing = !allUserIds.has(group.createdBy?.toString());
+      if (creatorMissing) {
+        group.createdBy = validMembers[0];
+      }
+
+      await group.save();
+      groupsFixed++;
+      if (io)
+        io.to(group._id.toString()).emit("groupMemberRemoved", {
+          groupId: group._id,
+          newCreatedBy: group.createdBy,
+        });
+    }
+
+    res.status(200).json({
+      msg: "Cleanup complete",
+      groupsFixed,
+      groupsDeleted,
+      membersRemoved,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ msg: "Failed to clean up orphaned group members" });
+  }
+};

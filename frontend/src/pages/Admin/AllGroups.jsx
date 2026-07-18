@@ -25,6 +25,11 @@ const AllGroups = () => {
   const [usersMap, setUsersMap] = useState({});
   const [memberCache, setMemberCache] = useState({});
   const [fetchingIds, setFetchingIds] = useState(new Set());
+  // member IDs confirmed to no longer exist in the DB (deleted user whose
+  // ID is still lingering in some group's `members` array) — hidden from
+  // the UI instead of showing "Unknown user", and never re-fetched
+  const [missingMemberIds, setMissingMemberIds] = useState(new Set());
+  const [cleaningUp, setCleaningUp] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -145,7 +150,13 @@ const AllGroups = () => {
   };
 
   const fetchMemberIfMissing = async (memberId) => {
-    if (usersMap[memberId] || memberCache[memberId] || fetchingIds.has(memberId)) return;
+    if (
+      usersMap[memberId] ||
+      memberCache[memberId] ||
+      fetchingIds.has(memberId) ||
+      missingMemberIds.has(memberId)
+    )
+      return;
 
     setFetchingIds((prev) => new Set(prev).add(memberId));
 
@@ -156,7 +167,14 @@ const AllGroups = () => {
       );
       setMemberCache((prev) => ({ ...prev, [memberId]: res.data.user }));
     } catch (error) {
-      console.log("Could not fetch member", memberId, error);
+      // 404 = the user document no longer exists (deleted) but the ID is
+      // still lingering in this group's members array — hide it instead
+      // of showing "Unknown user" forever, and don't keep re-fetching it
+      if (error?.response?.status === 404) {
+        setMissingMemberIds((prev) => new Set(prev).add(memberId));
+      } else {
+        console.log("Could not fetch member", memberId, error);
+      }
     } finally {
       setFetchingIds((prev) => {
         const next = new Set(prev);
@@ -514,6 +532,48 @@ const AllGroups = () => {
     }
   };
 
+  const handleCleanupOrphanedMembers = () => {
+    Swal.fire({
+      title: "Clean Up Removed Users?",
+      text: "This scans every group and removes any member IDs left over from deleted user accounts. Groups that end up with no valid members will be deleted.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, clean up",
+      confirmButtonColor: "#e8a33d",
+      background: "#1c1812",
+      color: "#f2ece2",
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+
+      try {
+        setCleaningUp(true);
+
+        const res = await axios.post(
+          `${process.env.REACT_APP_API_URL}/api/admin/cleanup-orphaned-members`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        Swal.fire({
+          title: "Cleaned Up",
+          text: `${res.data.membersRemoved} orphaned member reference(s) removed, ${res.data.groupsFixed} group(s) fixed, ${res.data.groupsDeleted} empty group(s) deleted.`,
+          icon: "success",
+          background: "#1c1812",
+          color: "#f2ece2",
+          confirmButtonColor: "#e8a33d",
+        });
+
+        // reload the current view so the cleaned-up data shows immediately
+        fetchGroups(debouncedSearch, 1, false);
+      } catch (error) {
+        console.log(error);
+        showErrorAlert(error, "Could not clean up orphaned members.");
+      } finally {
+        setCleaningUp(false);
+      }
+    });
+  };
+
   // search is now server-side (debounced), so `groups` already reflects
   // the current search term — no client-side filtering needed
 
@@ -525,14 +585,26 @@ const AllGroups = () => {
           <p className="text-muted mb-0">Manage active groups and their members</p>
         </div>
 
-        <input
-          type="text"
-          className="form-control admin-search"
-          placeholder="Search by group name..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ maxWidth: "280px" }}
-        />
+        <div className="d-flex align-items-center gap-2">
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-dark"
+            onClick={handleCleanupOrphanedMembers}
+            disabled={cleaningUp}
+            title="Remove leftover member references from deleted user accounts"
+          >
+            {cleaningUp ? "Cleaning..." : "Clean Up Removed Users"}
+          </button>
+
+          <input
+            type="text"
+            className="form-control admin-search"
+            placeholder="Search by group name..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ maxWidth: "280px" }}
+          />
+        </div>
       </div>
 
       <div className="bg-white rounded-4 shadow-sm p-4">
@@ -640,7 +712,9 @@ const AllGroups = () => {
                               <div className="text-muted py-2">No members in this group.</div>
                             )}
 
-                            {group.members?.map((memberId) => {
+                            {group.members
+                              ?.filter((memberId) => !missingMemberIds.has(memberId))
+                              .map((memberId) => {
                               const member = getMember(memberId);
                               const isFetching = fetchingIds.has(memberId);
                               const isBusy = memberActionId === memberId;

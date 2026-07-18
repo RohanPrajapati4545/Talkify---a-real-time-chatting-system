@@ -45,4 +45,5 @@ router.post("/delete-private-message", authMiddleware, adminMiddleware, (AdminCo
 router.post("/clear-private-chat", authMiddleware, adminMiddleware, (AdminController.clearPrivateChat));
 router.post("/delete-private-chat", authMiddleware, adminMiddleware, (AdminController.deletePrivateChatAdmin));
 router.post("/add-group-member", authMiddleware, adminMiddleware, (AdminController.addGroupMember));
+router.post("/cleanup-orphaned-members", authMiddleware, AdminController.cleanupOrphanedGroupMembers);
 module.exports = router

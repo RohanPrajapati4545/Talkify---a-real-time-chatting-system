@@ -1,5 +1,7 @@
 const User = require("./../models/UserSchema");
-const groupSchema=require("./../models/GroupSchema")
+const groupSchema = require("./../models/GroupSchema");
+const Message = require("./../models/MessageSchema");
+
 const getAllUsers = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -205,29 +207,96 @@ const updateProfile = async (
 };
 
 
+// Leaving a group:
+// - If the person leaving is NOT the admin, they're just removed from
+//   `members` — nothing else changes.
+// - If the person leaving IS the admin (createdBy) and other members are
+//   still left, the next member in the array is automatically promoted
+//   to admin so the group always keeps one.
+// - If the admin was the only member left, the group has no reason to
+//   exist anymore — it (and its messages) are deleted instead.
 const leaveGroup = async (req, res) => {
   try {
     const { groupId } = req.body;
+    const userId = req.user.id;
 
-    const group =
-      await groupSchema.findByIdAndUpdate(
+    const group = await groupSchema.findById(groupId);
+
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: "Group not found",
+      });
+    }
+
+    const isMember = group.members.some(
+      (member) => member.toString() === userId
+    );
+
+    if (!isMember) {
+      return res.status(400).json({
+        success: false,
+        message: "You are not a member of this group",
+      });
+    }
+
+    const wasAdmin = group.createdBy?.toString() === userId;
+
+    group.members = group.members.filter(
+      (member) => member.toString() !== userId
+    );
+
+    const io = req.app.get("io");
+
+    // admin left and nobody's left behind — delete the group entirely
+    if (wasAdmin && group.members.length === 0) {
+      await Message.deleteMany({ groupId });
+      await groupSchema.findByIdAndDelete(groupId);
+
+      if (io) {
+        io.to(groupId.toString()).emit("groupDeleted", { groupId });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "You left the group. Since you were the last member, the group was deleted.",
+        groupDeleted: true,
+      });
+    }
+
+    // admin left but other members remain — promote the next one in line
+    if (wasAdmin) {
+      group.createdBy = group.members[0];
+    }
+
+    await group.save();
+
+    const updatedGroup = await groupSchema
+      .findById(groupId)
+      .populate("members", "name email image")
+      .populate("createdBy", "_id name image");
+
+    if (io) {
+      io.to(groupId.toString()).emit("groupMemberLeft", {
         groupId,
-        {
-          $pull: {
-            members: req.user.id,
-          },
-        },
-        { new: true }
-      );
+        userId,
+        newCreatedBy: updatedGroup.createdBy,
+        group: updatedGroup,
+      });
+    }
 
     res.status(200).json({
       success: true,
-      message:
-        "You left the group successfully",
-      group,
+      message: wasAdmin
+        ? `You left the group. ${
+            updatedGroup.createdBy?.name || "The next member"
+          } is now the admin.`
+        : "You left the group successfully",
+      group: updatedGroup,
     });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(500).json({
       message: "Server Error",
     });
