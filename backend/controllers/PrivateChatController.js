@@ -32,6 +32,10 @@ const openPrivateChat = async (req, res) => {
     });
   }
 };
+
+
+
+
 const getMyChats = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -100,23 +104,34 @@ const getUnreadCounts = async (req, res) => {
 
 
 const PrivateMessage = require("../models/PrivateMessageSchema");
-
 const getPrivateMessages = async (req, res) => {
   try {
     const { chatId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search?.trim() || "";
 
-    const messages = await PrivateMessage.find({ chatId })
-    .populate("sender","name image")
-.populate("receiver","name image")
-.populate({
-    path:"replyTo",
-    populate:{
-        path:"sender",
-        select:"name image"
+    const query = { chatId };
+    if (search) {
+      query.message = { $regex: search, $options: "i" };
     }
-});
 
-    // jo messages abhi tak "seen" nahi hain aur jinka receiver main hoon, unhe seen mark karo
+    const total = await PrivateMessage.countDocuments(query);
+
+    const messagesDesc = await PrivateMessage.find(query)
+      .populate("sender", "name image")
+      .populate("receiver", "name image")
+      .populate({
+        path: "replyTo",
+        populate: { path: "sender", select: "name image" },
+      })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const messages = messagesDesc.reverse();
+
+    // sirf isi page (fetch hue) messages me se, jo unseen hain aur receiver main hoon, unhe seen mark karo
     const unseenIds = messages
       .filter(
         (m) =>
@@ -131,7 +146,6 @@ const getPrivateMessages = async (req, res) => {
         { $set: { seen: true, seenAt: new Date() } }
       );
 
-      // response me turant reflect karne ke liye local array bhi update kar do
       messages.forEach((m) => {
         if (unseenIds.some((id) => id.toString() === m._id.toString())) {
           m.seen = true;
@@ -146,12 +160,19 @@ const getPrivateMessages = async (req, res) => {
       });
     }
 
-    res.status(200).json(messages);
+    res.status(200).json({
+      messages,
+      pagination: {
+        page,
+        limit,
+        total,
+        hasMore: page * limit < total,
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: "Error fetching messages" });
   }
 };
-
 
 
 const sendPrivateMessage = async (req, res) => {

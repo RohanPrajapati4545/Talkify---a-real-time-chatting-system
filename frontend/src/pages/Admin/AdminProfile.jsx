@@ -10,6 +10,7 @@ const AdminProfile = () => {
 
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
+    const [contact, setContact] = useState(user?.contact || "");
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(user?.image || "");
   const [saving, setSaving] = useState(false);
@@ -254,6 +255,17 @@ const AdminProfile = () => {
                   type="email"
                   className="form-control admin-input"
                   value={email}
+                  disabled
+                  readOnly
+                  title="Email cannot be changed"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="form-label admin-label">Contact</label>
+                <input
+                  type="text"
+                  className="form-control admin-input"
+                  value={contact}
                   disabled
                   readOnly
                   title="Email cannot be changed"

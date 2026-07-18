@@ -163,24 +163,37 @@ if (req.file) {
     });
   }
 };
-
 const getMessages = async (req, res) => {
   try {
     const { groupId } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search?.trim() || "";
 
-    const total = await Message.countDocuments({ groupId });
+    const query = { groupId };
+    if (search) {
+      query.message = { $regex: search, $options: "i" };
+    }
 
-    const messages = await Message.find({ groupId })
+    const total = await Message.countDocuments(query);
+
+    // naye messages pehle nikalo (taaki "sabse recent 10" mile), phir reverse
+    // karke chronological (oldest→newest) order me bhejo taaki thread me
+    // upar-se-neeche render ho sake
+    const messagesDesc = await Message.find(query)
       .populate("sender", "name image")
-      .populate({ path: "replyTo", populate: { path: "sender", select: "name image" } })
-      .sort({ createdAt: -1 })   // newest first for pagination...
+      .populate({
+        path: "replyTo",
+        populate: { path: "sender", select: "name image" },
+      })
+      .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
 
+    const messages = messagesDesc.reverse();
+
     res.status(200).json({
-      messages: messages.reverse(), // ...then flip to chronological for rendering
+      messages,
       pagination: {
         page,
         limit,
@@ -189,7 +202,10 @@ const getMessages = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 

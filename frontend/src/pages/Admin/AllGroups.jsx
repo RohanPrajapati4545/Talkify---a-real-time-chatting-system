@@ -532,48 +532,6 @@ const AllGroups = () => {
     }
   };
 
-  const handleCleanupOrphanedMembers = () => {
-    Swal.fire({
-      title: "Clean Up Removed Users?",
-      text: "This scans every group and removes any member IDs left over from deleted user accounts. Groups that end up with no valid members will be deleted.",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Yes, clean up",
-      confirmButtonColor: "#e8a33d",
-      background: "#1c1812",
-      color: "#f2ece2",
-    }).then(async (result) => {
-      if (!result.isConfirmed) return;
-
-      try {
-        setCleaningUp(true);
-
-        const res = await axios.post(
-          `${process.env.REACT_APP_API_URL}/api/admin/cleanup-orphaned-members`,
-          {},
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        Swal.fire({
-          title: "Cleaned Up",
-          text: `${res.data.membersRemoved} orphaned member reference(s) removed, ${res.data.groupsFixed} group(s) fixed, ${res.data.groupsDeleted} empty group(s) deleted.`,
-          icon: "success",
-          background: "#1c1812",
-          color: "#f2ece2",
-          confirmButtonColor: "#e8a33d",
-        });
-
-        // reload the current view so the cleaned-up data shows immediately
-        fetchGroups(debouncedSearch, 1, false);
-      } catch (error) {
-        console.log(error);
-        showErrorAlert(error, "Could not clean up orphaned members.");
-      } finally {
-        setCleaningUp(false);
-      }
-    });
-  };
-
   // search is now server-side (debounced), so `groups` already reflects
   // the current search term — no client-side filtering needed
 
@@ -586,15 +544,7 @@ const AllGroups = () => {
         </div>
 
         <div className="d-flex align-items-center gap-2">
-          <button
-            type="button"
-            className="btn btn-sm btn-outline-dark"
-            onClick={handleCleanupOrphanedMembers}
-            disabled={cleaningUp}
-            title="Remove leftover member references from deleted user accounts"
-          >
-            {cleaningUp ? "Cleaning..." : "Clean Up Removed Users"}
-          </button>
+         
 
           <input
             type="text"

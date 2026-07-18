@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -58,6 +58,27 @@ const MyGroups = () => {
   const { token, user } = useSelector(
     (state) => state.auth
   );
+  // ---- Group messages pagination ----
+const [messagesPage, setMessagesPage] = useState(1);
+const [hasMoreMessages, setHasMoreMessages] = useState(false);
+const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+
+// ---- Private messages pagination ----
+const [privateMessagesPage, setPrivateMessagesPage] = useState(1);
+const [hasMorePrivateMessages, setHasMorePrivateMessages] = useState(false);
+const [loadingOlderPrivateMessages, setLoadingOlderPrivateMessages] = useState(false);
+
+// ---- in-chat search (server-side, debounced — Sidebar jaisa pattern) ----
+const [debouncedMsgSearchTerm, setDebouncedMsgSearchTerm] = useState("");
+const [chatSearchResults, setChatSearchResults] = useState([]);
+const [chatSearchPage, setChatSearchPage] = useState(1);
+const [chatSearchHasMore, setChatSearchHasMore] = useState(false);
+const [chatSearchLoading, setChatSearchLoading] = useState(false);
+const chatSearchRequestIdRef = useRef(0);
+
+// scroll position preserve karne ke liye
+const messagesScrollAnchorRef = useRef(null);
+const privateMessagesScrollAnchorRef = useRef(null);
   const msgMenuRef = useRef(null);
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
@@ -285,27 +306,50 @@ const getAllUsers = async () => {
     });
   };
 
-  const getPrivateMessages = async (chatId) => {
-    setActionLoading(true);
-    try {
-      const res = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/private/private-messages/${chatId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
+  const getPrivateMessages = async (chatId, page = 1, append = false) => {
+  if (append) setLoadingOlderPrivateMessages(true);
+  else setActionLoading(true);
 
-      setPrivateMessages(res.data);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  try {
+    const res = await axios.get(
+      `${process.env.REACT_APP_API_URL}/api/private/private-messages/${chatId}`,
+      {
+        params: { page, limit: 10 },
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
 
-  useEffect(() => {
-    if (privateChat?._id) {
-      getPrivateMessages(privateChat._id);
-    }
-  }, [privateChat]);
+    const newMessages = res.data.messages || [];
+
+    setPrivateMessages((prev) => (append ? [...newMessages, ...prev] : newMessages));
+    setHasMorePrivateMessages(Boolean(res.data.pagination?.hasMore));
+    setPrivateMessagesPage(page);
+  } finally {
+    setLoadingOlderPrivateMessages(false);
+    setActionLoading(false);
+  }
+};
+
+const handleLoadOlderPrivateMessages = () => {
+  if (loadingOlderPrivateMessages || !hasMorePrivateMessages) return;
+
+  const container = privateMessagesRef.current;
+  if (container) {
+    privateMessagesScrollAnchorRef.current = {
+      prevScrollHeight: container.scrollHeight,
+      prevScrollTop: container.scrollTop,
+    };
+  }
+
+  getPrivateMessages(privateChat._id, privateMessagesPage + 1, true);
+};
+useEffect(() => {
+  if (privateChat?._id) {
+    setPrivateMessagesPage(1);
+    setHasMorePrivateMessages(false);
+    getPrivateMessages(privateChat._id, 1, false);
+  }
+}, [privateChat]);
 
   const getMyPrivateChats = async () => {
     try {
@@ -591,7 +635,55 @@ const getAllUsers = async () => {
     setShowForwardModal(true);
     setShowMsgMenu(null);
   };
+const fetchChatSearchResults = useCallback(
+  async (term, page, append = false) => {
+    const currentRequestId = ++chatSearchRequestIdRef.current;
+    const isGroup = Boolean(selectedGroup);
+    const id = isGroup ? selectedGroup?._id : privateChat?._id;
+    if (!id) return;
 
+    const url = isGroup
+      ? `${process.env.REACT_APP_API_URL}/api/user/messages/${id}`
+      : `${process.env.REACT_APP_API_URL}/api/private/private-messages/${id}`;
+
+    setChatSearchLoading(true);
+    try {
+      const res = await axios.get(url, {
+        params: { search: term, page, limit: 10 },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (currentRequestId !== chatSearchRequestIdRef.current) return;
+
+      const items = res.data.messages || [];
+      setChatSearchResults((prev) => (append ? [...prev, ...items] : items));
+      setChatSearchHasMore(Boolean(res.data.pagination?.hasMore));
+      setChatSearchPage(page);
+    } catch (err) {
+      console.log(err);
+      if (!append) setChatSearchResults([]);
+      setChatSearchHasMore(false);
+    } finally {
+      setChatSearchLoading(false);
+    }
+  },
+  [selectedGroup, privateChat, token]
+);
+
+useEffect(() => {
+  if (!debouncedMsgSearchTerm) {
+    setChatSearchResults([]);
+    setChatSearchHasMore(false);
+    setChatSearchPage(1);
+    return;
+  }
+  fetchChatSearchResults(debouncedMsgSearchTerm, 1, false);
+}, [debouncedMsgSearchTerm, fetchChatSearchResults]);
+
+const handleChatSearchLoadMore = () => {
+  if (chatSearchLoading || !chatSearchHasMore) return;
+  fetchChatSearchResults(debouncedMsgSearchTerm, chatSearchPage + 1, true);
+};
   const toggleForwardTarget = (type, id) => {
     setForwardTargets((prev) => {
       const exists = prev.find((t) => t.type === type && t.id === id);
@@ -1473,29 +1565,49 @@ const [sidebarRefreshSignal, setSidebarRefreshSignal] = useState(0);
       console.log(error);
     }
   };
+const getMessages = async (page = 1, append = false) => {
+  try {
+    if (!selectedGroup) return;
 
-  const getMessages = async () => {
-    try {
-      if (!selectedGroup) return;
+    if (append) setLoadingOlderMessages(true);
+    else setActionLoading(true);
 
-      setActionLoading(true);
+    const res = await axios.get(
+      `${process.env.REACT_APP_API_URL}/api/user/messages/${selectedGroup._id}`,
+      {
+        params: { page, limit: 10 },
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
 
-      const res = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/user/messages/${selectedGroup._id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+    const newMessages = res.data.messages || [];
 
-     setMessages(res.data.messages || []);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+    setMessages((prev) => (append ? [...newMessages, ...prev] : newMessages));
+    setHasMoreMessages(Boolean(res.data.pagination?.hasMore));
+    setMessagesPage(page);
+  } catch (error) {
+    console.log(error);
+  } finally {
+    setLoadingOlderMessages(false);
+    setActionLoading(false);
+  }
+};
+
+const handleLoadOlderMessages = () => {
+  if (loadingOlderMessages || !hasMoreMessages) return;
+
+  // scroll position note kar lo taaki purane messages upar add hone par
+  // view "jump" na kare — user jahan dekh raha tha wahi rahega
+  const container = messagesContainerRef.current;
+  if (container) {
+    messagesScrollAnchorRef.current = {
+      prevScrollHeight: container.scrollHeight,
+      prevScrollTop: container.scrollTop,
+    };
+  }
+
+  getMessages(messagesPage + 1, true);
+};
 
   const sendMessage = async () => {
 
@@ -1806,28 +1918,40 @@ const [sidebarRefreshSignal, setSidebarRefreshSignal] = useState(0);
 
   }, []);
   useEffect(() => {
-    if (selectedGroup) {
-      socket.emit(
-        "joinGroup",
-        selectedGroup._id
-      );
+  if (selectedGroup) {
+    socket.emit("joinGroup", selectedGroup._id);
+    setMessagesPage(1);
+    setHasMoreMessages(false);
+    getMessages(1, false);
+  }
+}, [selectedGroup]);
+ useEffect(() => {
+  const container = messagesContainerRef.current;
+  if (!container) return;
 
-      getMessages();
-    }
-  }, [selectedGroup]);
-  useEffect(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop =
-        messagesContainerRef.current.scrollHeight;
-    }
-  }, [messages, selectedGroup]);
+  if (messagesScrollAnchorRef.current) {
+    // purane messages upar add hue — scroll position preserve karo
+    const { prevScrollHeight, prevScrollTop } = messagesScrollAnchorRef.current;
+    container.scrollTop = container.scrollHeight - prevScrollHeight + prevScrollTop;
+    messagesScrollAnchorRef.current = null;
+  } else {
+    // naya message aaya ya group switch hua — bottom pe le jao
+    container.scrollTop = container.scrollHeight;
+  }
+}, [messages, selectedGroup]);
 
-  useEffect(() => {
-    if (privateMessagesRef.current) {
-      privateMessagesRef.current.scrollTop =
-        privateMessagesRef.current.scrollHeight;
-    }
-  }, [privateMessages, selectedUser]);
+ useEffect(() => {
+  const container = privateMessagesRef.current;
+  if (!container) return;
+
+  if (privateMessagesScrollAnchorRef.current) {
+    const { prevScrollHeight, prevScrollTop } = privateMessagesScrollAnchorRef.current;
+    container.scrollTop = container.scrollHeight - prevScrollHeight + prevScrollTop;
+    privateMessagesScrollAnchorRef.current = null;
+  } else {
+    container.scrollTop = container.scrollHeight;
+  }
+}, [privateMessages, selectedUser]);
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -2013,6 +2137,12 @@ const [sidebarRefreshSignal, setSidebarRefreshSignal] = useState(0);
     setCurrentMatchPos(0);
     messageRefs.current = {};
   }, [selectedGroup?._id, selectedUser?._id]);
+useEffect(() => {
+  const timer = setTimeout(() => {
+    setDebouncedMsgSearchTerm(msgSearchTerm.trim());
+  }, 500);
+  return () => clearTimeout(timer);
+}, [msgSearchTerm]);
 
   useEffect(() => {
     if (msgSearchMatches.length === 0) return;
@@ -2085,7 +2215,7 @@ const [sidebarRefreshSignal, setSidebarRefreshSignal] = useState(0);
         autoFocus
         placeholder="Search in this chat…"
         value={msgSearchTerm}
-        onChange={(e) => setMsgSearchTerm(e.target.value)}
+     onChange={(e) => setMsgSearchTerm(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.shiftKey ? goToPrevMatch() : goToNextMatch();
@@ -2144,6 +2274,70 @@ const [sidebarRefreshSignal, setSidebarRefreshSignal] = useState(0);
         title="Close search"
         style={{ color: "var(--muted)", fontSize: "14px", cursor: "pointer" }}
       ></i>
+
+
+
+      {debouncedMsgSearchTerm && (
+  <div
+    style={{
+      position: "absolute",
+      top: "100%",
+      left: 0,
+      right: 0,
+      maxHeight: "260px",
+      overflowY: "auto",
+      background: "var(--panel-2)",
+      borderBottom: "1px solid var(--hairline)",
+      zIndex: 15,
+    }}
+  >
+    {chatSearchLoading ? (
+      <div style={{ padding: "10px", fontSize: "13px", color: "var(--muted)" }}>
+        Searching...
+      </div>
+    ) : chatSearchResults.length === 0 ? (
+      <div style={{ padding: "10px", fontSize: "13px", color: "var(--muted)" }}>
+        No messages found
+      </div>
+    ) : (
+      <>
+        {chatSearchResults.map((m) => (
+          <div
+            key={m._id}
+            style={{
+              padding: "8px 14px",
+              borderBottom: "1px solid var(--hairline)",
+              cursor: "pointer",
+              fontSize: "13px",
+            }}
+            onClick={() => {
+              const el = messageRefs.current[m._id];
+              if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+              }
+            }}
+          >
+            <div style={{ fontWeight: 600 }}>{m.sender?.name}</div>
+            <div style={{ color: "var(--muted)" }}>
+              {m.isDeleted ? "This message was deleted" : m.message}
+            </div>
+          </div>
+        ))}
+
+        {chatSearchHasMore && (
+          <button
+            type="button"
+            className="cv-load-more-btn"
+            onClick={handleChatSearchLoadMore}
+            disabled={chatSearchLoading}
+          >
+            Load more
+          </button>
+        )}
+      </>
+    )}
+  </div>
+)}
     </div>
   );
 
@@ -2418,9 +2612,22 @@ const [sidebarRefreshSignal, setSidebarRefreshSignal] = useState(0);
                     {showMsgSearch && renderMsgSearchBar()}
 
          
-                    <div className="cv-thread" ref={privateMessagesRef}>
+                  <div className="cv-thread" ref={privateMessagesRef}>
 
-                      {privateMessages.length === 0 ? (
+  {hasMorePrivateMessages && (
+    <div style={{ textAlign: "center", padding: "8px 0" }}>
+      <button
+        type="button"
+        className="cv-load-more-btn"
+        onClick={handleLoadOlderPrivateMessages}
+        disabled={loadingOlderPrivateMessages}
+      >
+        {loadingOlderPrivateMessages ? "Loading..." : "Load older messages"}
+      </button>
+    </div>
+  )}
+
+  {privateMessages.length === 0 ? (
                         <div className="cv-thread-empty">
                           No messages yet — start the conversation
                         </div>
@@ -3072,9 +3279,22 @@ const [sidebarRefreshSignal, setSidebarRefreshSignal] = useState(0);
           
                   {showMsgSearch && renderMsgSearchBar()}
 
-                  <div className="cv-thread" ref={messagesContainerRef}>
+                 <div className="cv-thread" ref={messagesContainerRef}>
 
-                    {messages.map((msg, index) => {
+  {hasMoreMessages && (
+    <div style={{ textAlign: "center", padding: "8px 0" }}>
+      <button
+        type="button"
+        className="cv-load-more-btn"
+        onClick={handleLoadOlderMessages}
+        disabled={loadingOlderMessages}
+      >
+        {loadingOlderMessages ? "Loading..." : "Load older messages"}
+      </button>
+    </div>
+  )}
+
+  {messages.map((msg, index) => {
 
                       const senderName = msg.sender?.name || msg.sender;
                       const isMe = senderName === user?.name;
