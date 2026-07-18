@@ -29,11 +29,10 @@ const SideBar = ({
   user,
   groupTypingUsers = {},
   privateTypingStatus = {},
-  // General-purpose escape hatch: bump this (e.g. a counter you
-  // increment) from the parent after any group mutation that doesn't
-  // already have a socket event wired up (create group, join by code,
-  // edit group name/image, etc.) and SideBar will silently refetch the
-  // current tab/search page 1 to stay in sync.
+  
+  userLastActivity = {},
+  groupLastActivity = {},
+
   refreshSignal = 0,
 }) => {
   const navigate = useNavigate();
@@ -178,8 +177,35 @@ useEffect(() => {
 
   const isSearchMode = Boolean(debouncedTerm);
 
-  const displayedGroups = activeTab === "groups" ? listResults : [];
-  const displayedUsers = activeTab === "chats" ? listResults : [];
+  // While searching, keep the backend's relevance/alphabetical order as-is.
+  // Otherwise, reorder the currently-loaded page "most recent first" using
+  // the activity timestamps passed down from the parent — same idea as a
+  // typical chat app's conversation list.
+  const displayedGroups = useMemo(() => {
+    const base = activeTab === "groups" ? listResults : [];
+    if (isSearchMode) return base;
+
+    return [...base].sort((a, b) => {
+      const ta =
+        groupLastActivity[a._id] ??
+        new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const tb =
+        groupLastActivity[b._id] ??
+        new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return tb - ta;
+    });
+  }, [activeTab, listResults, isSearchMode, groupLastActivity]);
+
+  const displayedUsers = useMemo(() => {
+    const base = activeTab === "chats" ? listResults : [];
+    if (isSearchMode) return base;
+
+    return [...base].sort((a, b) => {
+      const ta = userLastActivity[a._id] ?? 0;
+      const tb = userLastActivity[b._id] ?? 0;
+      return tb - ta;
+    });
+  }, [activeTab, listResults, isSearchMode, userLastActivity]);
 
   const totalGroupUnread = useMemo(
     () =>

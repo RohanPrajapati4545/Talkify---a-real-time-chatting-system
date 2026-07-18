@@ -2153,29 +2153,29 @@ const [sidebarRefreshSignal, setSidebarRefreshSignal] = useState(0);
             className={`col-12 col-md-4 p-0 ${chatOpen ? "d-none d-md-block" : "d-block"
               }`}
           >
-            <SideBar
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              sortedGroup={sortedGroups}
-              sortedUsers={sortedUsers}
-              setSelectedGroup={setSelectedGroup}
-              setSelectedUser={setSelectedUser}
-              openPrivateChat={openPrivateChat}
-              onSelectGroup={openGroupChat}
-              unreadCounts={unreadCounts}
-              setShowGroupInfo={setShowGroupInfo}
-              setShowMedia={setShowMedia}
-              setPreviewImage={setPreviewImage}
-              showMenu={showMenu}
-              setShowMenu={setShowMenu}
-              handleLogout={handleLogout}
-              menuRef={menuRef}
-              isOnline={isOnline}
-              user={user}
-              groupTypingUsers={groupTypingUsers}
-              privateTypingStatus={privateTypingStatus}
-              refreshSignal={sidebarRefreshSignal}
-            />
+          <SideBar
+  activeTab={activeTab}
+  setActiveTab={setActiveTab}
+  setSelectedGroup={setSelectedGroup}
+  setSelectedUser={setSelectedUser}
+  openPrivateChat={openPrivateChat}
+  onSelectGroup={openGroupChat}
+  unreadCounts={unreadCounts}
+  setShowGroupInfo={setShowGroupInfo}
+  setShowMedia={setShowMedia}
+  setPreviewImage={setPreviewImage}
+  showMenu={showMenu}
+  setShowMenu={setShowMenu}
+  handleLogout={handleLogout}
+  menuRef={menuRef}
+  isOnline={isOnline}
+  user={user}
+  groupTypingUsers={groupTypingUsers}
+  privateTypingStatus={privateTypingStatus}
+  userLastActivity={userLastActivity}
+  groupLastActivity={groupLastActivity}
+  refreshSignal={sidebarRefreshSignal}
+/>
           </div>
 
           <div
