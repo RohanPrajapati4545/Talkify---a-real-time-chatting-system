@@ -91,6 +91,20 @@ if (
     .populate("members", "name email image")
     .populate("createdBy", "_id name");
 
+    // notify the newly added user (personal room — they haven't joined
+    // this group's socket room yet) and existing members (already in it)
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`user_${userId}`).emit("groupMembersUpdated", {
+        groupId,
+        group: updatedGroup,
+      });
+      io.to(groupId).emit("groupMembersUpdated", {
+        groupId,
+        group: updatedGroup,
+      });
+    }
+
     res.status(200).json({
       message:
         "User added successfully",

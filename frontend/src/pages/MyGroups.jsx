@@ -1026,7 +1026,45 @@ useEffect(() => {
       setActionLoading(false);
     }
   };
+useEffect(() => {
+  const handleGroupCreated = ({ group }) => {
+    setGroups((prev) => (prev.some((g) => g._id === group._id) ? prev : [group, ...prev]));
+    socket.emit("joinGroup", group._id);
 
+    setGroupLastActivity((prev) => ({
+      ...prev,
+      [group._id]: new Date(group.updatedAt || group.createdAt || Date.now()).getTime(),
+    }));
+
+    toast.info(`You were added to "${group.groupName}"`);
+  };
+
+  const handleGroupMembersUpdated = ({ groupId, group }) => {
+    setGroups((prev) => {
+      const exists = prev.some((g) => g._id === groupId);
+      if (exists) {
+        return prev.map((g) => (g._id === groupId ? { ...g, ...group } : g));
+      }
+      return [group, ...prev];
+    });
+
+    // in case I'm the one who was just added/joined and hadn't joined
+    // this group's socket room yet
+    socket.emit("joinGroup", groupId);
+
+    setSelectedGroup((prev) =>
+      prev && prev._id === groupId ? { ...prev, ...group } : prev
+    );
+  };
+
+  socket.on("groupCreated", handleGroupCreated);
+  socket.on("groupMembersUpdated", handleGroupMembersUpdated);
+
+  return () => {
+    socket.off("groupCreated", handleGroupCreated);
+    socket.off("groupMembersUpdated", handleGroupMembersUpdated);
+  };
+}, []);
   const handleClearGroupChat = () => {
     Swal.fire({
       title: "Clear Chat?",

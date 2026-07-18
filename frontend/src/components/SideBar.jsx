@@ -29,10 +29,17 @@ const SideBar = ({
   user,
   groupTypingUsers = {},
   privateTypingStatus = {},
-  
+  // Timestamps (ms) of the most recent message with each group/user —
+  // used to sort the list "most recent first", WhatsApp-style, instead of
+  // the backend's default alphabetical order. Update these from the
+  // parent whenever a message is sent or received.
   userLastActivity = {},
   groupLastActivity = {},
-
+  // General-purpose escape hatch: bump this (e.g. a counter you
+  // increment) from the parent after any group mutation that doesn't
+  // already have a socket event wired up (create group, join by code,
+  // edit group name/image, etc.) and SideBar will silently refetch the
+  // current tab/search page 1 to stay in sync.
   refreshSignal = 0,
 }) => {
   const navigate = useNavigate();
@@ -167,6 +174,40 @@ useEffect(() => {
       socket.off("groupMemberLeft", handleGroupMemberLeft);
     };
   }, [user?._id]);
+
+  // ============== REAL-TIME: pick up new groups instantly ==============
+  // Covers: a brand new group being created (everyone added to it gets
+  // notified), someone joining via invite code, and being added to an
+  // existing group by its admin — all previously required a manual
+  // refresh since this component fetches its own copy of the list.
+  useEffect(() => {
+    const handleGroupCreated = ({ group }) => {
+      if (activeTabRef.current !== "groups" || !group) return;
+      setListResults((prev) =>
+        prev.some((g) => g._id === group._id) ? prev : [group, ...prev]
+      );
+    };
+
+    const handleGroupMembersUpdated = ({ groupId, group }) => {
+      if (activeTabRef.current !== "groups" || !group) return;
+      setListResults((prev) => {
+        const exists = prev.some((g) => g._id === groupId);
+        if (exists) {
+          return prev.map((g) => (g._id === groupId ? { ...g, ...group } : g));
+        }
+        // this group is new to me (I was just added/joined) — show it
+        return [group, ...prev];
+      });
+    };
+
+    socket.on("groupCreated", handleGroupCreated);
+    socket.on("groupMembersUpdated", handleGroupMembersUpdated);
+
+    return () => {
+      socket.off("groupCreated", handleGroupCreated);
+      socket.off("groupMembersUpdated", handleGroupMembersUpdated);
+    };
+  }, []);
 
 
 

@@ -33,10 +33,24 @@ const createGroup = async (req, res) => {
   createdBy: req.user.id,
 });
 
+    const populatedGroup = await GroupSchema.findById(group._id)
+      .populate("members", "name email image")
+      .populate("createdBy", "_id name image");
+
+    // notify every member's sidebar in real time — none of them (except
+    // the creator, via this response) have joined this group's socket
+    // room yet, so target each member's personal room instead
+    const io = req.app.get("io");
+    if (io) {
+      populatedGroup.members.forEach((m) => {
+        io.to(`user_${m._id}`).emit("groupCreated", { group: populatedGroup });
+      });
+    }
+
     res.status(201).json({
       success: true,
       message: "Group Created Successfully",
-      group,
+      group: populatedGroup,
     });
   } catch (error) {
     res.status(500).json({
@@ -363,6 +377,20 @@ const joinGroupByCode = async (req, res) => {
     const updated = await GroupSchema.findById(group._id)
       .populate("members", "name image email")
       .populate("createdBy", "name image");
+
+    // notify the new member (personal room — they haven't joined this
+    // group's socket room yet) and existing members (already in the room)
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`user_${userId}`).emit("groupMembersUpdated", {
+        groupId: group._id,
+        group: updated,
+      });
+      io.to(group._id.toString()).emit("groupMembersUpdated", {
+        groupId: group._id,
+        group: updated,
+      });
+    }
  
     res.status(200).json({
       message: `Successfully joined "${updated.groupName}"`,
