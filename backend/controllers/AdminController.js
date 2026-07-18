@@ -187,14 +187,19 @@ exports.getUserById = async (req, res) => {
     res.status(500).json({ message: "Something went wrong" });
   }
 };
-
 exports.updateUser = async (req, res) => {
   try {
-    const { userId, name, email } = req.body;
+    const { userId, name, email, contact } = req.body;
+
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (contact) updateData.contact = contact;
+    if (req.file?.path) updateData.image = req.file.path;
 
     const user = await User.findByIdAndUpdate(
       userId,
-      { name, email },
+      updateData,
       { new: true }
     ).select("-password");
 
@@ -205,7 +210,6 @@ exports.updateUser = async (req, res) => {
     res.status(500).json({ msg: "Failed to update user" });
   }
 };
-
 // ============== ADMIN SELF PROFILE / SETTINGS (new — AdminProfile.jsx) ==============
 
 // Updates the logged-in admin's own name/email/avatar.

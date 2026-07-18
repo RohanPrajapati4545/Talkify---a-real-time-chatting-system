@@ -18,7 +18,8 @@ const UserSchema=new mongoose.Schema({
   },
   contact: {
     type: String,
-    required: true
+    required: true,
+    default: ""
   },
      role:{
         type:String,

@@ -25,7 +25,10 @@ const AllUsers = () => {
 
   const [editUser, setEditUser] = useState(null);
   const [editName, setEditName] = useState("");
+  const [editContact, setEditContact] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editImage, setEditImage] = useState(null);
+  const [editImagePreview, setEditImagePreview] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [actionLoadingId, setActionLoadingId] = useState(null);
@@ -225,6 +228,9 @@ const AllUsers = () => {
     setEditUser(user);
     setEditName(user.name || "");
     setEditEmail(user.email || "");
+    setEditContact(user.contact || "");
+    setEditImage(null);
+    setEditImagePreview(user.image || "");
   };
 
   const closeEditModal = () => {
@@ -232,6 +238,16 @@ const AllUsers = () => {
     setEditUser(null);
     setEditName("");
     setEditEmail("");
+    setEditContact("");
+    setEditImage(null);
+    setEditImagePreview("");
+  };
+
+  const handleEditImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setEditImage(file);
+    setEditImagePreview(URL.createObjectURL(file));
   };
 
   const handleEditSubmit = async (e) => {
@@ -240,10 +256,22 @@ const AllUsers = () => {
     try {
       setSaving(true);
 
+      const formData = new FormData();
+      formData.append("userId", editUser._id);
+      formData.append("name", editName);
+      formData.append("email", editEmail);
+      formData.append("contact", editContact);
+      if (editImage) formData.append("image", editImage);
+
       const res = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/admin/update-user`,
-        { userId: editUser._id, name: editName, email: editEmail },
-        { headers: { Authorization: `Bearer ${token}` } }
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
       );
 
       const updatedUser = res.data.user;
@@ -436,7 +464,7 @@ const AllUsers = () => {
                   <div className="d-flex align-items-center gap-3 mb-4">
                     <div className="avatar-status-wrap">
                       <img
-                        src={editUser.image}
+                        src={editImagePreview || editUser.image}
                         alt=""
                         style={{
                           width: "56px",
@@ -457,6 +485,20 @@ const AllUsers = () => {
                       <div className="text-muted" style={{ fontSize: "12.5px" }}>
                         {isUserOnline(editUser._id) ? "Online" : "Offline"}
                       </div>
+                      <label
+                        htmlFor="editUserImageInput"
+                        className="btn btn-sm btn-outline-warning mt-2 mb-0"
+                      >
+                        Change Photo
+                      </label>
+                      <input
+                        id="editUserImageInput"
+                        type="file"
+                        accept="image/*"
+                        className="d-none"
+                        onChange={handleEditImageChange}
+                        disabled={saving}
+                      />
                     </div>
                   </div>
 
@@ -473,7 +515,7 @@ const AllUsers = () => {
                       />
                     </div>
 
-                    <div className="mb-1">
+                    <div className="mb-3">
                       <label className="form-label admin-label">Email</label>
                       <input
                         type="email"
@@ -481,6 +523,19 @@ const AllUsers = () => {
                         value={editEmail}
                         onChange={(e) => setEditEmail(e.target.value)}
                         required
+                        disabled={saving}
+                      />
+                    </div>
+
+                    <div className="mb-1">
+                      <label className="form-label admin-label">Contact</label>
+                      <input
+                      maxLength={10}
+                       
+                        className="form-control admin-input"
+                        value={editContact}
+                        onChange={(e) => setEditContact(e.target.value)}
+                        placeholder="Phone number"
                         disabled={saving}
                       />
                     </div>
