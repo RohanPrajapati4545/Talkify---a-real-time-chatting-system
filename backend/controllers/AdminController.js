@@ -304,15 +304,75 @@ exports.unblockUser = async (req, res) => {
     res.status(500).json({ msg: "Failed to unblock user" });
   }
 };
-
 exports.deleteUser = async (req, res) => {
   try {
     const { userId } = req.body;
-    const user = await User.findByIdAndDelete(userId);
 
+    const user = await User.findById(userId);
     if (!user) return res.status(404).json({ msg: "User not found" });
+
+    const io = req.app.get("io");
+
+    // 1. Remove this user from every group they're a member of.
+    //    - If they were the group admin, promote the next member.
+    //    - If they were the ONLY member (and admin), delete the group
+    //      entirely along with its messages.
+    const groups = await Group.find({ members: userId });
+
+    for (const group of groups) {
+      group.members = group.members.filter((m) => m.toString() !== userId);
+
+      const wasAdmin = group.createdBy?.toString() === userId;
+
+      if (wasAdmin) {
+        if (group.members.length === 0) {
+          await GroupMessage.deleteMany({ groupId: group._id });
+          await Group.findByIdAndDelete(group._id);
+          if (io) io.to(group._id.toString()).emit("groupDeleted", { groupId: group._id });
+          continue;
+        }
+        group.createdBy = group.members[0];
+      }
+
+      await group.save();
+      if (io) io.to(group._id.toString()).emit("groupMemberRemoved", {
+        groupId: group._id,
+        userId,
+        newCreatedBy: group.createdBy,
+      });
+    }
+
+    // 2. Delete every group message this user ever sent (and notify any
+    //    open group chat windows in real time).
+    const userGroupMessages = await GroupMessage.find({ sender: userId });
+    for (const msg of userGroupMessages) {
+      await GroupMessage.findByIdAndDelete(msg._id);
+      if (io)
+        io.to(msg.groupId.toString()).emit("groupMessageDeleted", {
+          _id: msg._id,
+          groupId: msg.groupId,
+        });
+    }
+
+    // 3. Delete every private chat this user was part of, along with all
+    //    messages in those chats (notify any open chat windows too).
+    const privateChats = await PrivateChat.find({ members: userId });
+    for (const chat of privateChats) {
+      await PrivateMessage.deleteMany({ chatId: chat._id });
+      await PrivateChat.findByIdAndDelete(chat._id);
+      if (io) io.to(chat._id.toString()).emit("privateChatDeleted", { chatId: chat._id });
+    }
+
+    // 4. Remove any reports this user filed (their reference would
+    //    otherwise dangle too).
+    await Report.deleteMany({ sender: userId });
+
+    // 5. Finally, delete the user document itself.
+    await User.findByIdAndDelete(userId);
+
     res.status(200).json({ msg: "User deleted" });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ msg: "Failed to delete user" });
   }
 };
