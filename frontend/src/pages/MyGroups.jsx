@@ -68,6 +68,10 @@ const [privateMessagesPage, setPrivateMessagesPage] = useState(1);
 const [hasMorePrivateMessages, setHasMorePrivateMessages] = useState(false);
 const [loadingOlderPrivateMessages, setLoadingOlderPrivateMessages] = useState(false);
 
+// ---- call logs (WhatsApp jaisi call entries thread me dikhane ke liye) ----
+const [privateCallLogs, setPrivateCallLogs] = useState([]);
+const [groupCallLogs, setGroupCallLogs] = useState([]);
+
 // ---- in-chat search (server-side, debounced — Sidebar jaisa pattern) ----
 const [debouncedMsgSearchTerm, setDebouncedMsgSearchTerm] = useState("");
 const [chatSearchResults, setChatSearchResults] = useState([]);
@@ -330,6 +334,38 @@ const getAllUsers = async () => {
   }
 };
 
+// 👇 NAYA — is private chat ke saare call logs fetch karo
+const getPrivateCallLogs = async (chatId) => {
+  try {
+    const res = await axios.get(
+      `${process.env.REACT_APP_API_URL}/api/private/call-logs/${chatId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    setPrivateCallLogs(res.data.calls || []);
+  } catch (error) {
+    console.log(error);
+    setPrivateCallLogs([]);
+  }
+};
+
+// 👇 NAYA — is group ke saare call logs fetch karo
+const getGroupCallLogs = async (groupId) => {
+  try {
+    const res = await axios.get(
+      `${process.env.REACT_APP_API_URL}/api/user/group-call-logs/${groupId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    setGroupCallLogs(res.data.calls || []);
+  } catch (error) {
+    console.log(error);
+    setGroupCallLogs([]);
+  }
+};
+
 const handleLoadOlderPrivateMessages = () => {
   if (loadingOlderPrivateMessages || !hasMorePrivateMessages) return;
 
@@ -348,6 +384,9 @@ useEffect(() => {
     setPrivateMessagesPage(1);
     setHasMorePrivateMessages(false);
     getPrivateMessages(privateChat._id, 1, false);
+    getPrivateCallLogs(privateChat._id); // 👈 NAYA
+  } else {
+    setPrivateCallLogs([]);
   }
 }, [privateChat]);
 
@@ -573,10 +612,41 @@ useEffect(() => {
 
   }, []);
 
+  // 👇 NAYA — jab bhi koi private call log ho (khatam/reject/missed), server
+  // se real-time event aata hai. Agar yeh usi chat ka hai jo abhi open hai
+  // toh turant list me daal do, aur sidebar ki activity bhi update kar do.
+  useEffect(() => {
+    socket.on("callLogAdded", (call) => {
+      const isOpenChat =
+        privateChatRef.current &&
+        call.chatId &&
+        call.chatId.toString() === privateChatRef.current._id?.toString();
+
+      if (isOpenChat) {
+        setPrivateCallLogs((prev) =>
+          prev.some((c) => c._id === call._id) ? prev : [...prev, call]
+        );
+      }
+
+      const callerId = call.caller?._id || call.caller;
+      const receiverId = call.receiver?._id || call.receiver;
+      const otherId = callerId === user?._id ? receiverId : callerId;
+
+      if (otherId) {
+        setUserLastActivity((prev) => ({ ...prev, [otherId]: Date.now() }));
+      }
+    });
+
+    return () => {
+      socket.off("callLogAdded");
+    };
+  }, [user?._id]);
+
   useEffect(() => {
     socket.on("privateChatDeleted", ({ chatId }) => {
       if (privateChat?._id === chatId) {
         setPrivateMessages([]);
+        setPrivateCallLogs([]);
         setPrivateChat(null);
         setSelectedUser(null);
         setShowUserInfo(false);
@@ -1106,6 +1176,7 @@ useEffect(() => {
       });
 
       setPrivateMessages([]);
+      setPrivateCallLogs([]);
       setPrivateChat(null);
       setSelectedUser(null);
       setShowUserInfo(false);
@@ -1917,12 +1988,36 @@ const handleLoadOlderMessages = () => {
     };
 
   }, []);
+
+  // 👇 NAYA — group call ka log real-time aane par, agar yahi group open hai
+  // toh usi thread me daal do
+  useEffect(() => {
+    socket.on("groupCallLogAdded", (call) => {
+      const gId = call.group?._id || call.group;
+      if (selectedGroupRef.current?._id === gId) {
+        setGroupCallLogs((prev) =>
+          prev.some((c) => c._id === call._id) ? prev : [...prev, call]
+        );
+      }
+      if (gId) {
+        setGroupLastActivity((prev) => ({ ...prev, [gId]: Date.now() }));
+      }
+    });
+
+    return () => {
+      socket.off("groupCallLogAdded");
+    };
+  }, []);
+
   useEffect(() => {
   if (selectedGroup) {
     socket.emit("joinGroup", selectedGroup._id);
     setMessagesPage(1);
     setHasMoreMessages(false);
     getMessages(1, false);
+    getGroupCallLogs(selectedGroup._id); // 👈 NAYA
+  } else {
+    setGroupCallLogs([]);
   }
 }, [selectedGroup]);
  useEffect(() => {
@@ -1938,7 +2033,7 @@ const handleLoadOlderMessages = () => {
     // naya message aaya ya group switch hua — bottom pe le jao
     container.scrollTop = container.scrollHeight;
   }
-}, [messages, selectedGroup]);
+}, [messages, selectedGroup, groupCallLogs]);
 
  useEffect(() => {
   const container = privateMessagesRef.current;
@@ -1951,7 +2046,7 @@ const handleLoadOlderMessages = () => {
   } else {
     container.scrollTop = container.scrollHeight;
   }
-}, [privateMessages, selectedUser]);
+}, [privateMessages, selectedUser, privateCallLogs]);
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -2108,6 +2203,82 @@ const handleLoadOlderMessages = () => {
       return tb - ta;
     });
   }, [users, userLastActivity]);
+
+  // 👇 NAYA — messages + call-logs ko ek hi timeline me merge karte hain
+  // taaki thread me WhatsApp jaisa call entry sahi jagah (uske time ke
+  // hisaab se) dikhe. Har item me `_kind: "message" | "call"` flag hai.
+  const mergedPrivateThread = useMemo(() => {
+    const msgItems = privateMessages.map((m) => ({ _kind: "message", data: m, createdAt: m.createdAt }));
+    const callItems = privateCallLogs.map((c) => ({ _kind: "call", data: c, createdAt: c.createdAt }));
+    return [...msgItems, ...callItems].sort(
+      (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+    );
+  }, [privateMessages, privateCallLogs]);
+
+  const mergedGroupThread = useMemo(() => {
+    const msgItems = messages.map((m) => ({ _kind: "message", data: m, createdAt: m.createdAt }));
+    const callItems = groupCallLogs.map((c) => ({ _kind: "call", data: c, createdAt: c.createdAt }));
+    return [...msgItems, ...callItems].sort(
+      (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+    );
+  }, [messages, groupCallLogs]);
+
+  // 👇 NAYA — ek private call-log entry render karta hai (WhatsApp jaisi
+  // centered pill: incoming/outgoing, call type icon, duration ya missed/declined)
+  const renderPrivateCallLog = (call) => {
+    const callerId = call.caller?._id || call.caller;
+    const isOutgoing = callerId === user?._id;
+
+    const icon = call.callType === "video" ? "fa-video" : "fa-phone";
+
+    let label;
+    if (call.status === "missed") {
+      label = isOutgoing ? "No answer" : "Missed call";
+    } else if (call.status === "rejected") {
+      label = isOutgoing ? "Call declined" : "You declined";
+    } else {
+      const m = String(Math.floor((call.duration || 0) / 60)).padStart(2, "0");
+      const s = String((call.duration || 0) % 60).padStart(2, "0");
+      label = `${m}:${s}`;
+    }
+
+    const isMissedLike = call.status === "missed" || call.status === "rejected";
+
+    return (
+      <div key={call._id} className="cv-call-log-row">
+        <div className={`cv-call-log-pill ${isMissedLike ? "missed" : ""}`}>
+          <i className={`fa-solid ${icon}`}></i>
+          <span className="cv-call-log-dir">
+            {isOutgoing ? "Outgoing" : "Incoming"} {call.callType} call
+          </span>
+          <span className="cv-call-log-meta">
+            {label} · {formatTime(call.createdAt)}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  // 👇 NAYA — group call-log entry render karta hai
+  const renderGroupCallLog = (call) => {
+    const icon = call.callType === "video" ? "fa-video" : "fa-phone";
+    const m = String(Math.floor((call.duration || 0) / 60)).padStart(2, "0");
+    const s = String((call.duration || 0) % 60).padStart(2, "0");
+
+    return (
+      <div key={call._id} className="cv-call-log-row">
+        <div className="cv-call-log-pill">
+          <i className={`fa-solid ${icon}`}></i>
+          <span className="cv-call-log-dir">
+            {call.caller?.name || "Someone"} started a {call.callType} call
+          </span>
+          <span className="cv-call-log-meta">
+            {m}:{s} · {formatTime(call.createdAt)}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   const activeThreadMessages = selectedUser ? privateMessages : messages;
 
@@ -2563,18 +2734,31 @@ useEffect(() => {
     </div>
   )}
 
-  {privateMessages.length === 0 ? (
+  {mergedPrivateThread.length === 0 ? (
                         <div className="cv-thread-empty">
                           No messages yet — start the conversation
                         </div>
                       ) : (
-                        privateMessages.map((msg, index) => {
+                        mergedPrivateThread.map((item, index) => {
+
+                          if (item._kind === "call") {
+                            return renderPrivateCallLog(item.data);
+                          }
+
+                          const msg = item.data;
                           const isMe = msg.sender?._id === user?._id;
                           const side = isMe ? "mine" : "theirs";
-                          const showDateSeparator = shouldShowDateSeparator(
-                            msg,
-                            privateMessages[index - 1]
-                          );
+
+                          // date separator ke liye pichla MESSAGE dhoondo
+                          // (call-log items ko count nahi karte)
+                          let prevMsg = null;
+                          for (let i = index - 1; i >= 0; i--) {
+                            if (mergedPrivateThread[i]._kind === "message") {
+                              prevMsg = mergedPrivateThread[i].data;
+                              break;
+                            }
+                          }
+                          const showDateSeparator = shouldShowDateSeparator(msg, prevMsg);
 
                           return (
                             <React.Fragment key={msg._id}>
@@ -3230,15 +3414,25 @@ useEffect(() => {
     </div>
   )}
 
-  {messages.map((msg, index) => {
+  {mergedGroupThread.map((item, index) => {
 
+                      if (item._kind === "call") {
+                        return renderGroupCallLog(item.data);
+                      }
+
+                      const msg = item.data;
                       const senderName = msg.sender?.name || msg.sender;
                       const isMe = senderName === user?.name;
                       const side = isMe ? "mine" : "theirs";
-                      const showDateSeparator = shouldShowDateSeparator(
-                        msg,
-                        messages[index - 1]
-                      );
+
+                      let prevMsg = null;
+                      for (let i = index - 1; i >= 0; i--) {
+                        if (mergedGroupThread[i]._kind === "message") {
+                          prevMsg = mergedGroupThread[i].data;
+                          break;
+                        }
+                      }
+                      const showDateSeparator = shouldShowDateSeparator(msg, prevMsg);
 
                       return (
 

@@ -7,6 +7,8 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const PrivateMessage = require("./models/PrivateMessageSchema")
+const PrivateChatModel = require("./models/PrivateChatSchema");
+const CallModel = require("./models/CallSchema");
 require("./config/db");
 
 const app = express();
@@ -208,6 +210,46 @@ io.on("connection", (socket) => {
     io.to(`user_${toUserId}`).emit("callEnded");
   });
 
+  // 👇 NAYA — private call ka log DB me save karke dono taraf (aur chat
+  // room me, agar koi already conversation khole baitha hai) real-time
+  // bhej dete hain taaki chat thread me WhatsApp jaisi call-log entry
+  // turant dikh jaye
+  socket.on("logCall", async ({ toUserId, callType, status, duration }) => {
+    try {
+      const fromUserId = socket.userId;
+      if (!fromUserId || !toUserId) return;
+
+      let chat = await PrivateChatModel.findOne({
+        members: { $all: [fromUserId, toUserId] },
+      });
+
+      if (!chat) {
+        chat = await PrivateChatModel.create({ members: [fromUserId, toUserId] });
+      }
+
+      const call = await CallModel.create({
+        caller: fromUserId,
+        receiver: toUserId,
+        chatId: chat._id,
+        callType,
+        status,
+        duration,
+      });
+
+      const populated = await CallModel.findById(call._id)
+        .populate("caller", "name image")
+        .populate("receiver", "name image");
+
+      io.to(chat._id.toString())
+        .to(`user_${fromUserId}`)
+        .to(`user_${toUserId}`)
+        .emit("callLogAdded", populated);
+
+    } catch (err) {
+      console.log("logCall error:", err);
+    }
+  });
+
   socket.on("groupCallUser", ({ groupId, groupName, groupImage, fromUser, callType }) => {
     console.log("📞 GROUP CALL USER — groupId:", groupId, "from:", fromUser?._id);
     socket.to(groupId).emit("groupIncomingCall", {
@@ -250,6 +292,29 @@ io.on("connection", (socket) => {
     }
     socket.leave(`groupcall_${groupId}`);
     socket.to(`groupcall_${groupId}`).emit("groupUserLeftCall", { groupId, userId });
+  });
+
+  // 👇 NAYA — group call ka log DB me save + group room me broadcast
+  socket.on("logGroupCall", async ({ groupId, callType, duration }) => {
+    try {
+      const fromUserId = socket.userId;
+      if (!fromUserId || !groupId) return;
+
+      const call = await CallModel.create({
+        caller: fromUserId,
+        group: groupId,
+        callType,
+        status: "ended",
+        duration,
+      });
+
+      const populated = await CallModel.findById(call._id).populate("caller", "name image");
+
+      io.to(groupId).emit("groupCallLogAdded", populated);
+
+    } catch (err) {
+      console.log("logGroupCall error:", err);
+    }
   });
 
   socket.on("disconnect", () => {

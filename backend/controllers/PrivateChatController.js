@@ -1,6 +1,7 @@
 const mongoose = require("mongoose"); // 👈 NAYA — aggregate ke liye chahiye
 const PrivateChat = require("./../models/PrivateChatSchema");
 const User = require("./../models/UserSchema");
+const Call = require("./../models/CallSchema");
 
 const openPrivateChat = async (req, res) => {
 
@@ -171,6 +172,25 @@ const getPrivateMessages = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Error fetching messages" });
+  }
+};
+
+// 👇 NAYA — ek private chat ke saare call logs (WhatsApp jaisi call-log
+// entries chat thread me dikhane ke liye). Call volume messages se bahut
+// kam hota hai, isliye pagination ke bina saare bhej dete hain — frontend
+// inhe messages ke sath timestamp se merge karke render karta hai.
+const getCallLogs = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+
+    const calls = await Call.find({ chatId })
+      .populate("caller", "name image")
+      .populate("receiver", "name image")
+      .sort({ createdAt: 1 });
+
+    res.status(200).json({ calls });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching call logs" });
   }
 };
 
@@ -386,5 +406,5 @@ const deleteChat = async (req, res) => {
 };
 module.exports = {
   openPrivateChat, getPrivateMessages, sendPrivateMessage, deleteMessage, updateMessage, deleteChat,
-  getMyChats, getUnreadCounts, 
+  getMyChats, getUnreadCounts, getCallLogs,
 };

@@ -2,6 +2,7 @@ const GroupSchema = require("./../models/GroupSchema");
 const User = require("./../models/UserSchema");
 const Message = require("./../models/MessageSchema");
 const PrivateChat = require("./../models/PrivateChatSchema");
+const Call = require("./../models/CallSchema");
 const { v4: uuidv4 } = require("uuid");
 
 const createGroup = async (req, res) => {
@@ -206,6 +207,21 @@ const getMessages = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+// 👇 NAYA — ek group ke saare call logs (chat thread me merge karne ke liye)
+const getGroupCallLogs = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+
+    const calls = await Call.find({ group: groupId })
+      .populate("caller", "name image")
+      .sort({ createdAt: 1 });
+
+    res.status(200).json({ calls });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching group call logs" });
   }
 };
 
@@ -523,4 +539,4 @@ const clearGroupChat = async (req, res) => {
 };
 
 module.exports = { createGroup, getMyGroup, sendMessage, getMessages,  deleteGroup,updateMessage,deleteMessage, joinGroupByCode,updateGroup,clearGroupChat,
-  regenerateInviteCode};
+  regenerateInviteCode, getGroupCallLogs};

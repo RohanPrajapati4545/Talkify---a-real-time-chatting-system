@@ -69,6 +69,21 @@ const CallManager = ({ user }) => {
   const acceptCallLockRef = useRef(false);
   const pendingCandidatesRef = useRef([]);
 
+  // 👇 NAYA — call-log ke liye live values ko refs me sync rakhte hain,
+  // taaki socket.on() callbacks (jo purani closures ho sakti hain) bhi
+  // hamesha latest remoteUser/callType/callDuration/callState padh sakein
+  const remoteUserRef = useRef(null);
+  const callTypeRef = useRef("audio");
+  const callDurationRef = useRef(0);
+  const callStateRef = useRef("idle");
+  const isCallerRef = useRef(false); // maine call start ki thi ya receive ki
+  const callOutcomeRef = useRef(null); // "missed" | "rejected" | "answered"
+
+  useEffect(() => { remoteUserRef.current = remoteUser; }, [remoteUser]);
+  useEffect(() => { callTypeRef.current = callType; }, [callType]);
+  useEffect(() => { callDurationRef.current = callDuration; }, [callDuration]);
+  useEffect(() => { callStateRef.current = callState; }, [callState]);
+
   const [groupCallState, setGroupCallState] = useState("idle");
   const [groupCallType, setGroupCallType] = useState("audio");
   const [groupIncomingData, setGroupIncomingData] = useState(null);
@@ -89,6 +104,16 @@ const CallManager = ({ user }) => {
   const groupTimerRef = useRef(null);
   const groupCallLockRef = useRef(false);
   const groupCallActiveRef = useRef(false);
+
+  // 👇 NAYA — group call log ke liye refs
+  const activeGroupInfoRef = useRef(null);
+  const groupCallTypeRef = useRef("audio");
+  const groupDurationRef = useRef(0);
+  const isGroupInitiatorRef = useRef(false);
+
+  useEffect(() => { activeGroupInfoRef.current = activeGroupInfo; }, [activeGroupInfo]);
+  useEffect(() => { groupCallTypeRef.current = groupCallType; }, [groupCallType]);
+  useEffect(() => { groupDurationRef.current = groupDuration; }, [groupDuration]);
 
   const handleMediaError = (err) => {
     console.log(err);
@@ -309,6 +334,17 @@ const CallManager = ({ user }) => {
   };
 
   const cleanupGroupCall = () => {
+    // 👇 NAYA — agar maine hi yeh group call start ki thi (call button
+    // dabaya tha), toh chhodte waqt uska log DB me save kar do
+    if (isGroupInitiatorRef.current && activeGroupInfoRef.current?._id) {
+      socket.emit("logGroupCall", {
+        groupId: activeGroupInfoRef.current._id,
+        callType: groupCallTypeRef.current,
+        duration: groupDurationRef.current,
+      });
+    }
+    isGroupInitiatorRef.current = false;
+
     Object.keys(groupPeersRef.current).forEach((uid) => {
       groupPeersRef.current[uid]?.destroy();
     });
@@ -499,6 +535,7 @@ const CallManager = ({ user }) => {
         console.log("Call already in progress, ignoring group call start");
         return;
       }
+      isGroupInitiatorRef.current = true; // 👈 NAYA — maine call start ki
       socket.emit("groupCallUser", {
         groupId: group._id,
         groupName: group.groupName,
@@ -517,6 +554,7 @@ const CallManager = ({ user }) => {
         console.log("Already in a call, ignoring group incoming call");
         return;
       }
+      isGroupInitiatorRef.current = false; // 👈 NAYA — maine call receive ki
       setActiveGroupInfo({ _id: groupId, groupName, groupImage });
       setGroupIncomingData({ groupId, fromUser, callType });
       setGroupCallType(callType);
@@ -573,6 +611,8 @@ const CallManager = ({ user }) => {
         return;
       }
       startCallLockRef.current = true;
+      isCallerRef.current = true; // 👈 NAYA — maine call start ki
+      callOutcomeRef.current = null;
 
       busyToneRef.current?.pause();
       if (busyToneRef.current) busyToneRef.current.currentTime = 0;
@@ -675,6 +715,7 @@ const CallManager = ({ user }) => {
         console.log("Already in a call, ignoring incoming call");
         return;
       }
+      isCallerRef.current = false; // 👈 NAYA — maine call receive ki, log caller karega
       setIncomingData({ fromUser, signalData });
       setRemoteUser(fromUser);
       setCallType(callType);
@@ -696,6 +737,7 @@ const CallManager = ({ user }) => {
     socket.on("callRejected", () => {
       clearTimeout(noAnswerTimeoutRef.current);
       toast.error("Call declined");
+      callOutcomeRef.current = "rejected"; // 👈 NAYA
       busyToneRef.current?.play().catch((err) => {
         console.log("Busy tone play failed:", err.name, err.message);
       });
@@ -822,6 +864,26 @@ const CallManager = ({ user }) => {
   };
 
   const cleanupCall = () => {
+    // 👇 NAYA — sirf jisne call start ki thi (caller) DB me log save
+    // karta hai, taaki dono taraf se duplicate entry na bane. Agar
+    // callOutcomeRef explicitly set nahi hai (e.g. peer error/close se
+    // seedha yahan aaya), toh current call state se sahi guess kar lete hain:
+    // "connected" tha toh "answered", warna "missed" (cancel/no-answer).
+    if (isCallerRef.current && remoteUserRef.current?._id) {
+      const outcome =
+        callOutcomeRef.current ||
+        (callStateRef.current === "connected" ? "answered" : "missed");
+
+      socket.emit("logCall", {
+        toUserId: remoteUserRef.current._id,
+        callType: callTypeRef.current,
+        status: outcome,
+        duration: callDurationRef.current,
+      });
+    }
+    isCallerRef.current = false;
+    callOutcomeRef.current = null;
+
     [myVideoRef.current, remoteVideoRef.current, remoteAudioRef.current].forEach((el) => {
       if (!el) return;
       try {
