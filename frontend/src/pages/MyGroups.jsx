@@ -2259,7 +2259,7 @@ const handleLoadOlderMessages = () => {
     );
   };
 
-  // 👇 NAYA — group call-log entry render karta hai
+
   const renderGroupCallLog = (call) => {
     const icon = call.callType === "video" ? "fa-video" : "fa-phone";
     const m = String(Math.floor((call.duration || 0) / 60)).padStart(2, "0");

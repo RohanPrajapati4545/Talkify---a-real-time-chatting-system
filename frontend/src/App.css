@@ -4236,3 +4236,66 @@ body.cv-chat-open {
   opacity: 0.6;
   cursor: not-allowed;
 }
+/* ============== CALL LOG ENTRY (system message pill) ============== */
+
+.cv-call-log-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 14px 0;
+}
+
+.cv-call-log-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel-3);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 8px 16px;
+  max-width: 82%;
+}
+
+.cv-call-log-pill i {
+  color: var(--amber);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* missed/declined calls get the danger tint on the icon */
+.cv-call-log-pill.missed i {
+  color: var(--danger);
+}
+
+.cv-call-log-dir {
+  font-size: 12.5px;
+  color: var(--paper);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cv-call-log-meta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .cv-call-log-pill {
+    max-width: 92%;
+    padding: 7px 13px;
+    gap: 8px;
+  }
+
+  .cv-call-log-dir {
+    font-size: 12px;
+  }
+
+  .cv-call-log-meta {
+    font-size: 10px;
+  }
+}
