@@ -350,11 +350,11 @@ const getPrivateCallLogs = async (chatId) => {
   }
 };
 
-// 👇 NAYA — is group ke saare call logs fetch karo
+
 const getGroupCallLogs = async (groupId) => {
   try {
     const res = await axios.get(
-      `${process.env.REACT_APP_API_URL}/api/user/group-call-logs/${groupId}`,
+      `${process.env.REACT_APP_API_URL}/api/user/call-logs/${groupId}`,
       {
         headers: { Authorization: `Bearer ${token}` },
       }
