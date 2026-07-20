@@ -23,12 +23,17 @@ const Login = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/;
   const phoneRegex = /^[6-9]\d{9}$/; // 10-digit Indian mobile number
   const MAX_PASSWORD_LENGTH = 15;
 
   const handlePasswordChange = (e) => {
     setPassword(e.target.value.slice(0, MAX_PASSWORD_LENGTH));
+  };
+
+  const handleEmailChange = (e) => {
+    // sirf letters, numbers, @ aur . allow — koi special char nahi
+    setEmail(e.target.value.replace(/[^a-zA-Z0-9@.]/g, ""));
   };
 
   const loginUser = async (e) => {
@@ -164,7 +169,7 @@ const Login = () => {
                   type="email"
                   placeholder="Email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailChange}
                 />
               </div>
 

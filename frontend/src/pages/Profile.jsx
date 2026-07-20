@@ -16,12 +16,52 @@ const Profile = () => {
   const [email, setEmail] = useState(user?.email || "");
   const [contact, setContact] = useState(user?.contact || "");
   const [image, setImage] = useState(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
 
-  const avatarSrc = image ? URL.createObjectURL(image) : user?.image;
+  // Telegram jaisa default avatar — naam ke initials se, jab image remove ho jaye
+  const getDefaultAvatar = (userName) =>
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || "U")}&background=random&color=fff&rounded=true&bold=true`;
+
+  const avatarSrc = imageRemoved
+    ? getDefaultAvatar(name)
+    : image
+    ? URL.createObjectURL(image)
+    : user?.image;
+
+  const handleRemoveImage = () => {
+    Swal.fire({
+      icon: "warning",
+      title: "Remove profile photo?",
+      text: "Your photo will be replaced with a default avatar.",
+      showCancelButton: true,
+      confirmButtonText: "Yes, remove it",
+      cancelButtonText: "Cancel",
+      reverseButtons: true,
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setImage(null);
+        setImageRemoved(true);
+      }
+    });
+  };
+
+  const handleNameChange = (e) => {
+    // sirf letters aur space allow, numbers/special characters type hi nahi honge
+    setName(e.target.value.replace(/[^A-Za-z\s]/g, ""));
+  };
 
   const updateProfile = async (e) => {
     e.preventDefault();
+
+    const nameRegex = /^[A-Za-z\s]+$/;
+    if (!name.trim() || !nameRegex.test(name.trim())) {
+      return Swal.fire({
+        icon: "error",
+        title: "Name should not contain numbers or special characters",
+      });
+    }
+
     setLoading(true);
     try {
       const formData = new FormData();
@@ -32,6 +72,10 @@ const Profile = () => {
 
       if (image) {
         formData.append("image", image);
+      }
+
+      if (imageRemoved) {
+        formData.append("removeImage", "true");
       }
 
       const res = await axios.put(
@@ -68,6 +112,8 @@ const Profile = () => {
     setName(user?.name || "");
     setEmail(user?.email || "");
     setContact(user?.contact || "");
+    setImageRemoved(false);
+    setImage(null);
   }, [user]);
 
   return (
@@ -97,12 +143,23 @@ const Profile = () => {
             <label className="cv-profile-image-edit" htmlFor="profileImageInput">
               <i className="fa-solid fa-camera" style={{ cursor: "pointer" }}></i>
             </label>
+            {!imageRemoved && (image || user?.image) && (
+              <i
+                className="fa-solid fa-trash cv-profile-image-remove"
+                style={{ cursor: "pointer" }}
+                title="Remove photo"
+                onClick={handleRemoveImage}
+              ></i>
+            )}
             <input
               id="profileImageInput"
               type="file"
               accept="image/*"
               hidden
-              onChange={(e) => setImage(e.target.files[0])}
+              onChange={(e) => {
+                setImage(e.target.files[0]);
+                setImageRemoved(false);
+              }}
             />
           </div>
 
@@ -141,7 +198,7 @@ const Profile = () => {
                     type="text"
                     className="form-control cv-input"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={handleNameChange}
                   />
                 </div>
 
@@ -149,9 +206,11 @@ const Profile = () => {
                   <label className="cv-field-label">Contact Number</label>
                   <input
                     type="tel"
-                    className="form-control cv-input"
+                    className="form-control cv-input cv-input-disabled"
                     maxLength={10}
                     value={contact}
+                    disabled
+                    readOnly
                     onChange={(e) => setContact(e.target.value)}
                   />
                 </div>
