@@ -62,8 +62,9 @@ const Register = () => {
 
   const handleContactChange = (e) => {
     let digits = e.target.value.replace(/\D/g, ""); // sirf digits allow
-    if (digits.length > 0 && digits[0] === "0") {
-      digits = digits.slice(1); // 0 se start hi nahi hone dena
+    // pehla digit sirf 6, 7, 8, 9 hona chahiye — invalid leading digits ko drop karte raho
+    while (digits.length > 0 && !/[6-9]/.test(digits[0])) {
+      digits = digits.slice(1);
     }
     setContact(digits.slice(0, 10));
   };
@@ -88,7 +89,7 @@ const Register = () => {
 
     const emailRegex = /^[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/;
     const nameRegex = /^[A-Za-z\s]+$/;
-    const contactRegex = /^[1-9][0-9]{9}$/;
+    const contactRegex = /^[6-9][0-9]{9}$/;
 
     if (!nameRegex.test(name.trim())) {
       return toast.error("Name should not contain numbers or special characters");
@@ -99,7 +100,12 @@ const Register = () => {
     }
 
     if (!contactRegex.test(contact.trim())) {
-      return toast.error("Contact number must be 10 digits and cannot start with 0 or be all zeros");
+      return toast.error("Contact number must be 10 digits and start with 6, 7, 8, or 9");
+    }
+
+    // ---------- Reject numbers where all digits are the same (e.g. 9999999999) ----------
+    if (/^(\d)\1{9}$/.test(contact.trim())) {
+      return toast.error("Contact number cannot have all digits the same");
     }
 
     // ---------- Password length validation ----------
