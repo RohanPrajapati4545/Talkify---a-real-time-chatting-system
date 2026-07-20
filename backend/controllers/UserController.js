@@ -197,19 +197,11 @@ const updateProfile = async (
     user.name =
       req.body.name || user.name;
 
-    // contact is sent as "phone" from the client, and email is
-    // intentionally locked on the frontend — don't touch it here
-    if (req.body.phone) {
-      user.contact = req.body.phone;
-    }
+    user.email =
+      req.body.email || user.email;
 
     if (req.file) {
-      // new image uploaded — replace it
       user.image = req.file.path;
-    } else if (req.body.removeImage === "true") {
-      // user explicitly removed their photo — clear it instead of
-      // silently keeping the old cloudinary URL
-      user.image = null;
     }
 
     await user.save();
@@ -221,7 +213,6 @@ const updateProfile = async (
     });
 
   } catch (error) {
-    console.log(error);
     res.status(500).json({
       message:
         "Something went wrong",
