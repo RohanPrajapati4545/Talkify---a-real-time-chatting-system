@@ -7,7 +7,8 @@ const callSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    // ---- private calls ----
+
+    
     receiver: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -18,7 +19,7 @@ const callSchema = new mongoose.Schema(
       ref: "PrivateChat",
       default: null,
     },
-    // ---- group calls ----
+       
     group: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "GroupSchema",
@@ -29,16 +30,14 @@ const callSchema = new mongoose.Schema(
       enum: ["audio", "video"],
       required: true,
     },
-    // missed   -> caller never got picked up (timeout / cancelled before pickup)
-    // rejected -> receiver explicitly declined
-    // answered -> call connected, ended after being picked up
+   
     status: {
       type: String,
       enum: ["missed", "rejected", "answered", "ended"],
       required: true,
     },
     duration: {
-      type: Number, // seconds, 0 for missed/rejected
+      type: Number,  
       default: 0,
     },
   },

@@ -251,7 +251,7 @@ const Profile = () => {
         </main>
       </div>
 
-      {/* ============== IMAGE LIGHTBOX ============== */}
+     
       {showLightbox && (
         <div className="cv-lightbox" onClick={() => setShowLightbox(false)}>
           <div className="cv-lightbox-content" onClick={(e) => e.stopPropagation()}>
