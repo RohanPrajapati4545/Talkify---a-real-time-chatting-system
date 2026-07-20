@@ -4236,7 +4236,7 @@ body.cv-chat-open {
   opacity: 0.6;
   cursor: not-allowed;
 }
-/* ============== CALL LOG ENTRY (system message pill) ============== */
+
 
 .cv-call-log-row {
   display: flex;

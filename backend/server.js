@@ -294,7 +294,6 @@ io.on("connection", (socket) => {
     socket.to(`groupcall_${groupId}`).emit("groupUserLeftCall", { groupId, userId });
   });
 
-  // 👇 NAYA — group call ka log DB me save + group room me broadcast
   socket.on("logGroupCall", async ({ groupId, callType, duration }) => {
     try {
       const fromUserId = socket.userId;

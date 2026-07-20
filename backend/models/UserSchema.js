@@ -2,15 +2,17 @@ const mongoose = require("mongoose")
 const UserSchema=new mongoose.Schema({
      name: {
     type: String,
-    required: true
+    required: true,
+    default: "New User"   // 👈 OTP signup ke time auto-filled
   },
   email: {
     type: String,
-    required: true,
+    required: function () { return this.authType === "password" }, // 👈
+    sparse: true,   // 👈 multiple docs mein empty/missing email allow karega
   },
   password: {
     type: String,
-    required: true
+    required: function () { return this.authType === "password" }, // 👈
   },
   image: {
     type: String,
@@ -19,7 +21,13 @@ const UserSchema=new mongoose.Schema({
   contact: {
     type: String,
     required: true,
-    default: ""
+    unique: true,     
+    sparse: true,
+  },
+  authType: {           
+    type: String,
+    enum: ["password", "otp"],
+    default: "password",
   },
      role:{
         type:String,

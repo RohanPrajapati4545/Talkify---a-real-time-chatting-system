@@ -3114,7 +3114,7 @@ useEffect(() => {
                     {selectedGroup?.createdBy?._id === user?._id && (
                       <div className="cv-action danger" onClick={handleClearGroupChat}>
                         <div className="cv-action-circle">
-                          <i className="fa-solid fa-broom"></i>
+                          <i className="fa-solid fa-remove"></i>
                         </div>
                         <p>Clear Chat</p>
                       </div>
