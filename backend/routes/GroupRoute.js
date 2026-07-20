@@ -39,6 +39,11 @@ router.get(
   AuthMiddleware,
   GroupController.getMessages
 );
+router.get(
+  "/call-logs/:groupId",
+  AuthMiddleware,
+  GroupController.getGroupCallLogs
+);
 router.delete(
   "/delete-group/:groupId",
   AuthMiddleware,
