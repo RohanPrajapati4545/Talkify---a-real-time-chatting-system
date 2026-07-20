@@ -55,6 +55,24 @@ const Register = () => {
     strong: "Strong",
   };
 
+  const handleNameChange = (e) => {
+    // sirf letters aur space allow, numbers/special characters type hi nahi honge
+    setName(e.target.value.replace(/[^A-Za-z\s]/g, ""));
+  };
+
+  const handleContactChange = (e) => {
+    let digits = e.target.value.replace(/\D/g, ""); // sirf digits allow
+    if (digits.length > 0 && digits[0] === "0") {
+      digits = digits.slice(1); // 0 se start hi nahi hone dena
+    }
+    setContact(digits.slice(0, 10));
+  };
+
+  const handleEmailChange = (e) => {
+    // sirf letters, numbers, @ aur . allow — koi special char (#$&*(){}\":  etc) nahi
+    setEmail(e.target.value.replace(/[^a-zA-Z0-9@.]/g, ""));
+  };
+
   const register = async (e) => {
     e.preventDefault();
 
@@ -63,16 +81,25 @@ const Register = () => {
       !email.trim() ||
       !contact.trim() ||
       !password.trim() ||
-      !confirm_password.trim() ||
-      !image
+      !confirm_password.trim()
     ) {
       return toast.error("All fields are required");
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/;
+    const nameRegex = /^[A-Za-z\s]+$/;
+    const contactRegex = /^[1-9][0-9]{9}$/;
+
+    if (!nameRegex.test(name.trim())) {
+      return toast.error("Name should not contain numbers or special characters");
+    }
 
     if (!emailRegex.test(email)) {
       return toast.error("Please enter a valid email address");
+    }
+
+    if (!contactRegex.test(contact.trim())) {
+      return toast.error("Contact number must be 10 digits and cannot start with 0 or be all zeros");
     }
 
     // ---------- Password length validation ----------
@@ -146,7 +173,7 @@ const Register = () => {
                 type="text"
                 placeholder="Full name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={handleNameChange}
               />
             </div>
 
@@ -156,7 +183,7 @@ const Register = () => {
                 type="email"
                 placeholder="Email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={handleEmailChange}
               />
             </div>
 
@@ -167,9 +194,7 @@ const Register = () => {
                 placeholder="Contact"
                 value={contact}
                 maxLength={10}
-                onChange={(e) =>
-                  setContact(e.target.value.replace(/\D/g, ""))
-                }
+                onChange={handleContactChange}
               />
             </div>
 

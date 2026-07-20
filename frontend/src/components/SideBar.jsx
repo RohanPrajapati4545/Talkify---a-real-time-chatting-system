@@ -29,17 +29,10 @@ const SideBar = ({
   user,
   groupTypingUsers = {},
   privateTypingStatus = {},
-  // Timestamps (ms) of the most recent message with each group/user —
-  // used to sort the list "most recent first", WhatsApp-style, instead of
-  // the backend's default alphabetical order. Update these from the
-  // parent whenever a message is sent or received.
+
   userLastActivity = {},
   groupLastActivity = {},
-  // General-purpose escape hatch: bump this (e.g. a counter you
-  // increment) from the parent after any group mutation that doesn't
-  // already have a socket event wired up (create group, join by code,
-  // edit group name/image, etc.) and SideBar will silently refetch the
-  // current tab/search page 1 to stay in sync.
+ 
   refreshSignal = 0,
 }) => {
   const navigate = useNavigate();
@@ -379,12 +372,7 @@ useEffect(() => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        {searchTerm && (
-          <i
-            className="fa-solid fa-xmark cv-search-clear"
-            onClick={() => setSearchTerm("")}
-          ></i>
-        )}
+       
       </div>
 
       <div className="cv-list">

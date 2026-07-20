@@ -18,16 +18,11 @@ const AllGroups = () => {
   const groupRequestIdRef = useRef(0);
   const isFirstSearchRef = useRef(true);
 
-  // usersMap is a lookup directory (member/creator name resolution +
-  // "Add Member" modal search) — NOT a paginated browse list, so it
-  // fetches the full user directory (all=true) regardless of the groups
-  // list's pagination.
+
   const [usersMap, setUsersMap] = useState({});
   const [memberCache, setMemberCache] = useState({});
   const [fetchingIds, setFetchingIds] = useState(new Set());
-  // member IDs confirmed to no longer exist in the DB (deleted user whose
-  // ID is still lingering in some group's `members` array) — hidden from
-  // the UI instead of showing "Unknown user", and never re-fetched
+
   const [missingMemberIds, setMissingMemberIds] = useState(new Set());
   const [cleaningUp, setCleaningUp] = useState(false);
 
@@ -105,14 +100,14 @@ const AllGroups = () => {
     }
   };
 
-  // initial load — groups page 1 + full users directory
+ 
   useEffect(() => {
     fetchGroups("", 1, false);
     getUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+ 
   }, []);
 
-  // debounce group search input — 500ms
+ 
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search.trim());
@@ -120,15 +115,15 @@ const AllGroups = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // re-fetch groups whenever the debounced term changes (skip the very
-  // first run, since the mount effect above already fetched page 1)
+  
   useEffect(() => {
     if (isFirstSearchRef.current) {
       isFirstSearchRef.current = false;
       return;
     }
     fetchGroups(debouncedSearch, 1, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+   
+    
   }, [debouncedSearch]);
 
   const handleLoadMoreGroups = () => {
@@ -167,9 +162,8 @@ const AllGroups = () => {
       );
       setMemberCache((prev) => ({ ...prev, [memberId]: res.data.user }));
     } catch (error) {
-      // 404 = the user document no longer exists (deleted) but the ID is
-      // still lingering in this group's members array — hide it instead
-      // of showing "Unknown user" forever, and don't keep re-fetching it
+  
+      
       if (error?.response?.status === 404) {
         setMissingMemberIds((prev) => new Set(prev).add(memberId));
       } else {
@@ -228,7 +222,8 @@ const AllGroups = () => {
           confirmButtonColor: "#e8a33d",
         });
 
-        // refresh current search/page-1 view after a deletion
+   
+        
         fetchGroups(debouncedSearch, 1, false);
       } catch (error) {
         console.log(error);
@@ -532,8 +527,7 @@ const AllGroups = () => {
     }
   };
 
-  // search is now server-side (debounced), so `groups` already reflects
-  // the current search term — no client-side filtering needed
+  
 
   return (
     <div className="dashboard-wrapper p-4">

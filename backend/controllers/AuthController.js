@@ -5,11 +5,15 @@ const register=async (req,res)=>{
 
     try {
         const {name, email, password,confirm_password, contact}=req.body;
-        const image=req.file?.path;
+
+        // image optional hai — agar upload nahi hui to Telegram jaisa default avatar (initials-based) set hoga
+        const DEFAULT_AVATAR_BASE = "https://ui-avatars.com/api/";
+        const image = req.file?.path
+            || `${DEFAULT_AVATAR_BASE}?name=${encodeURIComponent(name || "U")}&background=random&color=fff&rounded=true&bold=true`;
 
         const userExists=await userSchema.findOne({email}) 
         
-        if(!name || !email || !password || !confirm_password || !contact || !image){
+        if(!name || !email || !password || !confirm_password || !contact){
             return  res.status(400).json({msg:"all fields are required"})
         }
         if(userExists){
