@@ -98,6 +98,20 @@ const sendOtp = async (req, res) => {
       return res.status(400).json({ msg: "Please enter a valid 10-digit phone number" });
     }
 
+    // 🔍 Number DB mein registered hai ya nahi — Twilio call se pehle hi check karo
+    const existingUser = await userSchema.findOne({ contact: phone });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        msg: "No account found with this number. Please sign up first.",
+      });
+    }
+
+    // Agar blocked user hai to OTP hi mat bhejo
+    if (existingUser.isBlocked) {
+      return res.status(403).json({ msg: "You have been blocked by admin" });
+    }
+
     // Rate limit — same number pe baar baar spam na ho
     const recentOtp = await Otp.findOne({ contact: phone }).sort({ createdAt: -1 });
     if (recentOtp && Date.now() - recentOtp.createdAt.getTime() < RESEND_COOLDOWN_SECONDS * 1000) {
@@ -105,12 +119,6 @@ const sendOtp = async (req, res) => {
         (RESEND_COOLDOWN_SECONDS * 1000 - (Date.now() - recentOtp.createdAt.getTime())) / 1000
       );
       return res.status(429).json({ msg: `Please wait ${waitSec}s before requesting again` });
-    }
-
-    // Agar blocked user hai to OTP hi mat bhejo
-    const existingUser = await userSchema.findOne({ contact: phone });
-    if (existingUser?.isBlocked) {
-      return res.status(403).json({ msg: "You have been blocked by admin" });
     }
 
     // Purane pending OTPs is number ke liye clear karo
@@ -170,17 +178,12 @@ const verifyOtp = async (req, res) => {
     // ✅ OTP correct — consume it
     await Otp.deleteOne({ _id: otpRecord._id });
 
-    // Existing user hai to login, nahi to naya banao
-    let user = await userSchema.findOne({ contact: phone });
+    // Number sendOtp mein already verified ho chuka hai ki registered hai,
+    // isliye yaha bas existing user fetch karo (naya user yaha nahi banega)
+    const user = await userSchema.findOne({ contact: phone });
 
     if (!user) {
-      const DEFAULT_AVATAR_BASE = "https://ui-avatars.com/api/";
-      user = await userSchema.create({
-        name: `User${phone.slice(-4)}`,
-        contact: phone,
-        authType: "otp",
-        image: `${DEFAULT_AVATAR_BASE}?name=U&background=random&color=fff&rounded=true&bold=true`,
-      });
+      return res.status(404).json({ msg: "No account found with this number. Please sign up first." });
     }
 
     if (user.isBlocked) {
@@ -201,4 +204,3 @@ const verifyOtp = async (req, res) => {
 };
 
 module.exports = { register, login, sendOtp, verifyOtp };
-
