@@ -91,13 +91,7 @@ const sendOtp = async (req, res) => {
   try {
 
 
-      const user = await User.findOne({ phone });
-
-    if (!user) {
-      return res.status(404).json({ 
-        msg: "No account found with this number. Please sign up first." 
-      });
-    }
+    
     const { phone } = req.body;
 
     if (!phone || !/^[6-9]\d{9}$/.test(phone)) {
