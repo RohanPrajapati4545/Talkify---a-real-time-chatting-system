@@ -3,16 +3,16 @@ const UserSchema=new mongoose.Schema({
      name: {
     type: String,
     required: true,
-    default: "New User"   // 👈 OTP signup ke time auto-filled
+    default: "New User"    
   },
   email: {
     type: String,
-    required: function () { return this.authType === "password" }, // 👈
-    sparse: true,   // 👈 multiple docs mein empty/missing email allow karega
+    required: function () { return this.authType === "password" }, 
+    sparse: true,   //  
   },
   password: {
     type: String,
-    required: function () { return this.authType === "password" }, // 👈
+    required: function () { return this.authType === "password" },  
   },
   image: {
     type: String,
