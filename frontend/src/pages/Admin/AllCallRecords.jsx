@@ -3,58 +3,90 @@ import axios from "axios";
 import { FaPhoneAlt, FaVideo, FaUsers, FaUser } from "react-icons/fa";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL;
+const CALL_LIMIT = 20;
+
+// Builds a compact list of page numbers with "..." for large page counts.
+// e.g. total=12, current=6 -> [1, "...", 5, 6, 7, "...", 12]
+const renderPageNumbers = (current, total) => {
+  const pages = [];
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+    return pages;
+  }
+
+  pages.push(1);
+  if (current > 3) pages.push("...");
+
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
+
+  return pages;
+};
 
 const AllCallRecords = () => {
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [loadMoreLoading, setLoadMoreLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [totalCalls, setTotalCalls] = useState(0);
   const [search, setSearch] = useState("");
   const [callType, setCallType] = useState(""); // "" | "video" | "audio"
   const [scope, setScope] = useState("");       // "" | "group" | "private"
 
+  const totalPages = Math.max(1, Math.ceil(totalCalls / CALL_LIMIT));
+
   const fetchCalls = useCallback(
-    async (pageNum = 1, append = false) => {
-      if (append) setLoadMoreLoading(true);
-      else setLoading(true);
+    async (pageNum = 1) => {
+      setLoading(true);
 
       try {
         const token = localStorage.getItem("token");
         const { data } = await axios.get(`${API_BASE_URL}/api/admin/call-records`, {
-          params: { page: pageNum, limit: 20, search, callType, scope },
+          params: { page: pageNum, limit: CALL_LIMIT, search, callType, scope },
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        setCalls((prev) => (append ? [...prev, ...(data.calls || [])] : data.calls || []));
-        setHasMore(Boolean(data.pagination?.hasMore));
+        setCalls(data.calls || []);
+        setTotalCalls(data.pagination?.total ?? (data.calls || []).length);
         setPage(pageNum);
       } catch (err) {
         console.error("Failed to fetch call records:", err);
-        if (!append) setCalls([]);
-        setHasMore(false);
+        setCalls([]);
+        setTotalCalls(0);
       } finally {
         setLoading(false);
-        setLoadMoreLoading(false);
       }
     },
     [search, callType, scope]
   );
 
   useEffect(() => {
-    fetchCalls(1, false);
+    fetchCalls(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, callType, scope]);
 
-  const handleLoadMore = () => {
-    if (loadMoreLoading || !hasMore) return;
-    fetchCalls(page + 1, true);
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    if (newPage === page || loading) return;
+    fetchCalls(newPage);
   };
 
   const statusBadgeClass = (status) => {
     if (status === "missed" || status === "rejected") return "bg-danger";
     if (status === "completed" || status === "answered") return "bg-success";
     return "bg-secondary";
+  };
+
+  const formatDuration = (seconds) => {
+    if (seconds === undefined || seconds === null) return "—";
+    const s = Number(seconds);
+    if (Number.isNaN(s) || s <= 0) return "—";
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}m ${r}s`;
   };
 
   return (
@@ -122,61 +154,141 @@ const AllCallRecords = () => {
           <div className="text-center text-muted py-4">No call records found.</div>
         )}
 
-        {!loading &&
-          calls.map((c) => {
-            const isGroup = Boolean(c.group);
+        {!loading && calls.length > 0 && (
+          <div className="table-responsive">
+            <table className="table align-middle admin-table mb-0">
+              <thead>
+                <tr>
+                  <th style={{ minWidth: "220px" }}>Participant</th>
+                  <th style={{ width: "100px" }}>Scope</th>
+                  <th style={{ width: "110px" }}>Type</th>
+                  <th style={{ minWidth: "160px" }}>Started by</th>
+                  <th style={{ width: "110px" }}>Status</th>
+                  <th style={{ width: "100px" }}>Duration</th>
+                  <th style={{ minWidth: "170px" }}>Date &amp; time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {calls.map((c) => {
+                  const isGroup = Boolean(c.group);
+                  const avatarSrc = isGroup ? c.group?.groupImage : c.receiver?.image;
+                  const participantName = isGroup
+                    ? c.group?.groupName || "Unnamed group"
+                    : c.receiver?.name || "Unknown";
 
-            return (
-              <div className="member-row" key={c._id}>
-                <div className="d-flex align-items-center gap-2">
-                  <img
-                    src={isGroup ? c.group?.groupImage : c.receiver?.image}
-                    alt=""
-                    style={{
-                      width: "36px",
-                      height: "36px",
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                      background: "var(--panel-2)",
-                    }}
-                  />
+                  return (
+                    <tr key={c._id}>
+                      <td>
+                        <div className="d-flex align-items-center gap-2">
+                          <img
+                            src={avatarSrc}
+                            alt=""
+                            style={{
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "50%",
+                              objectFit: "cover",
+                              background: "var(--panel-2)",
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span className="fw-semibold" style={{ fontSize: "13px" }}>
+                            {participantName}
+                          </span>
+                        </div>
+                      </td>
 
-                  <div>
-                    <div className="fw-semibold d-flex align-items-center gap-2" style={{ fontSize: "13px" }}>
-                      {isGroup ? c.group?.groupName : c.receiver?.name || "Unknown"}
-                      <span className="badge bg-dark" style={{ fontSize: "9px" }}>
-                        {isGroup ? "Group" : "Private"}
-                      </span>
-                      {c.status && (
-                        <span className={`badge ${statusBadgeClass(c.status)}`} style={{ fontSize: "9px" }}>
-                          {c.status}
+                      <td>
+                        <span className="badge bg-dark" style={{ fontSize: "9px" }}>
+                          {isGroup ? "Group" : "Private"}
                         </span>
-                      )}
-                    </div>
+                      </td>
 
-                    <div className="text-muted" style={{ fontSize: "11.5px" }}>
-                      {c.callType === "video" ? (
-                        <FaVideo size={10} className="me-1" />
-                      ) : (
-                        <FaPhoneAlt size={10} className="me-1" />
-                      )}
-                      Started by {c.caller?.name || "Someone"} · {new Date(c.createdAt).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                      <td>
+                        <span className="text-muted d-flex align-items-center gap-1" style={{ fontSize: "12.5px" }}>
+                          {c.callType === "video" ? (
+                            <FaVideo size={11} />
+                          ) : (
+                            <FaPhoneAlt size={11} />
+                          )}
+                          {c.callType === "video" ? "Video" : "Audio"}
+                        </span>
+                      </td>
 
-        {!loading && hasMore && (
-          <button
-            type="button"
-            className="btn btn-sm btn-outline-dark w-100 mt-2"
-            onClick={handleLoadMore}
-            disabled={loadMoreLoading}
-          >
-            {loadMoreLoading ? "Loading..." : "Load more"}
-          </button>
+                      <td>
+                        <span className="text-muted" style={{ fontSize: "12.5px" }}>
+                          {c.caller?.name || "Someone"}
+                        </span>
+                      </td>
+
+                      <td>
+                        {c.status ? (
+                          <span className={`badge ${statusBadgeClass(c.status)}`} style={{ fontSize: "9px" }}>
+                            {c.status}
+                          </span>
+                        ) : (
+                          <span className="text-muted" style={{ fontSize: "12px" }}>
+                            —
+                          </span>
+                        )}
+                      </td>
+
+                      <td>
+                        <span className="text-muted" style={{ fontSize: "12.5px" }}>
+                          {formatDuration(c.duration)}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className="text-muted" style={{ fontSize: "12px" }}>
+                          {new Date(c.createdAt).toLocaleString()}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {totalPages > 1 && (
+              <nav className="d-flex justify-content-center align-items-center gap-1 mt-3 flex-wrap">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-dark"
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page === 1}
+                >
+                  Prev
+                </button>
+
+                {renderPageNumbers(page, totalPages).map((p, idx) =>
+                  p === "..." ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 text-muted">
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`btn btn-sm ${p === page ? "btn-warning" : "btn-outline-dark"}`}
+                      onClick={() => handlePageChange(p)}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-dark"
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={page === totalPages}
+                >
+                  Next
+                </button>
+              </nav>
+            )}
+          </div>
         )}
       </div>
     </div>

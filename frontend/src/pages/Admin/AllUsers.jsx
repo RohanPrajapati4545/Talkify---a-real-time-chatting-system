@@ -7,6 +7,28 @@ import { io } from "socket.io-client";
 const USER_LIMIT = 10;
 const SEARCH_DEBOUNCE_MS = 500;
 
+// Builds a compact list of page numbers with "..." for large page counts.
+// e.g. total=12, current=6 -> [1, "...", 5, 6, 7, "...", 12]
+const renderPageNumbers = (current, total) => {
+  const pages = [];
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+    return pages;
+  }
+
+  pages.push(1);
+  if (current > 3) pages.push("...");
+
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
+
+  return pages;
+};
+
 const AllUsers = () => {
   const { token } = useSelector((state) => state.auth);
 
@@ -14,11 +36,9 @@ const AllUsers = () => {
   const [total, setTotal] = useState(0);
   const [onlineUserIds, setOnlineUserIds] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadMoreLoading, setLoadMoreLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
 
   const requestIdRef = useRef(0);
   const isFirstSearchRef = useRef(true);
@@ -35,11 +55,12 @@ const AllUsers = () => {
 
   const socketRef = useRef(null);
 
-  const fetchUsers = async (term, pageNum, append = false) => {
+  const totalPages = Math.max(1, Math.ceil(total / USER_LIMIT));
+
+  const fetchUsers = async (term, pageNum) => {
     const currentRequestId = ++requestIdRef.current;
 
-    if (append) setLoadMoreLoading(true);
-    else setLoading(true);
+    setLoading(true);
 
     try {
       const res = await axios.get(
@@ -54,26 +75,21 @@ const AllUsers = () => {
       if (currentRequestId !== requestIdRef.current) return;
 
       const list = res.data.users || [];
-      setUsers((prev) => (append ? [...prev, ...list] : list));
-      setHasMore(Boolean(res.data.pagination?.hasMore));
+      setUsers(list);
       setTotal(res.data.pagination?.total ?? list.length);
       setPage(pageNum);
     } catch (error) {
       console.log(error);
-      if (!append) {
-        setUsers([]);
-        setTotal(0);
-      }
-      setHasMore(false);
+      setUsers([]);
+      setTotal(0);
     } finally {
       setLoading(false);
-      setLoadMoreLoading(false);
     }
   };
 
   // initial load — page 1, no search term
   useEffect(() => {
-    fetchUsers("", 1, false);
+    fetchUsers("", 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -86,19 +102,21 @@ const AllUsers = () => {
   }, [search]);
 
   // re-fetch whenever the debounced term changes (skip the very first run,
-  // since the mount effect above already fetched page 1)
+  // since the mount effect above already fetched page 1) — always resets
+  // back to page 1
   useEffect(() => {
     if (isFirstSearchRef.current) {
       isFirstSearchRef.current = false;
       return;
     }
-    fetchUsers(debouncedSearch, 1, false);
+    fetchUsers(debouncedSearch, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
 
-  const handleLoadMore = () => {
-    if (loadMoreLoading || !hasMore) return;
-    fetchUsers(debouncedSearch, page + 1, true);
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    if (newPage === page || loading) return;
+    fetchUsers(debouncedSearch, newPage);
   };
 
   useEffect(() => {
@@ -204,9 +222,6 @@ const AllUsers = () => {
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        setUsers((prev) => prev.filter((u) => u._id !== user._id));
-        setTotal((prev) => Math.max(0, prev - 1));
-
         Swal.fire({
           title: "Deleted",
           text: "User has been removed.",
@@ -215,6 +230,10 @@ const AllUsers = () => {
           color: "#f2ece2",
           confirmButtonColor: "#e8a33d",
         });
+
+        // if this was the last item on the current page, step back a page
+        const isLastItemOnPage = users.length === 1 && page > 1;
+        fetchUsers(debouncedSearch, isLastItemOnPage ? page - 1 : page);
       } catch (error) {
         console.log(error);
         showErrorAlert(error, "Could not delete user.");
@@ -420,17 +439,43 @@ const AllUsers = () => {
             <div className="text-center py-4">No Users Found</div>
           )}
 
-          {!loading && hasMore && (
-            <div className="text-center mt-2">
+          {!loading && totalPages > 1 && (
+            <nav className="d-flex justify-content-center align-items-center gap-1 mt-3 flex-wrap">
               <button
                 type="button"
                 className="btn btn-sm btn-outline-dark"
-                onClick={handleLoadMore}
-                disabled={loadMoreLoading}
+                onClick={() => handlePageChange(page - 1)}
+                disabled={page === 1}
               >
-                {loadMoreLoading ? "Loading..." : "Load more"}
+                Prev
               </button>
-            </div>
+
+              {renderPageNumbers(page, totalPages).map((p, idx) =>
+                p === "..." ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-muted">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    type="button"
+                    className={`btn btn-sm ${p === page ? "btn-warning" : "btn-outline-dark"}`}
+                    onClick={() => handlePageChange(p)}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-dark"
+                onClick={() => handlePageChange(page + 1)}
+                disabled={page === totalPages}
+              >
+                Next
+              </button>
+            </nav>
           )}
         </div>
       </div>

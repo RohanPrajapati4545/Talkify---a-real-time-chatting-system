@@ -16,6 +16,7 @@ import AllUsers from "../Admin/AllUsers";
 import AllGroups from "../Admin/AllGroups";
 import ChatMonitor from "../Admin/ChatMonitor";
 import AllCallRecords from "../Admin/AllCallRecords";
+import GroupMembers from "../Admin/GroupMembers";
 
 const AllRoutes = () => {
   const { isAuth, user } = useSelector((state) => state.auth);
@@ -132,6 +133,7 @@ const AllRoutes = () => {
           <Route path="profile" element={<AdminProfile />} />
           <Route path="chat-monitor" element={<ChatMonitor />} />
           <Route path="call-records" element={<AllCallRecords />} />
+          <Route path="/admin/groups/:groupId/members" element={<GroupMembers />} />
         </Route>
 
         <Route

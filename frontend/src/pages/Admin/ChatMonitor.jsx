@@ -16,6 +16,72 @@ const USER_LIMIT = 10;
 const GROUP_LIMIT = 10;
 const SEARCH_DEBOUNCE_MS = 500;
 
+// Builds a compact list of page numbers with "..." for large page counts.
+// e.g. total=12, current=6 -> [1, "...", 5, 6, 7, "...", 12]
+const renderPageNumbers = (current, total) => {
+  const pages = [];
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+    return pages;
+  }
+
+  pages.push(1);
+  if (current > 3) pages.push("...");
+
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
+
+  return pages;
+};
+
+// reusable Prev / 1 2 3 / Next pagination bar
+const PaginationBar = ({ page, totalPages, onPageChange }) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <nav className="d-flex justify-content-center align-items-center gap-1 mt-2 flex-wrap">
+      <button
+        type="button"
+        className="btn btn-sm btn-outline-dark"
+        onClick={() => onPageChange(page - 1)}
+        disabled={page === 1}
+      >
+        Prev
+      </button>
+
+      {renderPageNumbers(page, totalPages).map((p, idx) =>
+        p === "..." ? (
+          <span key={`ellipsis-${idx}`} className="px-2 text-muted">
+            …
+          </span>
+        ) : (
+          <button
+            key={p}
+            type="button"
+            className={`btn btn-sm ${p === page ? "btn-warning" : "btn-outline-dark"}`}
+            onClick={() => onPageChange(p)}
+          >
+            {p}
+          </button>
+        )
+      )}
+
+      <button
+        type="button"
+        className="btn btn-sm btn-outline-dark"
+        onClick={() => onPageChange(page + 1)}
+        disabled={page === totalPages}
+      >
+        Next
+      </button>
+    </nav>
+  );
+};
+
 const ChatMonitor = () => {
   const { token } = useSelector((state) => state.auth);
 
@@ -23,12 +89,11 @@ const ChatMonitor = () => {
 
   // ============== USERS LIST (paginated + debounced search) ==============
   const [users, setUsers] = useState([]);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const [loadMoreUsersLoading, setLoadMoreUsersLoading] = useState(false);
   const [userSearch, setUserSearch] = useState("");
   const [debouncedUserSearch, setDebouncedUserSearch] = useState("");
   const [userPage, setUserPage] = useState(1);
-  const [userHasMore, setUserHasMore] = useState(false);
   const userRequestIdRef = useRef(0);
   const isFirstUserSearchRef = useRef(true);
 
@@ -46,12 +111,11 @@ const ChatMonitor = () => {
 
   // ============== GROUPS LIST (paginated + debounced search) ==============
   const [groups, setGroups] = useState([]);
+  const [totalGroups, setTotalGroups] = useState(0);
   const [loadingGroups, setLoadingGroups] = useState(true);
-  const [loadMoreGroupsLoading, setLoadMoreGroupsLoading] = useState(false);
   const [groupSearch, setGroupSearch] = useState("");
   const [debouncedGroupSearch, setDebouncedGroupSearch] = useState("");
   const [groupPage, setGroupPage] = useState(1);
-  const [groupHasMore, setGroupHasMore] = useState(false);
   const groupRequestIdRef = useRef(0);
   const isFirstGroupSearchRef = useRef(true);
 
@@ -70,6 +134,9 @@ const ChatMonitor = () => {
   // ============== REAL-TIME (socket.io) ==============
   const socketRef = useRef(null);
   const [onlineUserIds, setOnlineUserIds] = useState(new Set());
+
+  const totalUserPages = Math.max(1, Math.ceil(totalUsers / USER_LIMIT));
+  const totalGroupPages = Math.max(1, Math.ceil(totalGroups / GROUP_LIMIT));
 
   // Refs mirror the "currently open" chat/group so socket callbacks
   // (registered once) always see the latest value instead of a stale
@@ -192,11 +259,10 @@ const ChatMonitor = () => {
   };
 
   // ============== FETCH USERS (paginated + searchable) ==============
-  const fetchUsers = async (term, page, append = false) => {
+  const fetchUsers = async (term, page) => {
     const currentRequestId = ++userRequestIdRef.current;
 
-    if (append) setLoadMoreUsersLoading(true);
-    else setLoadingUsers(true);
+    setLoadingUsers(true);
 
     try {
       const res = await axios.get(
@@ -211,25 +277,23 @@ const ChatMonitor = () => {
       if (currentRequestId !== userRequestIdRef.current) return;
 
       const list = res.data.users || [];
-      setUsers((prev) => (append ? [...prev, ...list] : list));
-      setUserHasMore(Boolean(res.data.pagination?.hasMore));
+      setUsers(list);
+      setTotalUsers(res.data.pagination?.total ?? list.length);
       setUserPage(page);
     } catch (error) {
       console.log(error);
-      if (!append) setUsers([]);
-      setUserHasMore(false);
+      setUsers([]);
+      setTotalUsers(0);
     } finally {
       setLoadingUsers(false);
-      setLoadMoreUsersLoading(false);
     }
   };
 
   // ============== FETCH GROUPS (paginated + searchable) ==============
-  const fetchGroups = async (term, page, append = false) => {
+  const fetchGroups = async (term, page) => {
     const currentRequestId = ++groupRequestIdRef.current;
 
-    if (append) setLoadMoreGroupsLoading(true);
-    else setLoadingGroups(true);
+    setLoadingGroups(true);
 
     try {
       const res = await axios.get(
@@ -243,23 +307,22 @@ const ChatMonitor = () => {
       if (currentRequestId !== groupRequestIdRef.current) return;
 
       const list = res.data.groups || [];
-      setGroups((prev) => (append ? [...prev, ...list] : list));
-      setGroupHasMore(Boolean(res.data.pagination?.hasMore));
+      setGroups(list);
+      setTotalGroups(res.data.pagination?.total ?? list.length);
       setGroupPage(page);
     } catch (error) {
       console.log(error);
-      if (!append) setGroups([]);
-      setGroupHasMore(false);
+      setGroups([]);
+      setTotalGroups(0);
     } finally {
       setLoadingGroups(false);
-      setLoadMoreGroupsLoading(false);
     }
   };
 
   // initial load — page 1, no search term
   useEffect(() => {
-    fetchUsers("", 1, false);
-    fetchGroups("", 1, false);
+    fetchUsers("", 1);
+    fetchGroups("", 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -280,13 +343,14 @@ const ChatMonitor = () => {
   }, [groupSearch]);
 
   // re-fetch users whenever the debounced term changes (skip the very
-  // first run, since the mount effect above already fetched page 1)
+  // first run, since the mount effect above already fetched page 1) —
+  // always resets back to page 1
   useEffect(() => {
     if (isFirstUserSearchRef.current) {
       isFirstUserSearchRef.current = false;
       return;
     }
-    fetchUsers(debouncedUserSearch, 1, false);
+    fetchUsers(debouncedUserSearch, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedUserSearch]);
 
@@ -296,18 +360,20 @@ const ChatMonitor = () => {
       isFirstGroupSearchRef.current = false;
       return;
     }
-    fetchGroups(debouncedGroupSearch, 1, false);
+    fetchGroups(debouncedGroupSearch, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedGroupSearch]);
 
-  const handleLoadMoreUsers = () => {
-    if (loadMoreUsersLoading || !userHasMore) return;
-    fetchUsers(debouncedUserSearch, userPage + 1, true);
+  const handleUserPageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalUserPages) return;
+    if (newPage === userPage || loadingUsers) return;
+    fetchUsers(debouncedUserSearch, newPage);
   };
 
-  const handleLoadMoreGroups = () => {
-    if (loadMoreGroupsLoading || !groupHasMore) return;
-    fetchGroups(debouncedGroupSearch, groupPage + 1, true);
+  const handleGroupPageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalGroupPages) return;
+    if (newPage === groupPage || loadingGroups) return;
+    fetchGroups(debouncedGroupSearch, newPage);
   };
 
   const getOtherMember = (chat) => {
@@ -516,10 +582,10 @@ const ChatMonitor = () => {
     setGroupsModalUser(null);
   };
 
-  // ⚠️ NOTE: `groups` now only holds the currently-loaded page(s) of the
+  // ⚠️ NOTE: `groups` now only holds the currently-loaded page of the
   // main Groups list (paginated, 10 at a time). This modal filters from
   // that same in-memory array, so if the user is a member of a group that
-  // hasn't been loaded/paginated into `groups` yet, it won't show up here.
+  // isn't on the currently loaded page, it won't show up here.
   // For fully accurate results regardless of pagination, add a dedicated
   // backend route (e.g. GET /api/admin/get-groups-for-user/:userId that
   // queries `{ members: userId }` directly) and call that here instead.
@@ -1033,15 +1099,12 @@ const ChatMonitor = () => {
                     </div>
                   ))}
 
-                {!loadingUsers && userHasMore && (
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-dark w-100 mt-2"
-                    onClick={handleLoadMoreUsers}
-                    disabled={loadMoreUsersLoading}
-                  >
-                    {loadMoreUsersLoading ? "Loading..." : "Load more"}
-                  </button>
+                {!loadingUsers && (
+                  <PaginationBar
+                    page={userPage}
+                    totalPages={totalUserPages}
+                    onPageChange={handleUserPageChange}
+                  />
                 )}
               </>
             )}
@@ -1268,15 +1331,12 @@ const ChatMonitor = () => {
                     </div>
                   ))}
 
-                {!loadingGroups && groupHasMore && (
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-dark w-100 mt-2"
-                    onClick={handleLoadMoreGroups}
-                    disabled={loadMoreGroupsLoading}
-                  >
-                    {loadMoreGroupsLoading ? "Loading..." : "Load more"}
-                  </button>
+                {!loadingGroups && (
+                  <PaginationBar
+                    page={groupPage}
+                    totalPages={totalGroupPages}
+                    onPageChange={handleGroupPageChange}
+                  />
                 )}
               </>
             )}

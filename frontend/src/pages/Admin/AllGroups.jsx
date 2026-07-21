@@ -1,996 +1,298 @@
-import React, { useEffect, useState, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import Swal from "sweetalert2";
-import { FaChevronDown, FaChevronUp, FaPen, FaUserPlus, FaCrown } from "react-icons/fa";
+import { FaPhoneAlt, FaVideo, FaUsers, FaUser } from "react-icons/fa";
 
-const GROUP_LIMIT = 10;
-const SEARCH_DEBOUNCE_MS = 500;
+const API_BASE_URL = process.env.REACT_APP_API_URL;
+const CALL_LIMIT = 20;
 
-const AllGroups = () => {
-  const { token } = useSelector((state) => state.auth);
+// Builds a compact list of page numbers with "..." for large page counts.
+// e.g. total=12, current=6 -> [1, "...", 5, 6, 7, "...", 12]
+const renderPageNumbers = (current, total) => {
+  const pages = [];
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+    return pages;
+  }
 
-  const [groups, setGroups] = useState([]);
-  const [totalGroups, setTotalGroups] = useState(0);
-  const [groupPage, setGroupPage] = useState(1);
-  const [groupHasMore, setGroupHasMore] = useState(false);
-  const [loadMoreGroupsLoading, setLoadMoreGroupsLoading] = useState(false);
-  const groupRequestIdRef = useRef(0);
-  const isFirstSearchRef = useRef(true);
+  pages.push(1);
+  if (current > 3) pages.push("...");
 
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
 
-  const [usersMap, setUsersMap] = useState({});
-  const [memberCache, setMemberCache] = useState({});
-  const [fetchingIds, setFetchingIds] = useState(new Set());
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
 
-  const [missingMemberIds, setMissingMemberIds] = useState(new Set());
-  const [cleaningUp, setCleaningUp] = useState(false);
+  return pages;
+};
 
-  const [loading, setLoading] = useState(true);
+const AllCallRecords = () => {
+  const [calls, setCalls] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalCalls, setTotalCalls] = useState(0);
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [expandedGroup, setExpandedGroup] = useState(null);
-  const [memberActionId, setMemberActionId] = useState(null);
+  const [callType, setCallType] = useState(""); // "" | "video" | "audio"
+  const [scope, setScope] = useState("");       // "" | "group" | "private"
 
-  // edit group modal
-  const [editGroup, setEditGroup] = useState(null);
-  const [editGroupName, setEditGroupName] = useState("");
-  const [editGroupImage, setEditGroupImage] = useState(null);
-  const [editGroupPreview, setEditGroupPreview] = useState("");
-  const [savingGroup, setSavingGroup] = useState(false);
+  const totalPages = Math.max(1, Math.ceil(totalCalls / CALL_LIMIT));
 
-  // add member modal
-  const [addMemberGroup, setAddMemberGroup] = useState(null);
-  const [addMemberSearch, setAddMemberSearch] = useState("");
-  const [addingMemberId, setAddingMemberId] = useState(null);
+  const fetchCalls = useCallback(
+    async (pageNum = 1) => {
+      setLoading(true);
 
-  const fetchGroups = async (term, page, append = false) => {
-    const currentRequestId = ++groupRequestIdRef.current;
-
-    if (append) setLoadMoreGroupsLoading(true);
-    else setLoading(true);
-
-    try {
-      const res = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/admin/get-all-group`,
-        {
-          params: { search: term, page, limit: GROUP_LIMIT },
+      try {
+        const token = localStorage.getItem("token");
+        const { data } = await axios.get(`${API_BASE_URL}/api/admin/call-records`, {
+          params: { page: pageNum, limit: CALL_LIMIT, search, callType, scope },
           headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+        });
 
-      // ignore stale responses if a newer request has since been fired
-      if (currentRequestId !== groupRequestIdRef.current) return;
-
-      const list = res.data.groups || [];
-      setGroups((prev) => (append ? [...prev, ...list] : list));
-      setGroupHasMore(Boolean(res.data.pagination?.hasMore));
-      setTotalGroups(res.data.pagination?.total ?? list.length);
-      setGroupPage(page);
-    } catch (error) {
-      console.log(error);
-      if (!append) {
-        setGroups([]);
-        setTotalGroups(0);
+        setCalls(data.calls || []);
+        setTotalCalls(data.pagination?.total ?? (data.calls || []).length);
+        setPage(pageNum);
+      } catch (err) {
+        console.error("Failed to fetch call records:", err);
+        setCalls([]);
+        setTotalCalls(0);
+      } finally {
+        setLoading(false);
       }
-      setGroupHasMore(false);
-    } finally {
-      setLoading(false);
-      setLoadMoreGroupsLoading(false);
-    }
-  };
+    },
+    [search, callType, scope]
+  );
 
-  const getUsers = async () => {
-    try {
-      const res = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/admin/get-all-user`,
-        {
-          params: { all: true }, // full directory — not paginated
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      const map = {};
-      (res.data.users || []).forEach((u) => {
-        map[u._id] = u;
-      });
-      setUsersMap(map);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
- 
   useEffect(() => {
-    fetchGroups("", 1, false);
-    getUsers();
- 
-  }, []);
+    fetchCalls(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, callType, scope]);
 
- 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search.trim());
-    }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  
-  useEffect(() => {
-    if (isFirstSearchRef.current) {
-      isFirstSearchRef.current = false;
-      return;
-    }
-    fetchGroups(debouncedSearch, 1, false);
-   
-    
-  }, [debouncedSearch]);
-
-  const handleLoadMoreGroups = () => {
-    if (loadMoreGroupsLoading || !groupHasMore) return;
-    fetchGroups(debouncedSearch, groupPage + 1, true);
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    if (newPage === page || loading) return;
+    fetchCalls(newPage);
   };
 
-  const showErrorAlert = (error, fallbackText) => {
-    const backendMsg = error?.response?.data?.msg || error?.response?.data?.message;
-
-    Swal.fire({
-      title: "Error",
-      text: backendMsg || fallbackText,
-      icon: "error",
-      background: "#1c1812",
-      color: "#f2ece2",
-      confirmButtonColor: "#e8a33d",
-    });
+  const statusBadgeClass = (status) => {
+    if (status === "missed" || status === "rejected") return "bg-danger";
+    if (status === "completed" || status === "answered") return "bg-success";
+    return "bg-secondary";
   };
 
-  const fetchMemberIfMissing = async (memberId) => {
-    if (
-      usersMap[memberId] ||
-      memberCache[memberId] ||
-      fetchingIds.has(memberId) ||
-      missingMemberIds.has(memberId)
-    )
-      return;
-
-    setFetchingIds((prev) => new Set(prev).add(memberId));
-
-    try {
-      const res = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/admin/get-user/${memberId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setMemberCache((prev) => ({ ...prev, [memberId]: res.data.user }));
-    } catch (error) {
-  
-      
-      if (error?.response?.status === 404) {
-        setMissingMemberIds((prev) => new Set(prev).add(memberId));
-      } else {
-        console.log("Could not fetch member", memberId, error);
-      }
-    } finally {
-      setFetchingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(memberId);
-        return next;
-      });
-    }
+  const formatDuration = (seconds) => {
+    if (seconds === undefined || seconds === null) return "—";
+    const s = Number(seconds);
+    if (Number.isNaN(s) || s <= 0) return "—";
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}m ${r}s`;
   };
-
-  const getMember = (memberId) => usersMap[memberId] || memberCache[memberId];
-
-  const toggleExpand = (group) => {
-    const groupId = group._id;
-    const willOpen = expandedGroup !== groupId;
-
-    setExpandedGroup(willOpen ? groupId : null);
-
-    if (willOpen) {
-      group.members?.forEach((memberId) => {
-        if (!usersMap[memberId]) fetchMemberIfMissing(memberId);
-      });
-    }
-  };
-
-  const handleDeleteGroup = (group) => {
-    Swal.fire({
-      title: "Delete Group?",
-      text: `This will permanently delete "${group.groupName}".`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, delete",
-      confirmButtonColor: "#dc3545",
-      background: "#1c1812",
-      color: "#f2ece2",
-    }).then(async (result) => {
-      if (!result.isConfirmed) return;
-
-      try {
-        await axios.post(
-          `${process.env.REACT_APP_API_URL}/api/admin/delete-group`,
-          { groupId: group._id },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        Swal.fire({
-          title: "Deleted",
-          text: "Group has been removed.",
-          icon: "success",
-          background: "#1c1812",
-          color: "#f2ece2",
-          confirmButtonColor: "#e8a33d",
-        });
-
-   
-        
-        fetchGroups(debouncedSearch, 1, false);
-      } catch (error) {
-        console.log(error);
-        showErrorAlert(error, "Could not delete group.");
-      }
-    });
-  };
-
-  const handleRemoveMember = (group, memberId) => {
-    const member = getMember(memberId);
-    const memberName = member?.name || "this user";
-    const isAdmin = group.createdBy === memberId;
-    const onlyMemberLeft = isAdmin && (group.members || []).length === 1;
-
-    Swal.fire({
-      title: onlyMemberLeft ? "Cannot Remove" : "Remove Member?",
-      text: onlyMemberLeft
-        ? `${memberName} is the only member and the group admin. Add another member first, or delete the group instead.`
-        : isAdmin
-        ? `${memberName} is the group admin. Removing them will automatically make the next member the new admin. Group will not be deleted.`
-        : `Remove ${memberName} from "${group.groupName}".`,
-      icon: "warning",
-      showCancelButton: !onlyMemberLeft,
-      confirmButtonText: onlyMemberLeft ? "OK" : "Yes, remove",
-      confirmButtonColor: "#e8a33d",
-      background: "#1c1812",
-      color: "#f2ece2",
-    }).then(async (result) => {
-      if (onlyMemberLeft || !result.isConfirmed) return;
-
-      try {
-        setMemberActionId(memberId);
-
-        const res = await axios.post(
-          `${process.env.REACT_APP_API_URL}/api/admin/remove-group-member`,
-          { groupId: group._id, userId: memberId },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        const updatedGroup = res.data.group;
-
-        setGroups((prev) =>
-          prev.map((g) =>
-            g._id === group._id
-              ? {
-                  ...g,
-                  members: updatedGroup?.members ?? g.members.filter((m) => m !== memberId),
-                  createdBy: updatedGroup?.createdBy ?? g.createdBy,
-                }
-              : g
-          )
-        );
-
-        Swal.fire({
-          title: "Removed",
-          text:
-            isAdmin && updatedGroup
-              ? `${memberName} removed. ${
-                  getMember(updatedGroup.createdBy)?.name || "The next member"
-                } is now the group admin.`
-              : `${memberName} removed from group.`,
-          icon: "success",
-          background: "#1c1812",
-          color: "#f2ece2",
-          confirmButtonColor: "#e8a33d",
-        });
-      } catch (error) {
-        console.log(error);
-        showErrorAlert(error, "Could not remove member.");
-      } finally {
-        setMemberActionId(null);
-      }
-    });
-  };
-
-  const handleBlockMember = (memberId) => {
-    const member = getMember(memberId);
-    const memberName = member?.name || "this user";
-
-    Swal.fire({
-      title: "Block User Permanently?",
-      text: `${memberName} will be blocked from the entire platform, not just this group.`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, block",
-      confirmButtonColor: "#dc3545",
-      background: "#1c1812",
-      color: "#f2ece2",
-    }).then(async (result) => {
-      if (!result.isConfirmed) return;
-
-      try {
-        setMemberActionId(memberId);
-
-        await axios.post(
-          `${process.env.REACT_APP_API_URL}/api/admin/block-user`,
-          { userId: memberId },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        setUsersMap((prev) => ({
-          ...prev,
-          [memberId]: { ...prev[memberId], isBlocked: true },
-        }));
-        setMemberCache((prev) =>
-          prev[memberId] ? { ...prev, [memberId]: { ...prev[memberId], isBlocked: true } } : prev
-        );
-
-        Swal.fire({
-          title: "Blocked",
-          text: `${memberName} has been blocked.`,
-          icon: "success",
-          background: "#1c1812",
-          color: "#f2ece2",
-          confirmButtonColor: "#e8a33d",
-        });
-      } catch (error) {
-        console.log(error);
-        showErrorAlert(error, "Could not block user.");
-      } finally {
-        setMemberActionId(null);
-      }
-    });
-  };
-
-  const handleMakeAdmin = (group, memberId) => {
-    const member = getMember(memberId);
-    const memberName = member?.name || "this user";
-    const currentAdmin = getMember(group.createdBy);
-
-    Swal.fire({
-      title: "Make Admin?",
-      text: `${memberName} will become the new admin of "${group.groupName}". ${
-        currentAdmin?.name || "The current admin"
-      } will become a regular member.`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Yes, make admin",
-      confirmButtonColor: "#e8a33d",
-      background: "#1c1812",
-      color: "#f2ece2",
-    }).then(async (result) => {
-      if (!result.isConfirmed) return;
-
-      try {
-        setMemberActionId(memberId);
-
-        const res = await axios.post(
-          `${process.env.REACT_APP_API_URL}/api/admin/change-group-admin`,
-          { groupId: group._id, newAdminId: memberId },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        const updatedGroup = res.data.group;
-
-        setGroups((prev) =>
-          prev.map((g) =>
-            g._id === group._id ? { ...g, createdBy: updatedGroup?.createdBy ?? memberId } : g
-          )
-        );
-
-        Swal.fire({
-          title: "Admin Changed",
-          text: `${memberName} is now the group admin.`,
-          icon: "success",
-          background: "#1c1812",
-          color: "#f2ece2",
-          confirmButtonColor: "#e8a33d",
-        });
-      } catch (error) {
-        console.log(error);
-        showErrorAlert(error, "Could not change admin.");
-      } finally {
-        setMemberActionId(null);
-      }
-    });
-  };
-
-  const openAddMemberModal = (group) => {
-    setAddMemberGroup(group);
-    setAddMemberSearch("");
-  };
-
-  const closeAddMemberModal = () => {
-    setAddMemberGroup(null);
-    setAddMemberSearch("");
-  };
-
-  const handleAddMember = (group, user) => {
-    Swal.fire({
-      title: "Add Member?",
-      text: `Add ${user.name} to "${group.groupName}".`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Yes, add",
-      confirmButtonColor: "#e8a33d",
-      background: "#1c1812",
-      color: "#f2ece2",
-    }).then(async (result) => {
-      if (!result.isConfirmed) return;
-
-      try {
-        setAddingMemberId(user._id);
-
-        await axios.post(
-          `${process.env.REACT_APP_API_URL}/api/admin/add-group-member`,
-          { groupId: group._id, userId: user._id },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        setGroups((prev) =>
-          prev.map((g) =>
-            g._id === group._id
-              ? { ...g, members: [...(g.members || []), user._id] }
-              : g
-          )
-        );
-
-        Swal.fire({
-          title: "Added",
-          text: `${user.name} added to group.`,
-          icon: "success",
-          background: "#1c1812",
-          color: "#f2ece2",
-          confirmButtonColor: "#e8a33d",
-        });
-      } catch (error) {
-        console.log(error);
-        showErrorAlert(error, "Could not add member.");
-      } finally {
-        setAddingMemberId(null);
-      }
-    });
-  };
-
-  const openEditGroup = (group) => {
-    setEditGroup(group);
-    setEditGroupName(group.groupName || "");
-    setEditGroupImage(null);
-    setEditGroupPreview(group.groupImage || "");
-  };
-
-  const closeEditGroup = () => {
-    if (savingGroup) return;
-    setEditGroup(null);
-    setEditGroupName("");
-    setEditGroupImage(null);
-    setEditGroupPreview("");
-  };
-
-  const handleGroupImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setEditGroupImage(file);
-    setEditGroupPreview(URL.createObjectURL(file));
-  };
-
-  const handleEditGroupSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      setSavingGroup(true);
-
-      const formData = new FormData();
-      formData.append("groupId", editGroup._id);
-      formData.append("groupName", editGroupName);
-      if (editGroupImage) formData.append("image", editGroupImage);
-
-      const res = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/admin/update-group`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      const updatedGroup = res.data.group;
-
-      setGroups((prev) =>
-        prev.map((g) => (g._id === editGroup._id ? { ...g, ...updatedGroup } : g))
-      );
-
-      Swal.fire({
-        title: "Updated",
-        text: "Group details updated successfully.",
-        icon: "success",
-        background: "#1c1812",
-        color: "#f2ece2",
-        confirmButtonColor: "#e8a33d",
-      });
-
-      closeEditGroup();
-    } catch (error) {
-      console.log(error);
-      showErrorAlert(error, "Could not update group.");
-    } finally {
-      setSavingGroup(false);
-    }
-  };
-
-  
 
   return (
     <div className="dashboard-wrapper p-4">
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
-          <h2 className="fw-bold mb-1">All Groups</h2>
-          <p className="text-muted mb-0">Manage active groups and their members</p>
-        </div>
-
-        <div className="d-flex align-items-center gap-2">
-         
-
-          <input
-            type="text"
-            className="form-control admin-search"
-            placeholder="Search by group name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ maxWidth: "280px" }}
-          />
+          <h2 className="fw-bold mb-1">Call Records</h2>
+          <p className="text-muted mb-0">All video &amp; audio calls across users and groups</p>
         </div>
       </div>
 
       <div className="bg-white rounded-4 shadow-sm p-4">
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <h4 className="fw-bold m-0">Groups</h4>
-          <span className="badge bg-dark px-3 py-2">{totalGroups} Groups</span>
+        <div className="d-flex gap-2 mb-4 flex-wrap">
+          <button
+            className={`btn btn-sm ${scope === "" ? "btn-warning" : "btn-outline-dark"}`}
+            onClick={() => setScope("")}
+          >
+            All Chats
+          </button>
+          <button
+            className={`btn btn-sm ${scope === "group" ? "btn-warning" : "btn-outline-dark"}`}
+            onClick={() => setScope("group")}
+          >
+            <FaUsers size={11} className="me-1" />
+            Group Calls
+          </button>
+          <button
+            className={`btn btn-sm ${scope === "private" ? "btn-warning" : "btn-outline-dark"}`}
+            onClick={() => setScope("private")}
+          >
+            <FaUser size={11} className="me-1" />
+            Private Calls
+          </button>
         </div>
 
-        <div className="table-responsive">
-          <table className="table align-middle ">
-            <thead>
-              <tr>
-                <th></th>
-                <th>Group</th>
-                <th>Created By</th>
-                <th>Members</th>
-                <th>Created On</th>
-                <th>Action</th>
-              </tr>
-            </thead>
+        <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h5 className="fw-bold m-0">All Calls</h5>
 
-            <tbody>
-              {groups.map((group) => {
-                const isOpen = expandedGroup === group._id;
-                const creator = getMember(group.createdBy);
+          <div className="d-flex gap-2 flex-wrap">
+            <input
+              type="text"
+              className="form-control admin-search"
+              placeholder="Search by user or group name..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ maxWidth: "240px" }}
+            />
 
-                return (
-                  <React.Fragment key={group._id}>
-                    <tr>
-                      <td>
-                        <button
-                          className="btn btn-sm btn-outline-dark expand-toggle"
-                          onClick={() => toggleExpand(group)}
-                        >
-                          {isOpen ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
-                        </button>
-                      </td>
+            <select
+              className="form-select admin-search"
+              style={{ maxWidth: "150px" }}
+              value={callType}
+              onChange={(e) => setCallType(e.target.value)}
+            >
+              <option value="">All Types</option>
+              <option value="video">Video</option>
+              <option value="audio">Audio</option>
+            </select>
+          </div>
+        </div>
 
+        {loading && <div className="text-center text-muted py-4">Loading call records...</div>}
+
+        {!loading && calls.length === 0 && (
+          <div className="text-center text-muted py-4">No call records found.</div>
+        )}
+
+        {!loading && calls.length > 0 && (
+          <div className="table-responsive">
+            <table className="table align-middle admin-table mb-0">
+              <thead>
+                <tr>
+                  <th style={{ minWidth: "220px" }}>Participant</th>
+                  <th style={{ width: "100px" }}>Scope</th>
+                  <th style={{ width: "110px" }}>Type</th>
+                  <th style={{ minWidth: "160px" }}>Started by</th>
+                  <th style={{ width: "110px" }}>Status</th>
+                  <th style={{ width: "100px" }}>Duration</th>
+                  <th style={{ minWidth: "170px" }}>Date &amp; time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {calls.map((c) => {
+                  const isGroup = Boolean(c.group);
+                  const avatarSrc = isGroup ? c.group?.groupImage : c.receiver?.image;
+                  const participantName = isGroup
+                    ? c.group?.groupName || "Unnamed group"
+                    : c.receiver?.name || "Unknown";
+
+                  return (
+                    <tr key={c._id}>
                       <td>
                         <div className="d-flex align-items-center gap-2">
                           <img
-                            src={group.groupImage}
+                            src={avatarSrc}
                             alt=""
                             style={{
-                              width: "40px",
-                              height: "40px",
+                              width: "36px",
+                              height: "36px",
                               borderRadius: "50%",
                               objectFit: "cover",
+                              background: "var(--panel-2)",
+                              flexShrink: 0,
                             }}
                           />
-                          <span className="fw-semibold">{group.groupName}</span>
+                          <span className="fw-semibold" style={{ fontSize: "13px" }}>
+                            {participantName}
+                          </span>
                         </div>
                       </td>
 
-                      <td>{creator?.name || "Loading..."}</td>
-
                       <td>
-                        <span className="clickable" onClick={() => toggleExpand(group)}>
-                          {group.members?.length ?? 0}
+                        <span className="badge bg-dark" style={{ fontSize: "9px" }}>
+                          {isGroup ? "Group" : "Private"}
                         </span>
                       </td>
 
                       <td>
-                        {group.createdAt
-                          ? new Date(group.createdAt).toLocaleDateString()
-                          : "—"}
+                        <span className="text-muted d-flex align-items-center gap-1" style={{ fontSize: "12.5px" }}>
+                          {c.callType === "video" ? (
+                            <FaVideo size={11} />
+                          ) : (
+                            <FaPhoneAlt size={11} />
+                          )}
+                          {c.callType === "video" ? "Video" : "Audio"}
+                        </span>
                       </td>
 
                       <td>
-                        <div className="d-flex gap-2">
-                          <button
-                            className="btn btn-sm btn-outline-warning"
-                            onClick={() => openEditGroup(group)}
-                            title="Edit group name/photo"
-                          >
-                            <FaPen size={11} className="me-1" />
-                            Edit
-                          </button>
+                        <span className="text-muted" style={{ fontSize: "12.5px" }}>
+                          {c.caller?.name || "Someone"}
+                        </span>
+                      </td>
 
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleDeleteGroup(group)}
-                          >
-                            Delete
-                          </button>
-                        </div>
+                      <td>
+                        {c.status ? (
+                          <span className={`badge ${statusBadgeClass(c.status)}`} style={{ fontSize: "9px" }}>
+                            {c.status}
+                          </span>
+                        ) : (
+                          <span className="text-muted" style={{ fontSize: "12px" }}>
+                            —
+                          </span>
+                        )}
+                      </td>
+
+                      <td>
+                        <span className="text-muted" style={{ fontSize: "12.5px" }}>
+                          {formatDuration(c.duration)}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className="text-muted" style={{ fontSize: "12px" }}>
+                          {new Date(c.createdAt).toLocaleString()}
+                        </span>
                       </td>
                     </tr>
+                  );
+                })}
+              </tbody>
+            </table>
 
-                    {isOpen && (
-                      <tr className="members-row">
-                        <td colSpan={6}>
-                          <div className="members-panel">
-                            <div className="d-flex justify-content-end mb-2">
-                              <button
-                                className="btn btn-sm btn-outline-success"
-                                onClick={() => openAddMemberModal(group)}
-                              >
-                                <FaUserPlus size={11} className="me-1" />
-                                Add Member
-                              </button>
-                            </div>
+            {totalPages > 1 && (
+              <nav className="d-flex justify-content-center align-items-center gap-1 mt-3 flex-wrap">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-dark"
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page === 1}
+                >
+                  Prev
+                </button>
 
-                            {(!group.members || group.members.length === 0) && (
-                              <div className="text-muted py-2">No members in this group.</div>
-                            )}
+                {renderPageNumbers(page, totalPages).map((p, idx) =>
+                  p === "..." ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 text-muted">
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`btn btn-sm ${p === page ? "btn-warning" : "btn-outline-dark"}`}
+                      onClick={() => handlePageChange(p)}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
 
-                            {group.members
-                              ?.filter((memberId) => !missingMemberIds.has(memberId))
-                              .map((memberId) => {
-                              const member = getMember(memberId);
-                              const isFetching = fetchingIds.has(memberId);
-                              const isBusy = memberActionId === memberId;
-                              const isCurrentAdmin = memberId === group.createdBy;
-
-                              return (
-                                <div className="member-row" key={memberId}>
-                                  <div className="d-flex align-items-center gap-2">
-                                    <img
-                                      src={member?.image}
-                                      alt=""
-                                      style={{
-                                        width: "32px",
-                                        height: "32px",
-                                        borderRadius: "50%",
-                                        objectFit: "cover",
-                                        background: "var(--panel-2)",
-                                      }}
-                                    />
-                                    <div>
-                                      <div className="fw-semibold" style={{ fontSize: "13px", color:"white" }}>
-                                        {member?.name || (isFetching ? "Loading..." : "Unknown user")}
-                                        {isCurrentAdmin && (
-                                          <span className="badge bg-dark ms-2" style={{ fontSize: "9px" }}>
-                                            Admin
-                                          </span>
-                                        )}
-                                        {member?.isBlocked && (
-                                          <span className="badge bg-danger ms-2" style={{ fontSize: "9px" }}>
-                                            Blocked
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="text-muted" style={{ fontSize: "11.5px" }}>
-                                        {member?.email || memberId}
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="d-flex gap-2">
-                                    {!isCurrentAdmin && (
-                                      <button
-                                        className="btn btn-sm btn-outline-primary"
-                                        onClick={() => handleMakeAdmin(group, memberId)}
-                                        disabled={isBusy || member?.isBlocked}
-                                        title="Make this user the group admin"
-                                      >
-                                        {isBusy ? "..." : (
-                                          <>
-                                            <FaCrown size={11} className="me-1" />
-                                            Make Admin
-                                          </>
-                                        )}
-                                      </button>
-                                    )}
-
-                                    <button
-                                      className="btn btn-sm btn-outline-warning"
-                                      onClick={() => handleRemoveMember(group, memberId)}
-                                      disabled={isBusy}
-                                    >
-                                      {isBusy ? "..." : "Remove from Group"}
-                                    </button>
-
-                                    <button
-                                      className="btn btn-sm btn-outline-danger"
-                                      onClick={() => handleBlockMember(memberId)}
-                                      disabled={isBusy || member?.isBlocked}
-                                    >
-                                      {isBusy
-                                        ? "..."
-                                        : member?.isBlocked
-                                        ? "Blocked"
-                                        : "Block Permanently"}
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-
-          {!loading && groups.length === 0 && (
-            <div className="text-center py-4">No Groups Found</div>
-          )}
-
-          {!loading && groupHasMore && (
-            <div className="text-center mt-2">
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-dark"
-                onClick={handleLoadMoreGroups}
-                disabled={loadMoreGroupsLoading}
-              >
-                {loadMoreGroupsLoading ? "Loading..." : "Load more"}
-              </button>
-            </div>
-          )}
-        </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-dark"
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={page === totalPages}
+                >
+                  Next
+                </button>
+              </nav>
+            )}
+          </div>
+        )}
       </div>
-
-      {editGroup && (
-        <>
-          <div
-            className="modal fade show d-block admin-edit-modal"
-            tabIndex="-1"
-            role="dialog"
-            onClick={closeEditGroup}
-          >
-            <div
-              className="modal-dialog modal-dialog-centered"
-              role="document"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title fw-bold">Edit Group</h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={closeEditGroup}
-                    disabled={savingGroup}
-                    aria-label="Close"
-                  ></button>
-                </div>
-
-                <div className="modal-body">
-                  <div className="d-flex align-items-center gap-3 mb-4">
-                    <img
-                      src={editGroupPreview}
-                      alt=""
-                      style={{
-                        width: "64px",
-                        height: "64px",
-                        borderRadius: "50%",
-                        objectFit: "cover",
-                        border: "2px solid var(--hairline)",
-                      }}
-                    />
-                    <div>
-                      <label htmlFor="groupImageInput" className="btn btn-sm btn-outline-warning mb-0">
-                        Change Photo
-                      </label>
-                      <input
-                        id="groupImageInput"
-                        type="file"
-                        accept="image/*"
-                        className="d-none"
-                        onChange={handleGroupImageChange}
-                        disabled={savingGroup}
-                      />
-                    </div>
-                  </div>
-
-                  <form id="editGroupForm" onSubmit={handleEditGroupSubmit}>
-                    <div className="mb-1">
-                      <label className="form-label admin-label">Group Name</label>
-                      <input
-                        type="text"
-                        className="form-control admin-input"
-                        value={editGroupName}
-                        onChange={(e) => setEditGroupName(e.target.value)}
-                        required
-                        disabled={savingGroup}
-                      />
-                    </div>
-                  </form>
-                </div>
-
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-dark"
-                    onClick={closeEditGroup}
-                    disabled={savingGroup}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    form="editGroupForm"
-                    className="btn btn-warning btn-sm"
-                    disabled={savingGroup}
-                  >
-                    {savingGroup ? "Saving..." : "Save Changes"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
-
-      {addMemberGroup && (
-        <>
-          <div
-            className="modal fade show d-block admin-edit-modal"
-            tabIndex="-1"
-            role="dialog"
-            onClick={closeAddMemberModal}
-          >
-            <div
-              className="modal-dialog modal-dialog-centered"
-              role="document"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title fw-bold">
-                    Add Member — {addMemberGroup.groupName}
-                  </h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={closeAddMemberModal}
-                    aria-label="Close"
-                  ></button>
-                </div>
-
-                <div className="modal-body">
-                  <input
-                    type="text"
-                    className="form-control admin-input mb-3"
-                    placeholder="Search by name or email..."
-                    value={addMemberSearch}
-                    onChange={(e) => setAddMemberSearch(e.target.value)}
-                    autoFocus
-                  />
-
-                  {(() => {
-                    const currentGroup =
-                      groups.find((g) => g._id === addMemberGroup._id) || addMemberGroup;
-                    const currentMembers = currentGroup.members || [];
-
-                    const availableUsers = Object.values(usersMap).filter((u) => {
-                      if (currentMembers.includes(u._id)) return false;
-                      const q = addMemberSearch.toLowerCase();
-                      return (
-                        !q ||
-                        u.name?.toLowerCase().includes(q) ||
-                        u.email?.toLowerCase().includes(q)
-                      );
-                    });
-
-                    if (availableUsers.length === 0) {
-                      return (
-                        <div className="text-center text-muted py-3">
-                          No matching users to add.
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div style={{ maxHeight: "320px", overflowY: "auto" }}>
-                        {availableUsers.map((user) => {
-                          const isBusy = addingMemberId === user._id;
-
-                          return (
-                            <div className="member-row" key={user._id}>
-                              <div className="d-flex align-items-center gap-2">
-                                <img
-                                  src={user.image}
-                                  alt=""
-                                  style={{
-                                    width: "32px",
-                                    height: "32px",
-                                    borderRadius: "50%",
-                                    objectFit: "cover",
-                                    background: "var(--panel-2)",
-                                  }}
-                                />
-                                <div>
-                                  <div className="fw-semibold" style={{ fontSize: "13px" }}>
-                                    {user.name}
-                                    {user.isBlocked && (
-                                      <span
-                                        className="badge bg-danger ms-2"
-                                        style={{ fontSize: "9px" }}
-                                      >
-                                        Blocked
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-muted" style={{ fontSize: "11.5px" }}>
-                                    {user.email}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <button
-                                className="btn btn-sm btn-outline-success"
-                                onClick={() => handleAddMember(currentGroup, user)}
-                                disabled={isBusy || user.isBlocked}
-                                title={user.isBlocked ? "Blocked users can't be added" : "Add to group"}
-                              >
-                                {isBusy ? "..." : "Add"}
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-dark"
-                    onClick={closeAddMemberModal}
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
     </div>
   );
 };
 
-export default AllGroups;
+export default AllCallRecords;
