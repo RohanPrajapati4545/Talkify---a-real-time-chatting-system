@@ -399,10 +399,18 @@ useEffect(() => {
         }
       );
 
+      // 👇 FIX — backend `{ chats, pagination }` object bhejta hai, seedha
+      // array nahi. Pehle `res.data.forEach` use ho raha tha jo har baar
+      // silently fail ho raha tha (res.data ek object hai, array nahi),
+      // isliye `privateChatMap` kabhi populate hi nahi hota tha — isi
+      // wajah se SideBar ke Calls tab me private call logs kabhi fetch
+      // nahi ho paa rahe the (sirf group calls dikh rahe the).
+      const chats = res.data?.chats || [];
+
       const map = {};
       const activityMap = {};
 
-      res.data.forEach((chat) => {
+      chats.forEach((chat) => {
         const other = chat.members.find((m) => m._id !== user._id);
         if (other) {
           map[other._id] = chat._id;

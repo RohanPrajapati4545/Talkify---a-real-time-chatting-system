@@ -81,20 +81,35 @@ const SideBar = ({
           .get(`${API_BASE_URL}/api/user/call-logs/${g._id}`, {
             headers: { Authorization: `Bearer ${token}` },
           })
-          .then((res) => (res.data.calls || []).map((c) => ({ ...c, _group: g })))
-          .catch(() => [])
+          .then((res) => {
+            const calls = res.data?.calls || res.data || [];
+            return calls.map((c) => ({ ...c, _group: g }));
+          })
+          .catch((err) => {
+            console.error(`group call-logs failed for ${g._id}:`, err);
+            return [];
+          })
       );
 
       const privateChatEntries = Object.entries(privateChatMap || {}); // [otherUserId, chatId]
+
+      // debug — agar ye empty hai, matlab privateChatMap abhi tak populate
+      // nahi hua tha jab Calls tab khula (root cause of "private calls not showing")
+      console.log("privateChatEntries for call history:", privateChatEntries);
+
       const privateCallPromises = privateChatEntries.map(([otherId, chatId]) =>
         axios
           .get(`${API_BASE_URL}/api/private/call-logs/${chatId}`, {
             headers: { Authorization: `Bearer ${token}` },
           })
-          .then((res) =>
-            (res.data.calls || []).map((c) => ({ ...c, _otherUserId: otherId }))
-          )
-          .catch(() => [])
+          .then((res) => {
+            const calls = res.data?.calls || res.data || [];
+            return calls.map((c) => ({ ...c, _otherUserId: otherId }));
+          })
+          .catch((err) => {
+            console.error(`private call-logs failed for chat ${chatId}:`, err);
+            return [];
+          })
       );
 
       const results = await Promise.all([...groupCallPromises, ...privateCallPromises]);
@@ -104,6 +119,8 @@ const SideBar = ({
       const merged = results
         .flat()
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      console.log("merged call history:", merged);
 
       setCallHistory(merged);
     } finally {
@@ -117,7 +134,20 @@ const SideBar = ({
     if (activeTab === "calls") {
       fetchAllCallHistory();
     }
+    // privateChatMap ke populate hone ke baad bhi (agar tab already khula
+    // hai) automatically refetch ho jayega, kyunki fetchAllCallHistory ki
+    // identity privateChatMap change hone par badalti hai — isliye ye
+    // effect dobara chalta hai jab bhi fetchAllCallHistory naya banta hai
   }, [activeTab, fetchAllCallHistory]);
+
+  // Calls button pe click karte hi bhi ek force-refetch — taaki agar user
+  // Calls tab pe already khada tha aur privateChatMap late aaya, to bhi
+  // agla click turant latest data le aaye
+  const handleCallsTabClick = (e) => {
+    e.preventDefault();
+    setActiveTab("calls");
+    fetchAllCallHistory();
+  };
 
   // real-time — koi naya call log aaye aur Calls tab khula ho to top pe daal do
   useEffect(() => {
@@ -501,10 +531,7 @@ useEffect(() => {
         <button
           type="button"
           className={activeTab === "calls" ? "active" : ""}
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveTab("calls");
-          }}
+          onClick={handleCallsTabClick}
         >
           Calls
         </button>

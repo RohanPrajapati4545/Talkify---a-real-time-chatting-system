@@ -4283,7 +4283,45 @@ body.cv-chat-open {
   white-space: nowrap;
   flex-shrink: 0;
 }
+/* ===== Calls tab — call history rows ===== */
 
+.cv-call-history-icon {
+  margin-right: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.cv-call-missed-text {
+  color: #dc3545;
+}
+
+.cv-call-missed-text .cv-call-history-icon {
+  color: #dc3545;
+}
+
+.cv-call-history-time {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+/* keep the call row's subtitle line + icon aligned nicely */
+.cv-list .cv-row .cv-row-sub {
+  display: flex;
+  align-items: center;
+}
+
+/* optional: subtle divider so the calls list doesn't feel identical to
+   groups/chats — remove if you prefer the exact same row style */
+.cv-list .cv-row {
+  border-bottom: 1px solid var(--hairline, rgba(0, 0, 0, 0.06));
+}
+
+.cv-list .cv-row:last-child {
+  border-bottom: none;
+}
 @media (max-width: 480px) {
   .cv-call-log-pill {
     max-width: 92%;
