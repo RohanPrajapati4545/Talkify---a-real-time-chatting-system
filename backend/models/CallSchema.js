@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const callSchema = new mongoose.Schema(
+const CallSchema = new mongoose.Schema(
   {
     caller: {
       type: mongoose.Schema.Types.ObjectId,
@@ -20,11 +20,11 @@ const callSchema = new mongoose.Schema(
       default: null,
     },
        
-    group: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "GroupSchema",
-      default: null,
-    },
+   group: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Group",   
+  default: null,
+},
     callType: {
       type: String,
       enum: ["audio", "video"],
@@ -44,4 +44,4 @@ const callSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Call", callSchema);
+module.exports = mongoose.model("Call", CallSchema);
