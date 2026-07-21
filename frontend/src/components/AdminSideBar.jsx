@@ -52,7 +52,10 @@ const AdminSideBar = () => {
         Chat Monitor
       </NavLink>
 
-     
+     <NavLink to="/admin/call-records" className="sidebar-link">
+  <i className="fa-solid fa-phone-volume"></i>
+  Call Records
+</NavLink>
 
       <div className="sidebar-footer">
         <button className="logout-btn" onClick={handleLogout}>

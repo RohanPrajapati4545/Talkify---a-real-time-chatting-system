@@ -1,9 +1,10 @@
-const bcrypt = require("bcrypt"); // used by changePassword to verify/hash the admin's own password
+const bcrypt = require("bcrypt");
+const Call = require("./../models/CallSchema");
 const User = require("./../models/UserSchema");
 const Group = require("./../models/GroupSchema");
 const Message = require("./../models/MessageSchema");
 const Report = require("./../models/ReportSchema");
-const GroupMessage = require("./../models/MessageSchema"); // ⚠️ confirm this model name/path
+const GroupMessage = require("./../models/MessageSchema");
 const PrivateChat = require("./../models/PrivateChatSchema");
 const PrivateMessage = require("./../models/PrivateMessageSchema");
 exports.getAllUsers = async (req, res) => {
@@ -48,7 +49,58 @@ exports.getAllUsers = async (req, res) => {
     res.status(500).json({ msg: "Failed to fetch users" });
   }
 };
+// ============== CALL RECORDS (admin — all users, groups + private) ==============
+exports.getAllCallRecords = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const callType = req.query.callType; // "video" | "audio" (optional)
+    const scope = req.query.scope;       // "group" | "private" (optional)
+    const search = req.query.search?.trim().toLowerCase() || "";
 
+    const query = {};
+    if (callType) query.callType = callType;
+    if (scope === "group") query.group = { $ne: null };
+    if (scope === "private") query.group = null;
+
+    let calls = await Call.find(query)
+      .populate("caller", "name email image")
+      .populate("receiver", "name email image")
+      .populate("group", "groupName groupImage")
+      .sort({ createdAt: -1 });
+
+    // name-based search across caller/receiver/group — done in JS since
+    // it spans populated refs on both private and group calls
+    if (search) {
+      calls = calls.filter((c) => {
+        const callerName = c.caller?.name?.toLowerCase() || "";
+        const receiverName = c.receiver?.name?.toLowerCase() || "";
+        const groupName = c.group?.groupName?.toLowerCase() || "";
+        return (
+          callerName.includes(search) ||
+          receiverName.includes(search) ||
+          groupName.includes(search)
+        );
+      });
+    }
+
+    const total = calls.length;
+    const paginated = calls.slice((page - 1) * limit, page * limit);
+
+    res.status(200).json({
+      calls: paginated,
+      pagination: {
+        page,
+        limit,
+        total,
+        hasMore: page * limit < total,
+      },
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ msg: "Failed to fetch call records" });
+  }
+};
 exports.getAllGroups = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;

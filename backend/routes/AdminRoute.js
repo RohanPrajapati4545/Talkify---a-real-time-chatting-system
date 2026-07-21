@@ -46,4 +46,8 @@ router.post("/clear-private-chat", authMiddleware, adminMiddleware, (AdminContro
 router.post("/delete-private-chat", authMiddleware, adminMiddleware, (AdminController.deletePrivateChatAdmin));
 router.post("/add-group-member", authMiddleware, adminMiddleware, (AdminController.addGroupMember));
 router.post("/cleanup-orphaned-members", authMiddleware, AdminController.cleanupOrphanedGroupMembers);
+
+
+//call record section 
+router.get("/call-records", authMiddleware, adminMiddleware, (AdminController.getAllCallRecords));
 module.exports = router
