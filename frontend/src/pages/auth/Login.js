@@ -92,7 +92,15 @@ const Login = () => {
       toast.success(res.data.msg || "OTP sent to your phone");
       setOtpSent(true);
     } catch (error) {
-      toast.error(error.response?.data?.msg || "Couldn't send OTP");
+      if (error.response?.status === 404) {
+        // Number DB mein exist nahi karta — koi account is number se linked nahi hai
+        toast.error(
+          error.response?.data?.msg ||
+            "No account found with this number. Please sign up first."
+        );
+      } else {
+        toast.error(error.response?.data?.msg || "Couldn't send OTP");
+      }
     } finally {
       setSendingOtp(false);
     }
