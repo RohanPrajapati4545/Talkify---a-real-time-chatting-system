@@ -49,6 +49,28 @@ exports.getAllUsers = async (req, res) => {
     res.status(500).json({ msg: "Failed to fetch users" });
   }
 };
+// Permanently deletes a single call record (admin moderation action).
+// callId is expected in the request body, consistent with the other
+// admin delete endpoints in this file (deleteGroup, deleteReport, etc).
+exports.deleteCallRecord = async (req, res) => {
+  try {
+    const { callId } = req.body;
+
+    if (!callId) {
+      return res.status(400).json({ msg: "callId is required" });
+    }
+
+    const call = await Call.findByIdAndDelete(callId);
+    if (!call) {
+      return res.status(404).json({ msg: "Call record not found" });
+    }
+
+    res.status(200).json({ msg: "Call record deleted" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ msg: "Failed to delete call record" });
+  }
+};
 // ============== CALL RECORDS (admin — all users, groups + private) ==============
 exports.getAllCallRecords = async (req, res) => {
   try {

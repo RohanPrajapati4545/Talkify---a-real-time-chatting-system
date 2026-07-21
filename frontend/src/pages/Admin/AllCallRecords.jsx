@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { FaPhoneAlt, FaVideo, FaUsers, FaUser } from "react-icons/fa";
+import Swal from "sweetalert2";
+import { FaPhoneAlt, FaVideo, FaUsers, FaUser, FaTrash } from "react-icons/fa";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL;
 const CALL_LIMIT = 20;
@@ -35,6 +36,7 @@ const AllCallRecords = () => {
   const [search, setSearch] = useState("");
   const [callType, setCallType] = useState(""); // "" | "video" | "audio"
   const [scope, setScope] = useState("");       // "" | "group" | "private"
+  const [deletingId, setDeletingId] = useState(null);
 
   const totalPages = Math.max(1, Math.ceil(totalCalls / CALL_LIMIT));
 
@@ -72,6 +74,57 @@ const AllCallRecords = () => {
     if (newPage < 1 || newPage > totalPages) return;
     if (newPage === page || loading) return;
     fetchCalls(newPage);
+  };
+
+  const handleDelete = async (callId) => {
+    const result = await Swal.fire({
+      title: "Delete this call record?",
+      text: "This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc3545",
+      cancelButtonColor: "#6c757d",
+      confirmButtonText: "Yes, delete it",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    setDeletingId(callId);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`${API_BASE_URL}/api/admin/call-records`, {
+        data: { callId },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // If this was the last row on the current page (and not page 1),
+      // step back a page so the table doesn't show an empty page.
+      const isLastRowOnPage = calls.length === 1 && page > 1;
+      if (isLastRowOnPage) {
+        fetchCalls(page - 1);
+      } else {
+        setCalls((prev) => prev.filter((c) => c._id !== callId));
+        setTotalCalls((prev) => Math.max(0, prev - 1));
+      }
+
+      Swal.fire({
+        title: "Deleted",
+        text: "The call record has been deleted.",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      console.error("Failed to delete call record:", err);
+      Swal.fire({
+        title: "Failed",
+        text: "Failed to delete call record. Please try again.",
+        icon: "error",
+      });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const statusBadgeClass = (status) => {
@@ -166,6 +219,7 @@ const AllCallRecords = () => {
                   <th style={{ width: "110px" }}>Status</th>
                   <th style={{ width: "100px" }}>Duration</th>
                   <th style={{ minWidth: "170px" }}>Date &amp; time</th>
+                  <th style={{ width: "70px" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -243,6 +297,18 @@ const AllCallRecords = () => {
                         <span className="text-muted" style={{ fontSize: "12px" }}>
                           {new Date(c.createdAt).toLocaleString()}
                         </span>
+                      </td>
+
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger"
+                          title="Delete call record"
+                          onClick={() => handleDelete(c._id)}
+                          disabled={deletingId === c._id}
+                        >
+                          <FaTrash size={11} />
+                        </button>
                       </td>
                     </tr>
                   );
