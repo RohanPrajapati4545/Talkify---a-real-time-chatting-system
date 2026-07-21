@@ -2514,6 +2514,9 @@ useEffect(() => {
   userLastActivity={userLastActivity}
   groupLastActivity={groupLastActivity}
   refreshSignal={sidebarRefreshSignal}
+   groups={groups}                 /* 👈 NAYA */
+  privateChatMap={privateChatMap} /* 👈 NAYA */
+  allUsers={allUsers} 
 />
           </div>
 

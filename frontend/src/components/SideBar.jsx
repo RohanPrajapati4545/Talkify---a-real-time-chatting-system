@@ -32,7 +32,9 @@ const SideBar = ({
 
   userLastActivity = {},
   groupLastActivity = {},
- 
+  groups = [],
+  privateChatMap = {},
+  allUsers = [],
   refreshSignal = 0,
 }) => {
   const navigate = useNavigate();
@@ -60,6 +62,96 @@ const SideBar = ({
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  // ============== CALL HISTORY (Calls tab) ==============
+  const [callHistory, setCallHistory] = useState([]);
+  const [callHistoryLoading, setCallHistoryLoading] = useState(false);
+  const callHistoryRequestIdRef = useRef(0);
+
+  // existing endpoints reuse — har group aur har private chat ke call-logs
+  // ko parallel me fetch karke ek merged, time-sorted list banate hain
+  const fetchAllCallHistory = useCallback(async () => {
+    const currentRequestId = ++callHistoryRequestIdRef.current;
+    const token = localStorage.getItem("token");
+    setCallHistoryLoading(true);
+
+    try {
+      const groupCallPromises = (groups || []).map((g) =>
+        axios
+          .get(`${API_BASE_URL}/api/user/call-logs/${g._id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          .then((res) => (res.data.calls || []).map((c) => ({ ...c, _group: g })))
+          .catch(() => [])
+      );
+
+      const privateChatEntries = Object.entries(privateChatMap || {}); // [otherUserId, chatId]
+      const privateCallPromises = privateChatEntries.map(([otherId, chatId]) =>
+        axios
+          .get(`${API_BASE_URL}/api/private/call-logs/${chatId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          .then((res) =>
+            (res.data.calls || []).map((c) => ({ ...c, _otherUserId: otherId }))
+          )
+          .catch(() => [])
+      );
+
+      const results = await Promise.all([...groupCallPromises, ...privateCallPromises]);
+
+      if (currentRequestId !== callHistoryRequestIdRef.current) return;
+
+      const merged = results
+        .flat()
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      setCallHistory(merged);
+    } finally {
+      if (currentRequestId === callHistoryRequestIdRef.current) {
+        setCallHistoryLoading(false);
+      }
+    }
+  }, [groups, privateChatMap]);
+
+  useEffect(() => {
+    if (activeTab === "calls") {
+      fetchAllCallHistory();
+    }
+  }, [activeTab, fetchAllCallHistory]);
+
+  // real-time — koi naya call log aaye aur Calls tab khula ho to top pe daal do
+  useEffect(() => {
+    const handlePrivateCall = (call) => {
+      if (activeTabRef.current !== "calls") return;
+      const callerId = call.caller?._id || call.caller;
+      const receiverId = call.receiver?._id || call.receiver;
+      const otherId = callerId === user?._id ? receiverId : callerId;
+      setCallHistory((prev) =>
+        prev.some((c) => c._id === call._id)
+          ? prev
+          : [{ ...call, _otherUserId: otherId }, ...prev]
+      );
+    };
+
+    const handleGroupCall = (call) => {
+      if (activeTabRef.current !== "calls") return;
+      const gId = call.group?._id || call.group;
+      const group = groups.find((g) => g._id === gId);
+      setCallHistory((prev) =>
+        prev.some((c) => c._id === call._id)
+          ? prev
+          : [{ ...call, _group: group || call.group }, ...prev]
+      );
+    };
+
+    socket.on("callLogAdded", handlePrivateCall);
+    socket.on("groupCallLogAdded", handleGroupCall);
+
+    return () => {
+      socket.off("callLogAdded", handlePrivateCall);
+      socket.off("groupCallLogAdded", handleGroupCall);
+    };
+  }, [groups, user?._id]);
 
   const fetchList = useCallback(
     async (term, page, append = false) => {
@@ -99,6 +191,10 @@ const SideBar = ({
   );
 
   useEffect(() => {
+    // calls tab apna alag fetch (fetchAllCallHistory) use karta hai, isliye
+    // yahan groups/chats wali list fetch skip kar do
+    if (activeTab === "calls") return;
+
     setSearchTerm("");
     setDebouncedTerm("");
     setListResults([]);
@@ -259,6 +355,72 @@ useEffect(() => {
     [unreadCounts]
   );
 
+  const renderCallRow = (call) => {
+    const icon = call.callType === "video" ? "fa-video" : "fa-phone";
+    const timeLabel = new Date(call.createdAt).toLocaleString([], {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    // ---- group call ----
+    if (call._group || call.group) {
+      const group = call._group || call.group;
+      return (
+        <div
+          key={call._id}
+          className="cv-row"
+          onClick={() => onSelectGroup && onSelectGroup(group)}
+        >
+          <img src={group?.groupImage} className="cv-row-avatar" alt="" />
+          <div className="flex-grow-1">
+            <div className="cv-row-name">{group?.groupName}</div>
+            <div className="cv-row-sub">
+              <i className={`fa-solid ${icon} cv-call-history-icon`}></i>
+              {call.caller?.name || "Someone"} started a {call.callType} call
+            </div>
+          </div>
+          <span className="cv-call-history-time">{timeLabel}</span>
+        </div>
+      );
+    }
+
+    // ---- private call ----
+    const callerId = call.caller?._id || call.caller;
+    const isOutgoing = callerId === user?._id;
+    const other =
+      allUsers.find((u) => u._id === call._otherUserId) ||
+      (isOutgoing ? call.receiver : call.caller);
+    const isMissedLike = call.status === "missed" || call.status === "rejected";
+
+    let statusLabel;
+    if (call.status === "missed") {
+      statusLabel = isOutgoing ? "No answer" : "Missed";
+    } else if (call.status === "rejected") {
+      statusLabel = isOutgoing ? "Declined" : "You declined";
+    } else {
+      statusLabel = isOutgoing ? "Outgoing" : "Incoming";
+    }
+
+    return (
+      <div key={call._id} className="cv-row" onClick={() => other && openPrivateChat(other)}>
+        <div className="cv-avatar-wrap">
+          <img src={other?.image} className="cv-row-avatar" alt="" />
+          {isOnline && other && isOnline(other._id) && <span className="cv-online-dot"></span>}
+        </div>
+        <div className="flex-grow-1">
+          <div className="cv-row-name">{other?.name}</div>
+          <div className={`cv-row-sub ${isMissedLike ? "cv-call-missed-text" : ""}`}>
+            <i className={`fa-solid ${icon} cv-call-history-icon`}></i>
+            {statusLabel} · {call.callType}
+          </div>
+        </div>
+        <span className="cv-call-history-time">{timeLabel}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="cv-sidebar">
       <div className="cv-sidebar-top">
@@ -335,6 +497,17 @@ useEffect(() => {
             </span>
           )}
         </button>
+
+        <button
+          type="button"
+          className={activeTab === "calls" ? "active" : ""}
+          onClick={(e) => {
+            e.preventDefault();
+            setActiveTab("calls");
+          }}
+        >
+          Calls
+        </button>
       </div>
 
       {activeTab === "groups" && (
@@ -361,22 +534,31 @@ useEffect(() => {
         </div>
       )}
 
-      <div className="cv-search-wrapper">
-        <i className="fa-solid fa-magnifying-glass cv-search-icon"></i>
-        <input
-          type="text"
-          className="cv-search-input"
-          placeholder={
-            activeTab === "groups" ? "Search groups..." : "Search chats..."
-          }
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-       
-      </div>
+      {activeTab !== "calls" && (
+        <div className="cv-search-wrapper">
+          <i className="fa-solid fa-magnifying-glass cv-search-icon"></i>
+          <input
+            type="text"
+            className="cv-search-input"
+            placeholder={
+              activeTab === "groups" ? "Search groups..." : "Search chats..."
+            }
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      )}
 
       <div className="cv-list">
-        {loading ? (
+        {activeTab === "calls" ? (
+          callHistoryLoading ? (
+            <div className="cv-empty-list">Loading...</div>
+          ) : callHistory.length > 0 ? (
+            callHistory.map(renderCallRow)
+          ) : (
+            <div className="cv-empty-list">No calls yet</div>
+          )
+        ) : loading ? (
           <div className="cv-empty-list">Loading...</div>
         ) : activeTab === "groups" ? (
           displayedGroups.length > 0 ? (

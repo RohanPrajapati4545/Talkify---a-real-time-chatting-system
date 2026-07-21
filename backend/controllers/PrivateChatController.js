@@ -175,10 +175,7 @@ const getPrivateMessages = async (req, res) => {
   }
 };
 
-// 👇 NAYA — ek private chat ke saare call logs (WhatsApp jaisi call-log
-// entries chat thread me dikhane ke liye). Call volume messages se bahut
-// kam hota hai, isliye pagination ke bina saare bhej dete hain — frontend
-// inhe messages ke sath timestamp se merge karke render karta hai.
+
 const getCallLogs = async (req, res) => {
   try {
     const { chatId } = req.params;
