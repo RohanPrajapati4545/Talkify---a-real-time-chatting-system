@@ -56,6 +56,10 @@ const AdminSideBar = () => {
   <i className="fa-solid fa-phone-volume"></i>
   Call Records
 </NavLink>
+<NavLink to="/admin/contact-queries" className="sidebar-link">
+     <i className="fa-solid fa-envelope"></i>
+     <span>Contact Queries</span>
+   </NavLink>
 
       <div className="sidebar-footer">
         <button className="logout-btn" onClick={handleLogout}>
