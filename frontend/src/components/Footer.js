@@ -6,6 +6,11 @@ const Footer = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
 
+  const goTo = (path) => {
+    navigate(path);
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  };
+
   const handleSubscribe = (e) => {
     e.preventDefault();
     if (!email) return;
@@ -21,32 +26,30 @@ const Footer = () => {
   return (
     <footer className="cv-footer">
       <div className="cv-footer-inner">
-       
-
         <div className="cv-footer-col">
           <span className="cv-footer-col-title">Product</span>
-          <span onClick={() => navigate("/")}>Home</span>
-          <span onClick={() => navigate("/chat")}>Chat</span>
-          <span onClick={() => navigate("/pricing")}>Pricing</span>
-          <span onClick={() => navigate("/status")}>Status</span>
+          <span onClick={() => goTo("/")}>Home</span>
+          <span onClick={() => goTo("/chat")}>Chat</span>
         </div>
 
-      
-        <div className="cv-footer-col">
-          <span className="cv-footer-col-title">Resources</span>
-          <span onClick={() => navigate("/docs")}>Developer API</span>
-          <span onClick={() => navigate("/tools")}>Tools</span>
-          <span onClick={() => navigate("/blog")}>Blog</span>
-        </div>
-
-       
         <div className="cv-footer-col">
           <span className="cv-footer-col-title">Company</span>
-          <span onClick={() => navigate("/about")}>About Us</span>
-          <span onClick={() => navigate("/terms")}>Terms of Service</span>
-          <span onClick={() => navigate("/privacy")}>Privacy</span>
+          <span onClick={() => goTo("/about")}>About Us</span>
+          <span onClick={() => goTo("/contact")}>Contact Us</span>
         </div>
 
+        <div className="cv-footer-col">
+          <span className="cv-footer-col-title">Follow</span>
+          <span onClick={() => window.open("https://facebook.com", "_blank")}>
+            <i className="fa-brands fa-facebook-f"></i> Facebook
+          </span>
+          <span onClick={() => window.open("https://instagram.com", "_blank")}>
+            <i className="fa-brands fa-instagram"></i> Instagram
+          </span>
+          <span onClick={() => window.open("https://twitter.com", "_blank")}>
+            <i className="fa-brands fa-twitter"></i> Twitter
+          </span>
+        </div>
 
         <div className="cv-footer-col cv-footer-newsletter">
           <span className="cv-footer-col-title">Stay on the line</span>
@@ -67,9 +70,15 @@ const Footer = () => {
 
           <span className="cv-footer-col-title cv-footer-follow-title">Follow us</span>
           <div className="cv-footer-social">
-            <a href="#" aria-label="Facebook"><i className="fa-brands fa-facebook-f"></i></a>
-            <a href="#" aria-label="Twitter"><i className="fa-brands fa-twitter"></i></a>
-            <a href="#" aria-label="Instagram"><i className="fa-brands fa-instagram"></i></a>
+            <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook">
+              <i className="fa-brands fa-facebook-f"></i>
+            </a>
+            <a href="https://twitter.com" target="_blank" rel="noreferrer" aria-label="Twitter">
+              <i className="fa-brands fa-twitter"></i>
+            </a>
+            <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram">
+              <i className="fa-brands fa-instagram"></i>
+            </a>
           </div>
         </div>
       </div>

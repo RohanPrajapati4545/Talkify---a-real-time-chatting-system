@@ -31,6 +31,7 @@ const Header = () => {
     setShowMenu(false);
     setShowMobileNav(false);
     navigate(path);
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
   };
 
   const handleLogout = () => {
@@ -49,6 +50,7 @@ const Header = () => {
         setLoading(true);
         dispatch(logout());
         navigate("/");
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
         setLoading(false);
       }
     });
@@ -84,10 +86,13 @@ const Header = () => {
                 <i className="fa-solid fa-house"></i>
                 <span>Home</span>
               </span>
-
-              <span className="cv-header-link me-2" onClick={() => goTo("/about")}>
+ <span className="cv-header-link me-2" onClick={() => goTo("/about")}>
                 <i className="fa-solid fa-circle-info"></i>
                 <span>About</span>
+              </span>
+              <span className="cv-header-link me-2" onClick={() => goTo("/contact")}>
+                <i className="fa-solid fa-circle-info"></i>
+                <span>Contact Us</span>
               </span>
 
               {token && (
@@ -170,7 +175,11 @@ const Header = () => {
                 <span>About</span>
               </span>
 
-             
+              <span className="cv-mobile-nav-link" onClick={() => goTo("/contact")}>
+                <i className="fa-solid fa-circle-info"></i>
+                <span>Contact Us</span>
+              </span>
+
               {token && (
                 <span className="cv-mobile-nav-link" onClick={() => goTo("/chat")}>
                   <i className="fa-solid fa-comments"></i>

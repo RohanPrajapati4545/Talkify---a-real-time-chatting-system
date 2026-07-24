@@ -17,6 +17,7 @@ import AllGroups from "../Admin/AllGroups";
 import ChatMonitor from "../Admin/ChatMonitor";
 import AllCallRecords from "../Admin/AllCallRecords";
 import GroupMembers from "../Admin/GroupMembers";
+import Contact from "../Contact";
 
 const AllRoutes = () => {
   const { isAuth, user } = useSelector((state) => state.auth);
@@ -51,6 +52,18 @@ const AllRoutes = () => {
             ) : (
               <Layout>
                 <About />
+              </Layout>
+            )
+          }
+        />
+          <Route
+          path="/contact"
+          element={
+            isAdmin ? (
+              <Navigate to="/admin" replace />
+            ) : (
+              <Layout>
+                <Contact />
               </Layout>
             )
           }
