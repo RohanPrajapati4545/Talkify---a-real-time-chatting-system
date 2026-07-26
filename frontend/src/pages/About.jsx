@@ -1,11 +1,77 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+
+// Same values as the schema defaults on the backend — used only as a
+// fallback so the page never looks broken while the fetch is in flight
+// or if the API call fails for some reason.
+const DEFAULT_CONTENT = {
+  heroEyebrow: "ABOUT THE LINE",
+  aboutTitleLine1: "Built for conversations,",
+  aboutTitleLine2: "not for feeds.",
+  aboutLede:
+    "Talkify started as a simple question: why does chatting with people you actually know keep feeling like scrolling a timeline? We stripped it back to what a message line is supposed to be — fast, direct, and yours.",
+  timelineSectionTitle: "The dispatch log",
+  timelineEntries: [
+    {
+      stamp: "ENTRY 01 · DAY ONE",
+      title: "A one-to-one prototype",
+      description:
+        "The first version was just two people and a socket connection — no groups, no media, just messages arriving instantly.",
+    },
+    {
+      stamp: "ENTRY 02 · GROUPS",
+      title: "Threads that scale",
+      description:
+        "We added invite codes, admins, and member controls so a thread could hold a real group without turning into chaos.",
+    },
+    {
+      stamp: "ENTRY 03 · SIGNAL",
+      title: "Read receipts, replies, edits",
+      description:
+        "Small signals — sent, delivered, seen — so you always know where a conversation actually stands.",
+    },
+    {
+      stamp: "ENTRY 04 · TODAY",
+      title: "One line, kept simple",
+      description:
+        "Every feature since has had to earn its place. If it doesn't make a conversation easier, it doesn't ship.",
+    },
+  ],
+  valuesSectionTitle: "What the line runs on",
+  valueCards: [
+    {
+      icon: "fa-solid fa-bolt",
+      title: "Speed over spectacle",
+      description: "Real-time means real-time. No spinners pretending to be instant.",
+    },
+    {
+      icon: "fa-solid fa-lock",
+      title: "Your thread, your rules",
+      description: "Block, leave, or lock a group down — control stays with the people in it.",
+    },
+    {
+      icon: "fa-solid fa-feather",
+      title: "Quiet by design",
+      description: "No algorithmic feed, no engagement bait. Just the people you talk to.",
+    },
+  ],
+  statThreadsTarget: "10000+",
+  statThreadsLabel: "Active Threads",
+  statMessagesTarget: "2000000+",
+  statMessagesLabel: "Messages Sent",
+  statUptimeTarget: "99.9%",
+  statUptimeLabel: "Uptime",
+  closerTitle: "Ready to open your own line?",
+  closerSubtitle: "It takes less than a minute to send your first message.",
+  closerButtonText: "Get Started",
+};
 
 const useCountUp = (target, duration, start) => {
   const [value, setValue] = useState(0);
 
   useEffect(() => {
-    if (!start) return;
+    if (!start || !target) return;
 
     const isPercent = typeof target === "string" && target.includes("%");
     const isPlus = typeof target === "string" && target.includes("+");
@@ -43,10 +109,28 @@ const About = () => {
   const revealRefs = useRef([]);
   const statsRef = useRef(null);
   const [statsInView, setStatsInView] = useState(false);
+  const [content, setContent] = useState(DEFAULT_CONTENT);
 
-  const threads = useCountUp("10000+", 1400, statsInView);
-  const messages = useCountUp("2000000+", 1600, statsInView);
-  const uptime = useCountUp("99.9%", 1400, statsInView);
+  // Fetch the admin-editable content once on mount. Falls back silently
+  // to DEFAULT_CONTENT if the request fails, so the page still renders.
+  useEffect(() => {
+    const fetchContent = async () => {
+      try {
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/content/about`);
+        if (res.data?.content) {
+          setContent(res.data.content);
+        }
+      } catch (error) {
+        console.log("Failed to load about content, using defaults:", error);
+      }
+    };
+
+    fetchContent();
+  }, []);
+
+  const threads = useCountUp(content.statThreadsTarget, 1400, statsInView);
+  const messages = useCountUp(content.statMessagesTarget, 1600, statsInView);
+  const uptime = useCountUp(content.statUptimeTarget, 1400, statsInView);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -81,7 +165,7 @@ const About = () => {
       observer.disconnect();
       statsObserver.disconnect();
     };
-  }, []);
+  }, [content]); // re-run so newly rendered cards/rows get observed too
 
   const addRef = (el) => {
     if (el && !revealRefs.current.includes(el)) {
@@ -93,104 +177,77 @@ const About = () => {
     <div className="cv-about">
       <section className="cv-about-hero cv-reveal" ref={addRef}>
         <span className="cv-home-eyebrow cv-pulse-badge">
-          <i className="fa-solid fa-file-lines"></i> ABOUT THE LINE
+          <i className="fa-solid fa-file-lines"></i> {content.heroEyebrow}
         </span>
         <h1 className="cv-about-title">
-          Built for conversations,
+          {content.aboutTitleLine1}
           <br />
-          <span className="cv-gradient-text">not for feeds.</span>
+          <span className="cv-gradient-text">{content.aboutTitleLine2}</span>
         </h1>
-        <p className="cv-about-lede">
-          Talkify started as a simple question: why does chatting with people
-          you actually know keep feeling like scrolling a timeline? We stripped
-          it back to what a message line is supposed to be — fast, direct, and
-          yours.
-        </p>
+        <p className="cv-about-lede">{content.aboutLede}</p>
       </section>
 
       <section className="cv-about-timeline">
         <h2 className="cv-about-section-title cv-reveal" ref={addRef}>
-          The dispatch log
+          {content.timelineSectionTitle}
         </h2>
 
         <div className="cv-about-tl-list">
-          <div className="cv-about-tl-row cv-reveal cv-reveal-left cv-reveal-delay-1" ref={addRef}>
-            <span className="cv-about-tl-stamp">ENTRY 01 · DAY ONE</span>
-            <div className="cv-about-tl-body">
-              <h3>A one-to-one prototype</h3>
-              <p>The first version was just two people and a socket connection — no groups, no media, just messages arriving instantly.</p>
+          {content.timelineEntries.map((entry, index) => (
+            <div
+              key={index}
+              className={`cv-about-tl-row cv-reveal cv-reveal-left cv-reveal-delay-${index + 1}`}
+              ref={addRef}
+            >
+              <span className="cv-about-tl-stamp">{entry.stamp}</span>
+              <div className="cv-about-tl-body">
+                <h3>{entry.title}</h3>
+                <p>{entry.description}</p>
+              </div>
             </div>
-          </div>
-
-          <div className="cv-about-tl-row cv-reveal cv-reveal-left cv-reveal-delay-2" ref={addRef}>
-            <span className="cv-about-tl-stamp">ENTRY 02 · GROUPS</span>
-            <div className="cv-about-tl-body">
-              <h3>Threads that scale</h3>
-              <p>We added invite codes, admins, and member controls so a thread could hold a real group without turning into chaos.</p>
-            </div>
-          </div>
-
-          <div className="cv-about-tl-row cv-reveal cv-reveal-left cv-reveal-delay-3" ref={addRef}>
-            <span className="cv-about-tl-stamp">ENTRY 03 · SIGNAL</span>
-            <div className="cv-about-tl-body">
-              <h3>Read receipts, replies, edits</h3>
-              <p>Small signals — sent, delivered, seen — so you always know where a conversation actually stands.</p>
-            </div>
-          </div>
-
-          <div className="cv-about-tl-row cv-reveal cv-reveal-left cv-reveal-delay-4" ref={addRef}>
-            <span className="cv-about-tl-stamp">ENTRY 04 · TODAY</span>
-            <div className="cv-about-tl-body">
-              <h3>One line, kept simple</h3>
-              <p>Every feature since has had to earn its place. If it doesn't make a conversation easier, it doesn't ship.</p>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 
       <section className="cv-about-values">
         <h2 className="cv-about-section-title cv-reveal" ref={addRef}>
-          What the line runs on
+          {content.valuesSectionTitle}
         </h2>
         <div className="cv-about-values-grid">
-          <div className="cv-about-value-card cv-reveal cv-reveal-up cv-reveal-delay-1" ref={addRef}>
-            <i className="fa-solid fa-bolt"></i>
-            <h3>Speed over spectacle</h3>
-            <p>Real-time means real-time. No spinners pretending to be instant.</p>
-          </div>
-          <div className="cv-about-value-card cv-reveal cv-reveal-up cv-reveal-delay-2" ref={addRef}>
-            <i className="fa-solid fa-lock"></i>
-            <h3>Your thread, your rules</h3>
-            <p>Block, leave, or lock a group down — control stays with the people in it.</p>
-          </div>
-          <div className="cv-about-value-card cv-reveal cv-reveal-up cv-reveal-delay-3" ref={addRef}>
-            <i className="fa-solid fa-feather"></i>
-            <h3>Quiet by design</h3>
-            <p>No algorithmic feed, no engagement bait. Just the people you talk to.</p>
-          </div>
+          {content.valueCards.map((card, index) => (
+            <div
+              key={index}
+              className={`cv-about-value-card cv-reveal cv-reveal-up cv-reveal-delay-${index + 1}`}
+              ref={addRef}
+            >
+              <i className={card.icon}></i>
+              <h3>{card.title}</h3>
+              <p>{card.description}</p>
+            </div>
+          ))}
         </div>
       </section>
 
       <section className="cv-about-stats" ref={statsRef}>
         <div className="cv-about-stat cv-reveal cv-reveal-up cv-reveal-delay-1" ref={addRef}>
           <span className="cv-about-stat-num">{threads || "0"}</span>
-          <span className="cv-about-stat-label">Active Threads</span>
+          <span className="cv-about-stat-label">{content.statThreadsLabel}</span>
         </div>
         <div className="cv-about-stat cv-reveal cv-reveal-up cv-reveal-delay-2" ref={addRef}>
           <span className="cv-about-stat-num">{messages || "0"}</span>
-          <span className="cv-about-stat-label">Messages Sent</span>
+          <span className="cv-about-stat-label">{content.statMessagesLabel}</span>
         </div>
         <div className="cv-about-stat cv-reveal cv-reveal-up cv-reveal-delay-3" ref={addRef}>
           <span className="cv-about-stat-num">{uptime || "0"}</span>
-          <span className="cv-about-stat-label">Uptime</span>
+          <span className="cv-about-stat-label">{content.statUptimeLabel}</span>
         </div>
       </section>
 
       <section className="cv-home-closer cv-reveal" ref={addRef}>
-        <h2>Ready to open your own line?</h2>
-        <p>It takes less than a minute to send your first message.</p>
+        <h2>{content.closerTitle}</h2>
+        <p>{content.closerSubtitle}</p>
         <button className="cv-btn-primary cv-home-cta cv-cta-shine" onClick={() => navigate("/register")}>
-          Get Started <i className="fa-solid fa-arrow-right cv-cta-arrow"></i>
+          {content.closerButtonText} <i className="fa-solid fa-arrow-right cv-cta-arrow"></i>
         </button>
       </section>
     </div>

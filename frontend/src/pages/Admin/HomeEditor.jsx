@@ -208,16 +208,7 @@ const HomeEditor = () => {
 
                 <div className="modal-body">
                   <form id="heroForm" onSubmit={handleSaveHero}>
-                    <div className="mb-3">
-                      <label className="form-label admin-label">Eyebrow badge text</label>
-                      <input
-                        type="text"
-                        className="form-control admin-input"
-                        value={heroDraft.heroEyebrow}
-                        onChange={(e) => setHeroDraft({ ...heroDraft, heroEyebrow: e.target.value })}
-                        disabled={saving}
-                      />
-                    </div>
+                   
                     <div className="mb-3">
                       <label className="form-label admin-label">Title — line 1</label>
                       <input
@@ -248,36 +239,8 @@ const HomeEditor = () => {
                         disabled={saving}
                       />
                     </div>
-                    <div className="mb-3">
-                      <label className="form-label admin-label">Primary button text</label>
-                      <input
-                        type="text"
-                        className="form-control admin-input"
-                        value={heroDraft.heroCtaPrimaryText}
-                        onChange={(e) => setHeroDraft({ ...heroDraft, heroCtaPrimaryText: e.target.value })}
-                        disabled={saving}
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label admin-label">Ghost button text</label>
-                      <input
-                        type="text"
-                        className="form-control admin-input"
-                        value={heroDraft.heroCtaGhostText}
-                        onChange={(e) => setHeroDraft({ ...heroDraft, heroCtaGhostText: e.target.value })}
-                        disabled={saving}
-                      />
-                    </div>
-                    <div className="mb-1">
-                      <label className="form-label admin-label">Chat mock thread label (right side)</label>
-                      <input
-                        type="text"
-                        className="form-control admin-input"
-                        value={heroDraft.wireThreadLabel}
-                        onChange={(e) => setHeroDraft({ ...heroDraft, wireThreadLabel: e.target.value })}
-                        disabled={saving}
-                      />
-                    </div>
+                   
+                   
                   </form>
                 </div>
 
@@ -391,16 +354,7 @@ const HomeEditor = () => {
                         disabled={saving}
                       />
                     </div>
-                    <div className="mb-1">
-                      <label className="form-label admin-label">Button text</label>
-                      <input
-                        type="text"
-                        className="form-control admin-input"
-                        value={closerDraft.closerButtonText}
-                        onChange={(e) => setCloserDraft({ ...closerDraft, closerButtonText: e.target.value })}
-                        disabled={saving}
-                      />
-                    </div>
+                  
                   </form>
                 </div>
 

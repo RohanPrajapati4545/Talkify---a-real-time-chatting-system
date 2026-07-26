@@ -57,5 +57,48 @@ router.get("/call-records", authMiddleware, adminMiddleware, (AdminController.ge
 // the actual Home.jsx page lives at GET /api/content/home (see home-content-routes.js)
 router.get("/home-content", authMiddleware, adminMiddleware, (homeContentController.getHomeContent));
 router.put("/home-content", authMiddleware, adminMiddleware, (homeContentController.updateHomeContent));
+// ============================================================
+// PASTE THIS BLOCK INTO YOUR EXISTING routes/AdminRoute.js
+// Right next to your existing GET/PUT /home-content routes.
+// Adjust `authMiddleware` name if yours is called something else.
+// ============================================================
 
+const AboutContent = require("../models/AboutContentSchema");
+// (authMiddleware should already be imported at the top of AdminRoute.js
+// — reuse whatever variable name is used for the home-content routes)
+
+// GET /api/admin/about-content
+router.get("/about-content", authMiddleware, async (req, res) => {
+  try {
+    let content = await AboutContent.findOne();
+
+    if (!content) {
+      content = await AboutContent.create({});
+    }
+
+    res.json({ content });
+  } catch (error) {
+    console.log("GET /api/admin/about-content error:", error);
+    res.status(500).json({ message: "Could not load about page content." });
+  }
+});
+
+// PUT /api/admin/about-content
+router.put("/about-content", authMiddleware, async (req, res) => {
+  try {
+    let content = await AboutContent.findOne();
+
+    if (!content) {
+      content = await AboutContent.create(req.body);
+    } else {
+      Object.assign(content, req.body);
+      await content.save();
+    }
+
+    res.json({ content });
+  } catch (error) {
+    console.log("PUT /api/admin/about-content error:", error);
+    res.status(500).json({ message: "Could not save about page content." });
+  }
+});
 module.exports = router
