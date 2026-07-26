@@ -1,4 +1,4 @@
-const HomeContent = require("./../models/HomeContentSchema");
+const HomeContent = require("../models/HomeContentSchema");
 
 // There is only ever ONE home-content document (site-wide singleton).
 // If it doesn't exist yet (fresh DB), create it with schema defaults
