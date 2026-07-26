@@ -60,10 +60,6 @@ const AdminSideBar = () => {
      <i className="fa-solid fa-envelope"></i>
      <span>Contact Queries</span>
    </NavLink>
-   <NavLink to="/admin/home-content" className="sidebar-link">
-     <i className="fa-solid fa-envelope"></i>
-     <span>Contact Queries</span>
-   </NavLink>
 
       <div className="sidebar-footer">
         <button className="logout-btn" onClick={handleLogout}>
