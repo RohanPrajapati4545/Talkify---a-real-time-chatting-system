@@ -113,12 +113,6 @@ io.on("connection", (socket) => {
     console.log(`${socket.id} joined Private Chat ${chatId}`);
   });
 
-  // Deliver to the chatId room (for anyone who already has that
-  // conversation open) AND the receiver's personal user_${id} room (which
-  // they join automatically on login via "userOnline") — this guarantees
-  // delivery even if the receiver hasn't opened/joined this specific chat
-  // room yet (e.g. a brand new conversation). Socket.IO dedupes rooms
-  // automatically, so a socket in both rooms still only gets the event once.
   socket.on("sendPrivateMessage", (msg) => {
     const receiverId = msg.receiver?._id || msg.receiver;
 
@@ -210,10 +204,6 @@ io.on("connection", (socket) => {
     io.to(`user_${toUserId}`).emit("callEnded");
   });
 
-  // 👇 NAYA — private call ka log DB me save karke dono taraf (aur chat
-  // room me, agar koi already conversation khole baitha hai) real-time
-  // bhej dete hain taaki chat thread me WhatsApp jaisi call-log entry
-  // turant dikh jaye
   socket.on("logCall", async ({ toUserId, callType, status, duration }) => {
     try {
       const fromUserId = socket.userId;
@@ -370,12 +360,14 @@ const UserRoute = require("./routes/UserRoute");
 const PrivateChatRoute = require("./routes/PrivateChatRoute");
 const AdminRoute=require("./routes/AdminRoute")
 const ContactRoute = require("./routes/ContactRoute");
+const ContentRoute = require("./routes/ContentRoute"); // NEW — public home page content
 app.use("/api/auth", AuthRoute);
 app.use("/api/user", GroupRoute);
 app.use("/api/users", UserRoute);
 app.use("/api/private", PrivateChatRoute);
 app.use("/api/admin",AdminRoute)
 app.use("/api/contact", ContactRoute);
+app.use("/api/content", ContentRoute); // NEW — GET /api/content/home
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
