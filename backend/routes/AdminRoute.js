@@ -6,6 +6,7 @@ const AuthController = require("./../controllers/AuthController")
 const adminMiddleware = require("./../middlewares/adminMiddleware")
 const authMiddleware = require("../middlewares/authMiddleware")
 const AdminController = require("./../controllers/AdminController")
+const homeContentController = require("./../controllers/HomeContentController")
 
 // dashboard / users
 router.get("/get-all-user", authMiddleware, adminMiddleware, (AdminController.getAllUsers));
@@ -47,7 +48,14 @@ router.post("/delete-private-chat", authMiddleware, adminMiddleware, (AdminContr
 router.post("/add-group-member", authMiddleware, adminMiddleware, (AdminController.addGroupMember));
 router.post("/cleanup-orphaned-members", authMiddleware, AdminController.cleanupOrphanedGroupMembers);
 
-router.delete("call-records", authMiddleware, (AdminController.deleteCallRecord));
+router.delete("/api/admin/call-records", authMiddleware, (AdminController.deleteCallRecord));
 
 router.get("/call-records", authMiddleware, adminMiddleware, (AdminController.getAllCallRecords));
+
+// ============== HOME PAGE CONTENT (new — admin can edit hero copy + the 4 boxes) ==============
+// GET is admin-only here (prefills the editor form); the PUBLIC read used by
+// the actual Home.jsx page lives at GET /api/content/home (see home-content-routes.js)
+router.get("/home-content", authMiddleware, adminMiddleware, (homeContentController.getHomeContent));
+router.put("/home-content", authMiddleware, adminMiddleware, (homeContentController.updateHomeContent));
+
 module.exports = router
