@@ -19,8 +19,8 @@ import AllCallRecords from "../Admin/AllCallRecords";
 import GroupMembers from "../Admin/GroupMembers";
 import Contact from "../Contact";
 import ContactUs from "../Admin/ContactUs";
+import HomeEditor from "../Admin/HomeEditor";
 
-import Adminhomeeditor from "../Admin/Adminhomeeditor";
 
 const AllRoutes = () => {
   const { isAuth, user } = useSelector((state) => state.auth);
@@ -151,7 +151,7 @@ const AllRoutes = () => {
           <Route path="call-records" element={<AllCallRecords />} />
           <Route path="/admin/groups/:groupId/members" element={<GroupMembers />} />
           <Route path="contact-queries" element={<ContactUs />} />
-             <Route path="home-content" element={<Adminhomeeditor />} />
+             <Route path="home-content" element={<HomeEditor />} />
         </Route>
 
         <Route
