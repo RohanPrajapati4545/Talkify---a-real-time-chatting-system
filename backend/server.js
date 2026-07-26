@@ -360,14 +360,14 @@ const UserRoute = require("./routes/UserRoute");
 const PrivateChatRoute = require("./routes/PrivateChatRoute");
 const AdminRoute=require("./routes/AdminRoute")
 const ContactRoute = require("./routes/ContactRoute");
-const ContentRoute = require("./routes/ContentRoute"); // NEW — public home page content
+const ContentRoute = require("./routes/Contentroute");  
 app.use("/api/auth", AuthRoute);
 app.use("/api/user", GroupRoute);
 app.use("/api/users", UserRoute);
 app.use("/api/private", PrivateChatRoute);
 app.use("/api/admin",AdminRoute)
 app.use("/api/contact", ContactRoute);
-app.use("/api/content", ContentRoute); // NEW — GET /api/content/home
+app.use("/api/content", ContentRoute);  
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
