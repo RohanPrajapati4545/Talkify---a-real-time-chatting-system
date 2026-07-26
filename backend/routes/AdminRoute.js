@@ -6,7 +6,7 @@ const AuthController = require("./../controllers/AuthController")
 const adminMiddleware = require("./../middlewares/adminMiddleware")
 const authMiddleware = require("../middlewares/authMiddleware")
 const AdminController = require("./../controllers/AdminController")
-const ContentController = require("./../controllers/ContentController")
+const ContentController = require("./../controllers/Contentcontroller")
 
 // dashboard / users
 router.get("/get-all-user", authMiddleware, adminMiddleware, (AdminController.getAllUsers));
