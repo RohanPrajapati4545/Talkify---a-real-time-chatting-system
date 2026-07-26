@@ -19,7 +19,7 @@ const showErrorAlert = (error, fallbackText) => {
   Swal.fire({ title: "Error", text: backendMsg || fallbackText, icon: "error", ...swalTheme });
 };
 
-const AdminHomeEditor = () => {
+const Adminhomeeditor = () => {
   const { token } = useSelector((state) => state.auth);
 
   const [content, setContent] = useState(null); // full doc from backend
@@ -422,4 +422,4 @@ const AdminHomeEditor = () => {
   );
 };
 
-export default AdminHomeEditor;
+export default Adminhomeeditor;
