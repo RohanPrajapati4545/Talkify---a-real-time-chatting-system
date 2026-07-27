@@ -6,7 +6,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
 // If the backend gave us a relative multer path (e.g. "uploads/logo-123.png"),
 // prefix it with the API host so <img src> resolves correctly even when the
 // frontend and backend run on different ports/origins in dev.
-const resolveLogoUrl = (path) => {
+const resolveAssetUrl = (path) => {
   if (!path) return "";
   if (/^https?:\/\//i.test(path)) return path;
   return `${API_BASE_URL}/${path.replace(/^\/+/, "")}`;
@@ -17,13 +17,14 @@ const CACHE_KEY = "cv_brand_cache";
 const FALLBACK_DEFAULTS = {
   siteName: "Talkify",
   siteLogoUrl: "",
+  siteFaviconUrl: "", // NEW — kept separate from siteLogoUrl
   otpLoginEnabled: true,
 };
 
 // Read whatever we cached from the last successful fetch, synchronously,
 // before the first render happens. This is what stops the flash-of-default
-// on reload — the very first paint already shows the real logo/name instead
-// of "Talkify" + feather icon while the network request is still in flight.
+// on reload — the very first paint already shows the real logo/favicon/name
+// instead of "Talkify" + feather icon while the network request is in flight.
 const loadCachedBrand = () => {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
@@ -42,6 +43,7 @@ const saveCachedBrand = (brand) => {
       JSON.stringify({
         siteName: brand.siteName,
         siteLogoUrl: brand.siteLogoUrl,
+        siteFaviconUrl: brand.siteFaviconUrl, // NEW
         otpLoginEnabled: brand.otpLoginEnabled,
       })
     );
@@ -59,7 +61,8 @@ export const fetchBrand = createAsyncThunk("brand/fetchBrand", async () => {
 
   return {
     siteName: settings.siteName || "Talkify",
-    siteLogoUrl: resolveLogoUrl(settings.siteLogoUrl),
+    siteLogoUrl: resolveAssetUrl(settings.siteLogoUrl),
+    siteFaviconUrl: resolveAssetUrl(settings.siteFaviconUrl), // NEW
     otpLoginEnabled: settings.otpLoginEnabled ?? true,
   };
 });
@@ -74,21 +77,23 @@ const initialState = {
 // Apply the cached favicon immediately too — the <link id="favicon"> already
 // exists in the static HTML by the time this module runs, so we don't have
 // to wait for React to mount or for fetchBrand to resolve.
+// NOTE: this now reads siteFaviconUrl, NOT siteLogoUrl — logo and favicon
+// are fully independent from here on.
 if (typeof document !== "undefined") {
   document.title = cached.siteName;
-  if (cached.siteLogoUrl) {
+  if (cached.siteFaviconUrl) {
     const link = document.getElementById("favicon");
-    if (link) link.href = cached.siteLogoUrl;
+    if (link) link.href = cached.siteFaviconUrl;
   }
 }
 
 // Swaps the <link id="favicon"> href at runtime — this is the only way to
 // change a favicon after page load, since browsers only read it once from
 // the static HTML otherwise.
-const applyFavicon = (logoUrl) => {
-  if (!logoUrl) return; // keep the default talkify_icon.png from index.html
+const applyFavicon = (faviconUrl) => {
+  if (!faviconUrl) return; // keep the default talkify_icon.png from index.html
   const link = document.getElementById("favicon");
-  if (link) link.href = logoUrl;
+  if (link) link.href = faviconUrl;
 };
 
 const brandSlice = createSlice({
@@ -99,8 +104,10 @@ const brandSlice = createSlice({
     // every open tab/page reflects the change without waiting for a refetch.
     setBrand: (state, action) => {
       Object.assign(state, action.payload);
-      if (action.payload.siteLogoUrl !== undefined) {
-        applyFavicon(action.payload.siteLogoUrl);
+      // Only siteFaviconUrl changes should touch the actual <link> tag —
+      // a logo-only save must NOT affect the browser tab icon anymore.
+      if (action.payload.siteFaviconUrl !== undefined) {
+        applyFavicon(action.payload.siteFaviconUrl);
       }
       saveCachedBrand(state);
     },
@@ -114,7 +121,7 @@ const brandSlice = createSlice({
         Object.assign(state, action.payload);
         state.loading = false;
         document.title = state.siteName; // keep the browser tab in sync too
-        applyFavicon(action.payload.siteLogoUrl);
+        applyFavicon(action.payload.siteFaviconUrl);
         saveCachedBrand(state);
       })
       .addCase(fetchBrand.rejected, (state) => {

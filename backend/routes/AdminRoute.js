@@ -170,4 +170,27 @@ router.post("/settings/logo", authMiddleware, upload.single("logo"), async (req,
     res.status(500).json({ message: "Could not upload logo." });
   }
 });
+// POST /api/admin/settings/favicon — separate multipart endpoint just for the
+// favicon file (kept apart from logo — different field, different purpose)
+router.post("/settings/favicon", authMiddleware, upload.single("favicon"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ msg: "No favicon file received." });
+    }
+
+    let settings = await SiteSettings.findOne();
+
+    if (!settings) {
+      settings = await SiteSettings.create({ siteFaviconUrl: req.file.path });
+    } else {
+      settings.siteFaviconUrl = req.file.path;
+      await settings.save();
+    }
+
+    res.json({ settings });
+  } catch (error) {
+    console.log("POST /api/admin/settings/favicon error:", error);
+    res.status(500).json({ message: "Could not upload favicon." });
+  }
+});
 module.exports = router

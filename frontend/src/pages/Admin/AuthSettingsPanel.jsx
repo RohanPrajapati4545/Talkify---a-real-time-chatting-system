@@ -23,7 +23,7 @@ const showErrorAlert = (error, fallbackText) => {
   Swal.fire({ title: "Error", text: backendMsg || fallbackText, icon: "error", ...swalTheme });
 };
 
-const resolveLogoUrl = (path) => {
+const resolveAssetUrl = (path) => {
   if (!path) return "";
   if (/^https?:\/\//i.test(path)) return path;
   return `${process.env.REACT_APP_API_URL}/${path.replace(/^\/+/, "")}`;
@@ -34,6 +34,7 @@ const AuthSettingsPanel = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const faviconInputRef = useRef(null);
 
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -42,8 +43,13 @@ const AuthSettingsPanel = () => {
 
   const [nameDraft, setNameDraft] = useState("");
 
+  // ---- Logo staging ----
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState("");
+
+  // ---- Favicon staging (kept fully separate from logo) ----
+  const [faviconFile, setFaviconFile] = useState(null);
+  const [faviconPreview, setFaviconPreview] = useState("");
 
   const fetchSettings = async () => {
     try {
@@ -72,6 +78,12 @@ const AuthSettingsPanel = () => {
     };
   }, [logoPreview]);
 
+  useEffect(() => {
+    return () => {
+      if (faviconPreview) URL.revokeObjectURL(faviconPreview);
+    };
+  }, [faviconPreview]);
+
   const toggleOtpLogin = async () => {
     const nextValue = !settings.otpLoginEnabled;
 
@@ -94,6 +106,7 @@ const AuthSettingsPanel = () => {
     }
   };
 
+  // ---- Logo handlers ----
   const handleLogoPick = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -116,8 +129,31 @@ const AuthSettingsPanel = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // ---- Favicon handlers (separate from logo) ----
+  const handleFaviconPick = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showErrorAlert(null, "Please choose an image file.");
+      if (faviconInputRef.current) faviconInputRef.current.value = "";
+      return;
+    }
+
+    if (faviconPreview) URL.revokeObjectURL(faviconPreview);
+    setFaviconFile(file);
+    setFaviconPreview(URL.createObjectURL(file));
+  };
+
+  const clearFaviconStaging = () => {
+    if (faviconPreview) URL.revokeObjectURL(faviconPreview);
+    setFaviconFile(null);
+    setFaviconPreview("");
+    if (faviconInputRef.current) faviconInputRef.current.value = "";
+  };
+
   const nameChanged = nameDraft.trim() !== (settings?.siteName || "");
-  const brandingDirty = nameChanged || !!logoFile;
+  const brandingDirty = nameChanged || !!logoFile || !!faviconFile;
 
   const saveBranding = async () => {
     if (!brandingDirty) return;
@@ -156,13 +192,32 @@ const AuthSettingsPanel = () => {
           }
         );
         latestSettings = res.data.settings;
-        brandUpdate.siteLogoUrl = resolveLogoUrl(latestSettings.siteLogoUrl);
+        brandUpdate.siteLogoUrl = resolveAssetUrl(latestSettings.siteLogoUrl);
+      }
+
+      if (faviconFile) {
+        const formData = new FormData();
+        formData.append("favicon", faviconFile);
+
+        const res = await axios.post(
+          `${process.env.REACT_APP_API_URL}/api/admin/settings/favicon`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+        latestSettings = res.data.settings;
+        brandUpdate.siteFaviconUrl = resolveAssetUrl(latestSettings.siteFaviconUrl);
       }
 
       setSettings(latestSettings);
       setNameDraft(latestSettings.siteName || "");
       dispatch(setBrand(brandUpdate));
       clearLogoStaging();
+      clearFaviconStaging();
       showSuccessAlert("Branding updated.");
     } catch (error) {
       console.log(error);
@@ -176,7 +231,8 @@ const AuthSettingsPanel = () => {
     return <div className="dashboard-wrapper p-4">Loading…</div>;
   }
 
-  const currentLogoSrc = logoPreview || resolveLogoUrl(settings.siteLogoUrl);
+  const currentLogoSrc = logoPreview || resolveAssetUrl(settings.siteLogoUrl);
+  const currentFaviconSrc = faviconPreview || resolveAssetUrl(settings.siteFaviconUrl);
 
   return (
     <>
@@ -204,7 +260,7 @@ const AuthSettingsPanel = () => {
         </div>
 
         <div className="row g-3">
-          <div className="col-12 col-md-6">
+          <div className="col-12 col-md-4">
             <div className=" rounded-3 p-3 h-100" style={{border:"1px solid #493913"}}>
               <label className="form-label admin-label fw-semibold">Site name</label>
               <input
@@ -221,7 +277,8 @@ const AuthSettingsPanel = () => {
             </div>
           </div>
 
-          <div className="col-12 col-md-6">
+          {/* ---- LOGO (separate from favicon) ---- */}
+          <div className="col-12 col-md-4">
             <div className=" rounded-3 p-3 h-100" style={{border:"1px solid #493913"}}>
               <label className="form-label admin-label fw-semibold d-block">Logo</label>
               <div className="d-flex align-items-center gap-3">
@@ -259,6 +316,55 @@ const AuthSettingsPanel = () => {
                       type="button"
                       className="btn btn-link btn-sm p-0 mt-1"
                       onClick={clearLogoStaging}
+                      disabled={savingBranding}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ---- FAVICON (own field, own upload, own endpoint) ---- */}
+          <div className="col-12 col-md-4">
+            <div className=" rounded-3 p-3 h-100" style={{border:"1px solid #493913"}}>
+              <label className="form-label admin-label fw-semibold d-block">Favicon</label>
+              <div className="d-flex align-items-center gap-3">
+                <div
+                  className="d-flex align-items-center justify-content-center rounded-3 border flex-shrink-0"
+                  style={{ width: 64, height: 64, overflow: "hidden", background: "#faf7f2" }}
+                >
+                  {currentFaviconSrc ? (
+                    <img
+                      src={currentFaviconSrc}
+                      alt="Favicon"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    <i className="fa-solid fa-star" style={{ fontSize: "1.5rem" }}></i>
+                  )}
+                </div>
+
+                <div className="flex-grow-1">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={faviconInputRef}
+                    onChange={handleFaviconPick}
+                    disabled={savingBranding}
+                    className="form-control form-control-sm"
+                  />
+                  <p className=" small mb-0 mt-1" style={{color:"#4d4b48"}}>
+                    {faviconFile
+                      ? `${faviconFile.name} — will upload on Save`
+                      : "Square PNG/ICO, shows in browser tab." }
+                  </p>
+                  {faviconFile && (
+                    <button
+                      type="button"
+                      className="btn btn-link btn-sm p-0 mt-1"
+                      onClick={clearFaviconStaging}
                       disabled={savingBranding}
                     >
                       Cancel
