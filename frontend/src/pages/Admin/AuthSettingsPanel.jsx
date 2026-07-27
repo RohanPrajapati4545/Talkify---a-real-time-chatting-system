@@ -212,7 +212,7 @@ const AuthSettingsPanel = () => {
                 maxLength={40}
               />
               <p className=" small mb-0 mt-2" style={{color:"#4d4b48"}}>
-                Shown on the sign-in page, browser tab, and anywhere else the brand name appears.
+                it will show on the sign-in page, browser tab, and anywhere.
               </p>
             </div>
           </div>
@@ -249,7 +249,7 @@ const AuthSettingsPanel = () => {
                   <p className=" small mb-0 mt-1" style={{color:"#4d4b48"}}>
                     {logoFile
                       ? `${logoFile.name} — will upload on Save`
-                      : "PNG or SVG works best. Replaces the feather icon everywhere." }
+                      : "PNG or SVG works best." }
                   </p>
                   {logoFile && (
                     <button
@@ -277,7 +277,7 @@ const AuthSettingsPanel = () => {
             <p className="mb-1 fw-semibold">OTP Login</p>
             <p className="mb-0  small" style={{color:"#4d4b48"}}>
               When off, users only see the Password tab on the sign-in page — the
-              OTP tab is hidden site-wide.
+              OTP tab will be hide.
             </p>
           </div>
 
