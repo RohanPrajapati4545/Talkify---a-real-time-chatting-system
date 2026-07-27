@@ -11,6 +11,7 @@ import SideBar from "./../components/SideBar";
 import Loader from "./../components/Loader";
 import VoiceMessagePlayer from "./../components/VoiceMessagePlayer";
 import CallManager from "./../components/CallManager";
+
 import "./../App.css";
 
 const EMOJI_LIST = [
@@ -32,6 +33,7 @@ const EMOJI_LIST = [
 
 const MyGroups = () => {
 
+const { siteName, siteLogoUrl } = useSelector((state) => state.brand);
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const privateMessagesRef = useRef(null);
@@ -3054,17 +3056,21 @@ useEffect(() => {
 
                   </>
                 )
-              ) : !selectedGroup ? (
+            ) : !selectedGroup ? (
 
-                <div className="cv-blank">
-                  <div className="cv-blank-mark">
-                    <i className="fa-solid fa-feather-pointed"></i>
-                  </div>
-                  <h2>Talkify</h2>
-                  <p>Connect · Converse · Collaborate</p>
-                </div>
+  <div className="cv-blank">
+    <div className="cv-blank-mark">
+      {siteLogoUrl ? (
+        <img src={siteLogoUrl} alt={siteName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      ) : (
+        <i className="fa-solid fa-feather-pointed"></i>
+      )}
+    </div>
+    <h2>{siteName}</h2>
+    <p>Connect · Converse · Collaborate</p>
+  </div>
 
-              ) : showGroupInfo ? (
+) : showGroupInfo ? (
 
                 <div className="cv-info">
 

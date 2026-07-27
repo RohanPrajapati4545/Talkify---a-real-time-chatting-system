@@ -104,6 +104,12 @@ router.put("/about-content", authMiddleware, async (req, res) => {
 
 
 
+// ============================================================
+// PASTE THIS BLOCK INTO YOUR EXISTING routes/AdminRoute.js
+// Right next to your existing home-content / about-content routes.
+// Adjust `authMiddleware` name if yours is called something else.
+// ============================================================
+
 const SiteSettings = require("../models/SiteSettingsSchema");
 
 // GET /api/admin/settings
@@ -122,7 +128,7 @@ router.get("/settings", authMiddleware, async (req, res) => {
   }
 });
 
-// PUT /api/admin/settings
+// PUT /api/admin/settings — used for text/boolean fields (siteName, otpLoginEnabled, ...)
 router.put("/settings", authMiddleware, async (req, res) => {
   try {
     let settings = await SiteSettings.findOne();
@@ -138,6 +144,30 @@ router.put("/settings", authMiddleware, async (req, res) => {
   } catch (error) {
     console.log("PUT /api/admin/settings error:", error);
     res.status(500).json({ message: "Could not save site settings." });
+  }
+});
+
+// POST /api/admin/settings/logo — separate multipart endpoint just for the
+// logo file (kept apart from the PUT above, which is plain JSON only)
+router.post("/settings/logo", authMiddleware, upload.single("logo"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ msg: "No logo file received." });
+    }
+
+    let settings = await SiteSettings.findOne();
+
+    if (!settings) {
+      settings = await SiteSettings.create({ siteLogoUrl: req.file.path });
+    } else {
+      settings.siteLogoUrl = req.file.path;
+      await settings.save();
+    }
+
+    res.json({ settings });
+  } catch (error) {
+    console.log("POST /api/admin/settings/logo error:", error);
+    res.status(500).json({ message: "Could not upload logo." });
   }
 });
 module.exports = router

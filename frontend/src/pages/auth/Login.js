@@ -8,10 +8,10 @@ import { login } from "../redux/AuthSlice";
 const Login = () => {
   const [mode, setMode] = useState("password"); // "password" | "otp"
 
-  // site-wide toggle — whether the OTP tab should even be shown.
-  // Defaults to true so the tab doesn't flash-hide while loading;
-  // becomes false only once the backend confirms it's actually off.
-  const [otpLoginEnabled, setOtpLoginEnabled] = useState(true);
+  // shared branding + feature toggles (name, logo, OTP on/off) — lives in
+  // Redux, fetched once at the app level (see App.js) so every page stays
+  // in sync with admin changes
+  const { siteName, siteLogoUrl, otpLoginEnabled } = useSelector((state) => state.brand);
 
   // password login state
   const [email, setEmail] = useState("");
@@ -32,28 +32,11 @@ const Login = () => {
   const phoneRegex = /^[6-9]\d{9}$/; // 10-digit Indian mobile number
   const MAX_PASSWORD_LENGTH = 15;
 
-  // Fetch the OTP-login toggle once on mount. If it's off, force the
-  // password tab and never let "otp" mode render — covers both the
-  // initial dial and any stale state.
+  // If OTP login gets disabled (or loads in as disabled), make sure we're
+  // never sitting on the OTP tab with no way to reach it.
   useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        // cache-buster (_t) — some browsers/proxies cache plain GETs,
-        // which would keep showing the OTP tab even after it's toggled off
-        const res = await axios.get(
-          `${process.env.REACT_APP_API_URL}/api/content/settings?_t=${Date.now()}`
-        );
-        console.log("[settings] fetched:", res.data); // TEMP — remove once confirmed working
-        const enabled = res.data?.settings?.otpLoginEnabled ?? true;
-        setOtpLoginEnabled(enabled);
-        if (!enabled) setMode("password");
-      } catch (error) {
-        console.log("Failed to load site settings, defaulting OTP login to enabled:", error);
-      }
-    };
-
-    fetchSettings();
-  }, []);
+    if (!otpLoginEnabled && mode === "otp") setMode("password");
+  }, [otpLoginEnabled, mode]);
 
   const handlePasswordChange = (e) => {
     setPassword(e.target.value.slice(0, MAX_PASSWORD_LENGTH));
@@ -166,7 +149,14 @@ const Login = () => {
     <div className="cv-auth-page">
       <div className="cv-auth-box">
         <div className="cv-auth-left">
-          <span className="cv-brand-tag cv-auth-eyebrow">Talkify</span>
+          <span className="cv-brand-tag cv-auth-eyebrow">
+            {siteLogoUrl ? (
+              <img src={siteLogoUrl} alt={siteName} className="cv-brand-logo-img" />
+            ) : (
+              <i className="fa-solid fa-feather-pointed"></i>
+            )}{" "}
+            {siteName}
+          </span>
           <h1 className="cv-auth-title">Sign in</h1>
           <p className="cv-auth-subtitle">Pick up where you left off.</p>
 
