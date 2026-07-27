@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { FaPen } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const swalTheme = {
   background: "#1c1812",
@@ -124,7 +125,7 @@ const HomeEditor = () => {
     entries[index] = fields;
     saveSection({ entries }, `Box ${index + 1} updated.`);
   };
-
+const navigate = useNavigate();
   const handleSaveCloser = (e) => {
     e.preventDefault();
     saveSection(closerDraft, "Closer section updated.");
@@ -143,8 +144,16 @@ const HomeEditor = () => {
 
       {/* ===== HERO SECTION SUMMARY ===== */}
       <div className="bg-white rounded-4 shadow-sm p-4 mb-3">
+            <button
+          type="button"
+          className="btn btn-sm btn-outline-dark mb-3"
+          onClick={() => navigate("/admin/settings")}
+        >
+          <i className="fa-solid fa-arrow-left me-1"></i>
+          Back to Settings
+        </button>
         <div className="d-flex justify-content-between align-items-start mb-2">
-          
+       
           <h4 className="fw-bold m-0">Hero (top section)</h4>
           <button className="btn btn-sm btn-outline-warning" onClick={openHeroModal}>
             <FaPen size={11} className="me-1" />

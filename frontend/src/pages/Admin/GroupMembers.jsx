@@ -310,7 +310,7 @@ const GroupMembers = () => {
         console.log(error);
         showErrorAlert(error, "Could not add member.");
       } finally {
-        setAddingMemberId(null);
+        setAddingMemberId(null); 
       }
     });
   };

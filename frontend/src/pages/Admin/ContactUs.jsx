@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import Swal from "sweetalert2";
+import { useNavigate } from "react-router-dom";
 
 const CONTACT_LIMIT = 10;
 const SEARCH_DEBOUNCE_MS = 500;
@@ -46,7 +47,7 @@ const ContactUs = () => {
 
   const [viewContact, setViewContact] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
-
+const navigate=useNavigate();
   const requestIdRef = useRef(0);
   const isFirstSearchRef = useRef(true);
 
@@ -223,7 +224,16 @@ const ContactUs = () => {
       </div>
 
       <div className="bg-white rounded-4 shadow-sm p-4">
+            <button
+                  type="button"
+                  className="btn btn-sm btn-outline-dark mb-3"
+                  onClick={() => navigate("/admin/settings")}
+                >
+                  <i className="fa-solid fa-arrow-left me-1"></i>
+                  Back to Settings
+                </button>
         <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          
           <div className="d-flex align-items-center gap-2 flex-wrap">
             <h5 className="fw-bold m-0">Queries</h5>
             <span className="badge bg-dark px-3 py-2">{total} Messages</span>

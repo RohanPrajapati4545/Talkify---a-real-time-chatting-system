@@ -1,11 +1,14 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { logout } from "./../pages/redux/AuthSlice";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Swal from "sweetalert2";
 
 const AdminSideBar = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  // site name/logo, kept in sync everywhere via the admin settings panel
+  const { siteName, siteLogoUrl } = useSelector((state) => state.brand || {});
 
   const handleLogout = () => {
     Swal.fire({
@@ -24,9 +27,26 @@ const AdminSideBar = () => {
 
   return (
     <div className="admin-sidebar">
-      <div className="logo-section mt-3 mb-4">
-        <h2 className="fw-bold mb-1 clickable" onClick={() => navigate("/admin")}>
-          Admin Panel
+      <div
+        className="logo-section mt-3 mb-4 clickable"
+        onClick={() => navigate("/admin")}
+        style={{ display: "flex", alignItems: "center" }}
+      >
+        {siteLogoUrl ? (
+          <img
+            src={siteLogoUrl}
+            alt={siteName}
+            style={{
+              height: "36px",
+              width: "36px",
+              objectFit: "contain",
+              borderRadius: "6px",
+              marginRight: "8px",
+            }}
+          />
+        ) : null}
+        <h2 className="fw-bold mb-1" style={{ margin: 0 }}>
+          {siteName || "Admin Panel"}
         </h2>
       </div>
 

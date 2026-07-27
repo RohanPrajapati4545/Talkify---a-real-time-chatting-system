@@ -238,17 +238,19 @@ const AuthSettingsPanel = () => {
     <>
       {/* ===== BRANDING ===== */}
       <div className="bg-white rounded-4 shadow-sm p-4 mb-3">
-        <button
-          type="button"
-          className="btn btn-sm btn-outline-dark mb-3"
+       
+ <button
+           className="btn-authpanel"
+          style={{color:"white"}}
           onClick={() => navigate("/admin/settings")}
         >
           <i className="fa-solid fa-arrow-left me-1"></i>
           Back to Settings
         </button>
-
         <div className="d-flex justify-content-between align-items-center mb-3">
+            
           <h4 className="fw-bold mb-0">Branding</h4>
+          
           <button
             type="button"
             className="btn btn-warning btn-sm px-3"
@@ -258,6 +260,7 @@ const AuthSettingsPanel = () => {
             {savingBranding ? "Saving…" : "Save"}
           </button>
         </div>
+        
 
         <div className="row g-3">
           <div className="col-12 col-md-4">

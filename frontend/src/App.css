@@ -1125,6 +1125,14 @@ body {
   color: var(--amber);
   margin-bottom: 18px;
 }
+.btn-authpanel{
+  color: rgb(112, 107, 95) !important; 
+  background-color: transparent;
+  border: 1px solid #423d35;
+  font-size: 12px !important;
+  border-radius: 5px;
+  padding: 4px;
+}
 
 .cv-blank h2 {
   font-family: var(--font-display);
