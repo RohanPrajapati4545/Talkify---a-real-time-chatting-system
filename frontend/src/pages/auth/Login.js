@@ -8,6 +8,11 @@ import { login } from "../redux/AuthSlice";
 const Login = () => {
   const [mode, setMode] = useState("password"); // "password" | "otp"
 
+  // site-wide toggle — whether the OTP tab should even be shown.
+  // Defaults to true so the tab doesn't flash-hide while loading;
+  // becomes false only once the backend confirms it's actually off.
+  const [otpLoginEnabled, setOtpLoginEnabled] = useState(true);
+
   // password login state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,6 +31,24 @@ const Login = () => {
   const emailRegex = /^[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/;
   const phoneRegex = /^[6-9]\d{9}$/; // 10-digit Indian mobile number
   const MAX_PASSWORD_LENGTH = 15;
+
+  // Fetch the OTP-login toggle once on mount. If it's off, force the
+  // password tab and never let "otp" mode render — covers both the
+  // initial dial and any stale state.
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/content/settings`);
+        const enabled = res.data?.settings?.otpLoginEnabled ?? true;
+        setOtpLoginEnabled(enabled);
+        if (!enabled) setMode("password");
+      } catch (error) {
+        console.log("Failed to load site settings, defaulting OTP login to enabled:", error);
+      }
+    };
+
+    fetchSettings();
+  }, []);
 
   const handlePasswordChange = (e) => {
     setPassword(e.target.value.slice(0, MAX_PASSWORD_LENGTH));
@@ -142,23 +165,25 @@ const Login = () => {
           <h1 className="cv-auth-title">Sign in</h1>
           <p className="cv-auth-subtitle">Pick up where you left off.</p>
 
-          {/* ============== MODE SWITCHER ============== */}
-          <div className="cv-dial cv-auth-dial">
-            <button
-              type="button"
-              className={mode === "password" ? "active" : ""}
-              onClick={() => setMode("password")}
-            >
-              Password
-            </button>
-            <button
-              type="button"
-              className={mode === "otp" ? "active" : ""}
-              onClick={() => setMode("otp")}
-            >
-              OTP
-            </button>
-          </div>
+          {/* ============== MODE SWITCHER — OTP tab only shows when admin has it enabled ============== */}
+          {otpLoginEnabled && (
+            <div className="cv-dial cv-auth-dial">
+              <button
+                type="button"
+                className={mode === "password" ? "active" : ""}
+                onClick={() => setMode("password")}
+              >
+                Password
+              </button>
+              <button
+                type="button"
+                className={mode === "otp" ? "active" : ""}
+                onClick={() => setMode("otp")}
+              >
+                OTP
+              </button>
+            </div>
+          )}
 
           {/* ============== PASSWORD LOGIN ============== */}
           {mode === "password" && (
@@ -205,8 +230,8 @@ const Login = () => {
             </form>
           )}
 
-          {/* ============== OTP LOGIN ============== */}
-          {mode === "otp" && (
+          {/* ============== OTP LOGIN — only reachable when the toggle is on ============== */}
+          {otpLoginEnabled && mode === "otp" && (
             <form onSubmit={otpSent ? verifyOtp : sendOtp}>
               <div className="cv-auth-field">
                 <i className="fa-solid fa-phone"></i>

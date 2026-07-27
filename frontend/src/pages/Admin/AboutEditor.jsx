@@ -194,7 +194,7 @@ const AboutEditor = () => {
         <div className="row g-3">
           {content.timelineEntries.map((entry, index) => (
             <div className="col-12 col-md-6" key={index}>
-              <div className="border rounded-3 p-3 h-100 d-flex flex-column">
+              <div className=" rounded-3 p-3 h-100 d-flex flex-column" style={{border:"1px solid #493913"}}>
                 <div className="d-flex justify-content-between align-items-start mb-2">
                   <span className="fw-bold">Entry {index + 1}</span>
                   <button
@@ -219,7 +219,7 @@ const AboutEditor = () => {
         <div className="row g-3">
           {content.valueCards.map((card, index) => (
             <div className="col-12 col-md-4" key={index}>
-              <div className="border rounded-3 p-3 h-100 d-flex flex-column">
+              <div className=" rounded-3 p-3 h-100 d-flex flex-column" style={{border:"1px solid #493913"}}>
                 <div className="d-flex justify-content-between align-items-start mb-2">
                   <span className="fw-bold">Card {index + 1}</span>
                   <button

@@ -21,6 +21,7 @@ import Contact from "../Contact";
 import ContactUs from "../Admin/ContactUs";
 import HomeEditor from "../Admin/HomeEditor";
 import AboutEditor from "../Admin/AboutEditor";
+import AuthSettingsPanel from "../Admin/AuthSettingsPanel";
 
 const AllRoutes = () => {
   const { isAuth, user } = useSelector((state) => state.auth);
@@ -153,6 +154,7 @@ const AllRoutes = () => {
           <Route path="contact-queries" element={<ContactUs />} />
           <Route path="home-content" element={<HomeEditor />} />
           <Route path="about-content" element={<AboutEditor />} />
+         <Route path="auth-setting" element={<AuthSettingsPanel />} />
         </Route>
 
         <Route

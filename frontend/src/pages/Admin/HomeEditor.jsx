@@ -163,7 +163,7 @@ const HomeEditor = () => {
         <div className="row g-3">
           {content.entries.map((entry, index) => (
             <div className="col-12 col-md-6" key={index}>
-              <div className="border rounded-3 p-3 h-100 d-flex flex-column">
+              <div className=" rounded-3 p-3 h-100 d-flex flex-column" style={{border:"1px solid #493913"}}>
                 <div className="d-flex justify-content-between align-items-start mb-2">
                   <span className="fw-bold">Box {index + 1}</span>
                   <button

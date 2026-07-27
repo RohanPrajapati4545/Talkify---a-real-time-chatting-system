@@ -101,4 +101,43 @@ router.put("/about-content", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Could not save about page content." });
   }
 });
+
+
+
+const SiteSettings = require("../models/SiteSettingsSchema");
+
+// GET /api/admin/settings
+router.get("/settings", authMiddleware, async (req, res) => {
+  try {
+    let settings = await SiteSettings.findOne();
+
+    if (!settings) {
+      settings = await SiteSettings.create({});
+    }
+
+    res.json({ settings });
+  } catch (error) {
+    console.log("GET /api/admin/settings error:", error);
+    res.status(500).json({ message: "Could not load site settings." });
+  }
+});
+
+// PUT /api/admin/settings
+router.put("/settings", authMiddleware, async (req, res) => {
+  try {
+    let settings = await SiteSettings.findOne();
+
+    if (!settings) {
+      settings = await SiteSettings.create(req.body);
+    } else {
+      Object.assign(settings, req.body);
+      await settings.save();
+    }
+
+    res.json({ settings });
+  } catch (error) {
+    console.log("PUT /api/admin/settings error:", error);
+    res.status(500).json({ message: "Could not save site settings." });
+  }
+});
 module.exports = router

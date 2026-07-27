@@ -68,6 +68,12 @@ const AdminSideBar = () => {
   <i className="fa-solid fa-phone-volume"></i>
   About Content
 </NavLink>
+
+
+ <NavLink to="/admin/auth-setting" className="sidebar-link">
+  <i className="fa-solid fa-phone-volume"></i>
+  Auth Setting
+</NavLink>
       <div className="sidebar-footer">
         <button className="logout-btn" onClick={handleLogout}>
           <i className="fa-solid fa-right-from-bracket"></i>
