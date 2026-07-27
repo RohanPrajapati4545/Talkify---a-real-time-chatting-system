@@ -151,7 +151,18 @@ const Login = () => {
         <div className="cv-auth-left">
           <span className="cv-brand-tag cv-auth-eyebrow">
             {siteLogoUrl ? (
-              <img src={siteLogoUrl} alt={siteName} className="cv-brand-logo-img" />
+              <img
+                src={siteLogoUrl}
+                alt={siteName}
+                style={{
+                  height: "3em",
+                  width: "2.8em",
+                  objectFit: "cover",
+                  borderRadius: "4px",
+                  verticalAlign: "middle",
+                  display: "inline-block",
+                }}
+              />
             ) : (
               <i className="fa-solid fa-feather-pointed"></i>
             )}{" "}

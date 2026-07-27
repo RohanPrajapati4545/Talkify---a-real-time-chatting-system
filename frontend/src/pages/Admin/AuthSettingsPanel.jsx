@@ -32,13 +32,17 @@ const AuthSettingsPanel = () => {
 
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [savingBranding, setSavingBranding] = useState(false);
+  const [savingLogin, setSavingLogin] = useState(false);
 
   // draft for the site-name text field (separate from settings so typing
   // doesn't PUT on every keystroke)
   const [nameDraft, setNameDraft] = useState("");
-  const [logoPreview, setLogoPreview] = useState(""); // local blob preview while a file is picked
+
+  // logo is only staged locally on pick — it is NOT uploaded until the
+  // user hits the branding Save button
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState("");
 
   const fetchSettings = async () => {
     try {
@@ -61,12 +65,19 @@ const AuthSettingsPanel = () => {
     fetchSettings();
   }, []);
 
+  useEffect(() => {
+    // clean up the local preview URL when it's replaced/unmounted
+    return () => {
+      if (logoPreview) URL.revokeObjectURL(logoPreview);
+    };
+  }, [logoPreview]);
+
   const toggleOtpLogin = async () => {
     const nextValue = !settings.otpLoginEnabled;
 
     // optimistic update so the switch feels instant
     setSettings((prev) => ({ ...prev, otpLoginEnabled: nextValue }));
-    setSaving(true);
+    setSavingLogin(true);
 
     try {
       const res = await axios.put(
@@ -81,73 +92,87 @@ const AuthSettingsPanel = () => {
       setSettings((prev) => ({ ...prev, otpLoginEnabled: !nextValue }));
       showErrorAlert(error, "Could not update setting.");
     } finally {
-      setSaving(false);
+      setSavingLogin(false);
     }
   };
 
-  const saveSiteName = async () => {
-    if (!nameDraft.trim()) {
-      return showErrorAlert(null, "Site name can't be empty.");
-    }
-
-    setSaving(true);
-    try {
-      const res = await axios.put(
-        `${process.env.REACT_APP_API_URL}/api/admin/settings`,
-        { siteName: nameDraft.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setSettings(res.data.settings);
-      dispatch(setBrand({ siteName: res.data.settings.siteName }));
-      showSuccessAlert("Site name updated.");
-    } catch (error) {
-      console.log(error);
-      showErrorAlert(error, "Could not save site name.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
+  // just stage the file + preview — no network call here
   const handleLogoPick = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // quick client-side guard — real validation still belongs on the backend
     if (!file.type.startsWith("image/")) {
       showErrorAlert(null, "Please choose an image file.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
+    if (logoPreview) URL.revokeObjectURL(logoPreview);
+    setLogoFile(file);
     setLogoPreview(URL.createObjectURL(file));
-    uploadLogo(file);
   };
 
-  const uploadLogo = async (file) => {
-    setUploadingLogo(true);
-    try {
-      const formData = new FormData();
-      formData.append("logo", file);
+  const clearLogoStaging = () => {
+    if (logoPreview) URL.revokeObjectURL(logoPreview);
+    setLogoFile(null);
+    setLogoPreview("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
-      const res = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/admin/settings/logo`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-      setSettings(res.data.settings);
-      dispatch(setBrand({ siteLogoUrl: resolveLogoUrl(res.data.settings.siteLogoUrl) }));
-      showSuccessAlert("Logo updated.");
+  const nameChanged = nameDraft.trim() !== (settings?.siteName || "");
+  const brandingDirty = nameChanged || !!logoFile;
+
+  // single Save for the whole Branding box — handles name + logo together
+  const saveBranding = async () => {
+    if (!brandingDirty) return;
+
+    if (nameChanged && !nameDraft.trim()) {
+      return showErrorAlert(null, "Site name can't be empty.");
+    }
+
+    setSavingBranding(true);
+    try {
+      let latestSettings = settings;
+      const brandUpdate = {};
+
+      if (nameChanged) {
+        const res = await axios.put(
+          `${process.env.REACT_APP_API_URL}/api/admin/settings`,
+          { siteName: nameDraft.trim() },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        latestSettings = res.data.settings;
+        brandUpdate.siteName = latestSettings.siteName;
+      }
+
+      if (logoFile) {
+        const formData = new FormData();
+        formData.append("logo", logoFile);
+
+        const res = await axios.post(
+          `${process.env.REACT_APP_API_URL}/api/admin/settings/logo`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+        latestSettings = res.data.settings;
+        brandUpdate.siteLogoUrl = resolveLogoUrl(latestSettings.siteLogoUrl);
+      }
+
+      setSettings(latestSettings);
+      setNameDraft(latestSettings.siteName || "");
+      dispatch(setBrand(brandUpdate));
+      clearLogoStaging();
+      showSuccessAlert("Branding updated.");
     } catch (error) {
       console.log(error);
-      showErrorAlert(error, "Could not upload logo.");
+      showErrorAlert(error, "Could not save branding.");
     } finally {
-      setUploadingLogo(false);
-      setLogoPreview("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setSavingBranding(false);
     }
   };
 
@@ -161,60 +186,83 @@ const AuthSettingsPanel = () => {
     <>
       {/* ===== BRANDING ===== */}
       <div className="bg-white rounded-4 shadow-sm p-4 mb-3">
-        <h4 className="fw-bold mb-3">Branding</h4>
-
-        <div className="mb-4">
-          <label className="form-label admin-label">Site name</label>
-          <div className="d-flex gap-2">
-            <input
-              type="text"
-              className="form-control admin-input"
-              value={nameDraft}
-              onChange={(e) => setNameDraft(e.target.value)}
-              disabled={saving}
-              maxLength={40}
-            />
-            <button
-              type="button"
-              className="btn btn-warning btn-sm"
-              onClick={saveSiteName}
-              disabled={saving || nameDraft.trim() === settings.siteName}
-            >
-              Save
-            </button>
-          </div>
-          <p className="text-muted small mb-0 mt-1">
-            Shown on the sign-in page, browser tab, and anywhere else the brand name appears.
-          </p>
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h4 className="fw-bold mb-0">Branding</h4>
+          <button
+            type="button"
+            className="btn btn-warning btn-sm px-3"
+            onClick={saveBranding}
+            disabled={savingBranding || !brandingDirty}
+          >
+            {savingBranding ? "Saving…" : "Save"}
+          </button>
         </div>
 
-        <div>
-          <label className="form-label admin-label d-block">Logo</label>
-          <div className="d-flex align-items-center gap-3">
-            <div
-              className="d-flex align-items-center justify-content-center rounded-3 border"
-              style={{ width: 64, height: 64, overflow: "hidden", background: "#faf7f2" }}
-            >
-              {currentLogoSrc ? (
-                <img src={currentLogoSrc} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <i className="fa-solid fa-feather-pointed" style={{ fontSize: "1.5rem" }}></i>
-              )}
-            </div>
-
-            <div>
+        <div className="row g-3">
+          {/* --- site name box --- */}
+          <div className="col-12 col-md-6">
+            <div className=" rounded-3 p-3 h-100" style={{border:"1px solid #493913"}}>
+              <label className="form-label admin-label fw-semibold">Site name</label>
               <input
-                type="file"
-                accept="image/*"
-                ref={fileInputRef}
-                onChange={handleLogoPick}
-                disabled={uploadingLogo}
-                className="form-control form-control-sm"
-                style={{ maxWidth: 240 }}
+                type="text"
+                className="form-control admin-input"
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                disabled={savingBranding}
+                maxLength={40}
               />
-              <p className="text-muted small mb-0 mt-1">
-                {uploadingLogo ? "Uploading…" : "PNG or SVG works best. Replaces the feather icon everywhere."}
+              <p className=" small mb-0 mt-2" style={{color:"#4d4b48"}}>
+                Shown on the sign-in page, browser tab, and anywhere else the brand name appears.
               </p>
+            </div>
+          </div>
+
+          {/* --- logo box --- */}
+          <div className="col-12 col-md-6">
+            <div className=" rounded-3 p-3 h-100" style={{border:"1px solid #493913"}}>
+              <label className="form-label admin-label fw-semibold d-block">Logo</label>
+              <div className="d-flex align-items-center gap-3">
+                <div
+                  className="d-flex align-items-center justify-content-center rounded-3 border flex-shrink-0"
+                  style={{ width: 64, height: 64, overflow: "hidden", background: "#faf7f2" }}
+                >
+                  {currentLogoSrc ? (
+                    <img
+                      src={currentLogoSrc}
+                      alt="Logo"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    <i className="fa-solid fa-feather-pointed" style={{ fontSize: "1.5rem" }}></i>
+                  )}
+                </div>
+
+                <div className="flex-grow-1">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    onChange={handleLogoPick}
+                    disabled={savingBranding}
+                    className="form-control form-control-sm"
+                  />
+                  <p className=" small mb-0 mt-1" style={{color:"#4d4b48"}}>
+                    {logoFile
+                      ? `${logoFile.name} — will upload on Save`
+                      : "PNG or SVG works best. Replaces the feather icon everywhere." }
+                  </p>
+                  {logoFile && (
+                    <button
+                      type="button"
+                      className="btn btn-link btn-sm p-0 mt-1"
+                      onClick={clearLogoStaging}
+                      disabled={savingBranding}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -224,10 +272,10 @@ const AuthSettingsPanel = () => {
       <div className="bg-white rounded-4 shadow-sm p-4 mb-3">
         <h4 className="fw-bold mb-3">Login Options</h4>
 
-        <div className="d-flex justify-content-between align-items-center">
+        <div className=" rounded-3 p-3 d-flex justify-content-between align-items-center" style={{border:"1px solid #493913"}}>
           <div>
             <p className="mb-1 fw-semibold">OTP Login</p>
-            <p className="mb-0 text-muted small">
+            <p className="mb-0  small" style={{color:"#4d4b48"}}>
               When off, users only see the Password tab on the sign-in page — the
               OTP tab is hidden site-wide.
             </p>
@@ -241,7 +289,7 @@ const AuthSettingsPanel = () => {
               style={{ width: "2.5rem", height: "1.4rem", cursor: "pointer" }}
               checked={settings.otpLoginEnabled}
               onChange={toggleOtpLogin}
-              disabled={saving}
+              disabled={savingLogin}
             />
           </div>
         </div>
