@@ -13,7 +13,6 @@ const DEFAULT_CONTENT = {
     "Talkify is a real-time messaging line for the people you actually talk to — one-on-one or in a group, with read receipts, replies, and media, minus the noise.",
   heroCtaPrimaryText: "Start Talking",
   heroCtaGhostText: "I already have an account",
-  wireThreadLabel: 'THREAD — "DESIGN CREW"',
   logSectionTitle: "The dispatch, entry by entry",
   entries: [
     {
@@ -111,9 +110,11 @@ const Home = () => {
           </div>
         </div>
 
+        {/* Static mockup — intentionally NOT wired to admin-editable content.
+            Keep this box exactly as-is; do not bind it to `content`. */}
         <div className="cv-home-wire cv-reveal cv-reveal-right cv-float" ref={addRef}>
           <div className="cv-home-wire-head">
-            <span>{content.wireThreadLabel}</span>
+            <span>THREAD — "DESIGN CREW"</span>
             <span className="cv-online-text cv-blink-dot">● ONLINE</span>
           </div>
           <div className="cv-home-wire-body">

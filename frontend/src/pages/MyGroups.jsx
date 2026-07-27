@@ -3061,12 +3061,12 @@ useEffect(() => {
   <div className="cv-blank">
     <div className="cv-blank-mark">
       {siteLogoUrl ? (
-        <img src={siteLogoUrl} alt={siteName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <img src={siteLogoUrl} alt={siteName} style={{ width: "100px", height: "100px", objectFit: "cover" }} />
       ) : (
         <i className="fa-solid fa-feather-pointed"></i>
       )}
     </div>
-    <h2>{siteName}</h2>
+    <h2 >{siteName}</h2>
     <p>Connect · Converse · Collaborate</p>
   </div>
 
