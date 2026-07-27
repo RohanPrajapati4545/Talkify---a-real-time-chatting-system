@@ -38,7 +38,12 @@ const Login = () => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/content/settings`);
+        // cache-buster (_t) — some browsers/proxies cache plain GETs,
+        // which would keep showing the OTP tab even after it's toggled off
+        const res = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/content/settings?_t=${Date.now()}`
+        );
+        console.log("[settings] fetched:", res.data); // TEMP — remove once confirmed working
         const enabled = res.data?.settings?.otpLoginEnabled ?? true;
         setOtpLoginEnabled(enabled);
         if (!enabled) setMode("password");
