@@ -16,6 +16,8 @@ const Header = () => {
   const mobileNavRef = useRef(null);
 
   const { token, user } = useSelector((state) => state.auth || {});
+  // site name/logo, kept in sync everywhere via the admin settings panel
+  const { siteName, siteLogoUrl } = useSelector((state) => state.brand || {});
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -69,7 +71,10 @@ const Header = () => {
         <div className="  cv-header-inner">
 
           <div className="cv-header-brand" onClick={() => goTo("/")}>
-            <span className="cv-brand-mark">Talkify</span>
+            {siteLogoUrl ? (
+              <img src={siteLogoUrl} alt={siteName} className="cv-brand-mark-logo" />
+            ) : null}
+            <span className="cv-brand-mark">{siteName}</span>
           </div>
 
           <div
@@ -157,7 +162,12 @@ const Header = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="cv-mobile-nav-header">
-              <span className="cv-brand-mark">Talkify</span>
+              <span className="cv-brand-mark">
+                {siteLogoUrl && (
+                  <img src={siteLogoUrl} alt={siteName} className="cv-brand-mark-logo" />
+                )}
+                {siteName}
+              </span>
               <i
                 className="fa-solid fa-xmark"
                 onClick={() => setShowMobileNav(false)}

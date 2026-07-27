@@ -28,6 +28,13 @@
   --font-body: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 }
+.cv-brand-mark-logo {
+  height: 1.4em;
+  width: auto;
+  vertical-align: middle;
+  margin-right: 6px;
+  object-fit: contain;
+}
 
 * {
   box-sizing: border-box;
