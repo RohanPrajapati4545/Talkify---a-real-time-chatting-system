@@ -22,6 +22,7 @@ import ContactUs from "../Admin/ContactUs";
 import HomeEditor from "../Admin/HomeEditor";
 import AboutEditor from "../Admin/AboutEditor";
 import AuthSettingsPanel from "../Admin/AuthSettingsPanel";
+import AdminSettings from "../Admin/AdminSettings";
 
 const AllRoutes = () => {
   const { isAuth, user } = useSelector((state) => state.auth);
@@ -155,6 +156,7 @@ const AllRoutes = () => {
           <Route path="home-content" element={<HomeEditor />} />
           <Route path="about-content" element={<AboutEditor />} />
          <Route path="auth-setting" element={<AuthSettingsPanel />} />
+         <Route path="settings" element={<AdminSettings />} />
         </Route>
 
         <Route

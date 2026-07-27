@@ -52,28 +52,16 @@ const AdminSideBar = () => {
         Chat Monitor
       </NavLink>
 
-     <NavLink to="/admin/call-records" className="sidebar-link">
-  <i className="fa-solid fa-phone-volume"></i>
-  Call Records
-</NavLink>
-<NavLink to="/admin/contact-queries" className="sidebar-link">
-     <i className="fa-solid fa-envelope"></i>
-     <span>Contact Queries</span>
-   </NavLink>
-   <NavLink to="/admin/home-content" className="sidebar-link">
-     <i className="fa-solid fa-envelope"></i>
-     <span>Home Content</span>
-   </NavLink>
- <NavLink to="/admin/about-content" className="sidebar-link">
-  <i className="fa-solid fa-phone-volume"></i>
-  About Content
-</NavLink>
+      <NavLink to="/admin/call-records" className="sidebar-link">
+        <i className="fa-solid fa-phone-volume"></i>
+        Call Records
+      </NavLink>
 
+      <NavLink to="/admin/settings" className="sidebar-link">
+        <i className="fa-solid fa-gear"></i>
+        <span>Settings</span>
+      </NavLink>
 
- <NavLink to="/admin/auth-setting" className="sidebar-link">
-  <i className="fa-solid fa-phone-volume"></i>
-  Auth Setting
-</NavLink>
       <div className="sidebar-footer">
         <button className="logout-btn" onClick={handleLogout}>
           <i className="fa-solid fa-right-from-bracket"></i>

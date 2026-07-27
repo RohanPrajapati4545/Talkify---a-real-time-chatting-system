@@ -1,5 +1,9 @@
+// ============================================
+// AuthSettingsPanel.jsx
+// ============================================
 import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { setBrand } from "../redux/BrandSlice";
@@ -28,6 +32,7 @@ const resolveLogoUrl = (path) => {
 const AuthSettingsPanel = () => {
   const { token } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
   const [settings, setSettings] = useState(null);
@@ -35,12 +40,8 @@ const AuthSettingsPanel = () => {
   const [savingBranding, setSavingBranding] = useState(false);
   const [savingLogin, setSavingLogin] = useState(false);
 
-  // draft for the site-name text field (separate from settings so typing
-  // doesn't PUT on every keystroke)
   const [nameDraft, setNameDraft] = useState("");
 
-  // logo is only staged locally on pick — it is NOT uploaded until the
-  // user hits the branding Save button
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState("");
 
@@ -66,7 +67,6 @@ const AuthSettingsPanel = () => {
   }, []);
 
   useEffect(() => {
-    // clean up the local preview URL when it's replaced/unmounted
     return () => {
       if (logoPreview) URL.revokeObjectURL(logoPreview);
     };
@@ -75,7 +75,6 @@ const AuthSettingsPanel = () => {
   const toggleOtpLogin = async () => {
     const nextValue = !settings.otpLoginEnabled;
 
-    // optimistic update so the switch feels instant
     setSettings((prev) => ({ ...prev, otpLoginEnabled: nextValue }));
     setSavingLogin(true);
 
@@ -88,7 +87,6 @@ const AuthSettingsPanel = () => {
       setSettings(res.data.settings);
     } catch (error) {
       console.log(error);
-      // roll back on failure
       setSettings((prev) => ({ ...prev, otpLoginEnabled: !nextValue }));
       showErrorAlert(error, "Could not update setting.");
     } finally {
@@ -96,7 +94,6 @@ const AuthSettingsPanel = () => {
     }
   };
 
-  // just stage the file + preview — no network call here
   const handleLogoPick = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -122,7 +119,6 @@ const AuthSettingsPanel = () => {
   const nameChanged = nameDraft.trim() !== (settings?.siteName || "");
   const brandingDirty = nameChanged || !!logoFile;
 
-  // single Save for the whole Branding box — handles name + logo together
   const saveBranding = async () => {
     if (!brandingDirty) return;
 
@@ -186,6 +182,15 @@ const AuthSettingsPanel = () => {
     <>
       {/* ===== BRANDING ===== */}
       <div className="bg-white rounded-4 shadow-sm p-4 mb-3">
+        <button
+          type="button"
+          className="btn btn-sm btn-outline-dark mb-3"
+          onClick={() => navigate("/admin/settings")}
+        >
+          <i className="fa-solid fa-arrow-left me-1"></i>
+          Back to Settings
+        </button>
+
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h4 className="fw-bold mb-0">Branding</h4>
           <button
@@ -199,7 +204,6 @@ const AuthSettingsPanel = () => {
         </div>
 
         <div className="row g-3">
-          {/* --- site name box --- */}
           <div className="col-12 col-md-6">
             <div className=" rounded-3 p-3 h-100" style={{border:"1px solid #493913"}}>
               <label className="form-label admin-label fw-semibold">Site name</label>
@@ -217,7 +221,6 @@ const AuthSettingsPanel = () => {
             </div>
           </div>
 
-          {/* --- logo box --- */}
           <div className="col-12 col-md-6">
             <div className=" rounded-3 p-3 h-100" style={{border:"1px solid #493913"}}>
               <label className="form-label admin-label fw-semibold d-block">Logo</label>

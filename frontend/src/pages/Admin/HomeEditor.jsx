@@ -144,6 +144,7 @@ const HomeEditor = () => {
       {/* ===== HERO SECTION SUMMARY ===== */}
       <div className="bg-white rounded-4 shadow-sm p-4 mb-3">
         <div className="d-flex justify-content-between align-items-start mb-2">
+          
           <h4 className="fw-bold m-0">Hero (top section)</h4>
           <button className="btn btn-sm btn-outline-warning" onClick={openHeroModal}>
             <FaPen size={11} className="me-1" />

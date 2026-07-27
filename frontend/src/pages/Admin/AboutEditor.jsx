@@ -1,5 +1,9 @@
+// ============================================
+// AboutEditor.jsx
+// ============================================
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { FaPen } from "react-icons/fa";
@@ -21,15 +25,14 @@ const showErrorAlert = (error, fallbackText) => {
 
 const AboutEditor = () => {
   const { token } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
 
-  const [content, setContent] = useState(null); // full doc from backend
+  const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // which popup is open: null | "hero" | "timeline-0".."timeline-3" | "value-0".."value-2" | "stats" | "closer"
   const [activeModal, setActiveModal] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // local draft state for whichever modal is open
   const [heroDraft, setHeroDraft] = useState(null);
   const [timelineDraft, setTimelineDraft] = useState(null);
   const [valueDraft, setValueDraft] = useState(null);
@@ -56,7 +59,6 @@ const AboutEditor = () => {
     fetchContent();
   }, []);
 
-  // ---- open popups ----
   const openHeroModal = () => {
     setHeroDraft({
       heroEyebrow: content.heroEyebrow,
@@ -108,9 +110,6 @@ const AboutEditor = () => {
     setCloserDraft(null);
   };
 
-  // ---- save handlers — each PUTs the full content object (backend only
-  // requires the fields you send, but sending the merged full object keeps
-  // things simple and avoids ever losing another section's data) ----
   const saveSection = async (patch, successText) => {
     try {
       setSaving(true);
@@ -174,6 +173,15 @@ const AboutEditor = () => {
 
       {/* ===== HERO SECTION SUMMARY ===== */}
       <div className="bg-white rounded-4 shadow-sm p-4 mb-3">
+        <button
+          type="button"
+          className="btn btn-sm btn-outline-dark mb-3"
+          onClick={() => navigate("/admin/settings")}
+        >
+          <i className="fa-solid fa-arrow-left me-1"></i>
+          Back to Settings
+        </button>
+
         <div className="d-flex justify-content-between align-items-start mb-2">
           <h4 className="fw-bold m-0">Hero (top section)</h4>
           <button className="btn btn-sm btn-outline-warning" onClick={openHeroModal}>
