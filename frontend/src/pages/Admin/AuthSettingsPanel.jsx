@@ -181,7 +181,7 @@ const AuthSettingsPanel = () => {
         const formData = new FormData();
         formData.append("logo", logoFile);
 
-        const res = await axios.post(
+        const res = await axios.put(
           `${process.env.REACT_APP_API_URL}/api/admin/settings/logo`,
           formData,
           {
@@ -199,7 +199,7 @@ const AuthSettingsPanel = () => {
         const formData = new FormData();
         formData.append("favicon", faviconFile);
 
-        const res = await axios.post(
+        const res = await axios.put(
           `${process.env.REACT_APP_API_URL}/api/admin/settings/favicon`,
           formData,
           {

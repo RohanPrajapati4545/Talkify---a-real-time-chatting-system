@@ -711,7 +711,7 @@ const ChatMonitor = () => {
       formData.append("message", editingMessageText);
       if (editingMessageImage) formData.append("image", editingMessageImage);
 
-      const res = await axios.post(
+      const res = await axios.put(
         `${process.env.REACT_APP_API_URL}/api/admin/${
           isPrivate ? "edit-private-message" : "edit-group-message"
         }`,

@@ -282,7 +282,7 @@ const AllUsers = () => {
       formData.append("contact", editContact);
       if (editImage) formData.append("image", editImage);
 
-      const res = await axios.post(
+      const res = await axios.put(
         `${process.env.REACT_APP_API_URL}/api/admin/update-user`,
         formData,
         {
@@ -616,4 +616,4 @@ const AllUsers = () => {
   );
 };
 
-export default AllUsers;  
+export default AllUsers;
