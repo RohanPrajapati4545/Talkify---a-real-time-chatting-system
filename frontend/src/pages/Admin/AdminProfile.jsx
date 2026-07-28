@@ -84,7 +84,7 @@ const AdminProfile = () => {
       // email intentionally not sent — field is disabled/read-only
       if (image) formData.append("image", image);
 
-      const res = await axios.post(
+      const res = await axios.put(
         `${process.env.REACT_APP_API_URL}/api/admin/update-profile`,
         formData,
         {
@@ -162,7 +162,7 @@ const AdminProfile = () => {
     try {
       setChangingPassword(true);
 
-      await axios.post(
+      await axios.put(
         `${process.env.REACT_APP_API_URL}/api/admin/change-password`,
         { oldPassword, newPassword },
         { headers: { Authorization: `Bearer ${token}` } }

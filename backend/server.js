@@ -70,7 +70,7 @@ io.on("connection", (socket) => {
   console.log("User Connected:", socket.id);
 
   socket.on("userOnline", (userId) => {
-    console.log("🟢 JOINING ROOM:", `user_${userId}`);
+    console.log(" JOINING ROOM:", `user_${userId}`);
     socket.join(`user_${userId}`);
     socket.userId = userId;
     addOnlineUser(userId, socket.id);
@@ -142,7 +142,7 @@ io.on("connection", (socket) => {
 
   socket.on("iceCandidate", ({ toUserId, signalData }) => {
     const room = io.sockets.adapter.rooms.get(`user_${toUserId}`);
-    console.log("🧊 RELAYING ICE CANDIDATE → to:", `user_${toUserId}`, "| sockets in room:", room ? room.size : 0, "| from socket:", socket.id);
+    console.log("  RELAYING ICE CANDIDATE → to:", `user_${toUserId}`, "| sockets in room:", room ? room.size : 0, "| from socket:", socket.id);
     io.to(`user_${toUserId}`).emit("iceCandidate", { signalData });
   });
 
@@ -183,7 +183,7 @@ io.on("connection", (socket) => {
 
   socket.on("callUser", ({ toUserId, fromUser, signalData, callType }) => {
     const room = io.sockets.adapter.rooms.get(`user_${toUserId}`);
-    console.log("📞 CALL USER — toUserId:", toUserId, "| sockets in room:", room ? room.size : 0);
+    console.log(" CALL USER — toUserId:", toUserId, "| sockets in room:", room ? room.size : 0);
     io.to(`user_${toUserId}`).emit("incomingCall", {
       fromUser,
       signalData,
@@ -192,7 +192,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("answerCall", ({ toUserId, signalData }) => {
-    console.log("✅ ANSWER CALL — toUserId:", toUserId);
+    console.log("  ANSWER CALL — toUserId:", toUserId);
     io.to(`user_${toUserId}`).emit("callAccepted", { signalData });
   });
 

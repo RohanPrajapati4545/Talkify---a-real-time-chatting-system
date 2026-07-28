@@ -2,7 +2,7 @@ const Contact = require("./../models/ContactSchema");
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Public — anyone can submit the contact form, no auth required
+ 
 const submitContact = async (req, res) => {
   try {
     const { name, email, message } = req.body;
@@ -37,7 +37,7 @@ const submitContact = async (req, res) => {
   }
 };
 
-// Admin-only — list submissions (newest first), simple pagination + status filter
+ 
 const getAllContacts = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -71,7 +71,7 @@ const getAllContacts = async (req, res) => {
   }
 };
 
-// Admin-only — mark a message as read / resolved
+ 
 const updateContactStatus = async (req, res) => {
   try {
     const { contactId } = req.params;

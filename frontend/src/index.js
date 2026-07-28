@@ -9,19 +9,18 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { Provider } from 'react-redux';
 import { store } from './pages/redux/Store';
-import { fetchBrand } from './pages/redux/BrandSlice'; // NEW — site name/logo/OTP toggle
+import { fetchBrand } from './pages/redux/BrandSlice';  
 import { ToastContainer } from 'react-toastify';
 window.process = process;
 window.Buffer = Buffer;
 
-// Fetch branding + feature toggles once, right away, so it's already in
-// the store by the time Login (or any other page) reads it — no need to
-// wrap App in an extra provider or dispatch this from inside a component.
+ 
 store.dispatch(fetchBrand());
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
+    
     <Provider store={store}>
           <App />
        </Provider>
@@ -41,7 +40,5 @@ root.render(
   </React.StrictMode>
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+ 
 reportWebVitals();

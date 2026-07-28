@@ -3,9 +3,7 @@ import axios from "axios";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL;
 
-// If the backend gave us a relative multer path (e.g. "uploads/logo-123.png"),
-// prefix it with the API host so <img src> resolves correctly even when the
-// frontend and backend run on different ports/origins in dev.
+ 
 const resolveAssetUrl = (path) => {
   if (!path) return "";
   if (/^https?:\/\//i.test(path)) return path;
@@ -17,14 +15,11 @@ const CACHE_KEY = "cv_brand_cache";
 const FALLBACK_DEFAULTS = {
   siteName: "Talkify",
   siteLogoUrl: "",
-  siteFaviconUrl: "", // NEW — kept separate from siteLogoUrl
+  siteFaviconUrl: "", 
   otpLoginEnabled: true,
 };
 
-// Read whatever we cached from the last successful fetch, synchronously,
-// before the first render happens. This is what stops the flash-of-default
-// on reload — the very first paint already shows the real logo/favicon/name
-// instead of "Talkify" + feather icon while the network request is in flight.
+ 
 const loadCachedBrand = () => {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
@@ -43,7 +38,7 @@ const saveCachedBrand = (brand) => {
       JSON.stringify({
         siteName: brand.siteName,
         siteLogoUrl: brand.siteLogoUrl,
-        siteFaviconUrl: brand.siteFaviconUrl, // NEW
+        siteFaviconUrl: brand.siteFaviconUrl,  
         otpLoginEnabled: brand.otpLoginEnabled,
       })
     );

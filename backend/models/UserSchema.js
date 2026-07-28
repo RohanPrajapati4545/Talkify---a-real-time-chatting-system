@@ -8,7 +8,7 @@ const UserSchema=new mongoose.Schema({
   email: {
     type: String,
     required: function () { return this.authType === "password" }, 
-    sparse: true,   //  
+    sparse: true,    
   },
   password: {
     type: String,

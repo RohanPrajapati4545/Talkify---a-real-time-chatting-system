@@ -10,7 +10,7 @@ const PrivateMessage = require("./../models/PrivateMessageSchema");
 exports.getAllUsers = async (req, res) => {
   try {
     const search = req.query.search?.trim() || "";
-    const fetchAll = req.query.all === "true"; // used by lookup-map callers (e.g. AllGroups member resolution)
+    const fetchAll = req.query.all === "true";  
 
     const query = {};
     if (search) {
@@ -49,9 +49,7 @@ exports.getAllUsers = async (req, res) => {
     res.status(500).json({ msg: "Failed to fetch users" });
   }
 };
-// Permanently deletes a single call record (admin moderation action).
-// callId is expected in the request body, consistent with the other
-// admin delete endpoints in this file (deleteGroup, deleteReport, etc).
+ 
 exports.deleteCallRecord = async (req, res) => {
   try {
     const { callId } = req.body;
@@ -71,13 +69,13 @@ exports.deleteCallRecord = async (req, res) => {
     res.status(500).json({ msg: "Failed to delete call record" });
   }
 };
-// ============== CALL RECORDS (admin — all users, groups + private) ==============
+ 
 exports.getAllCallRecords = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const callType = req.query.callType; // "video" | "audio" (optional)
-    const scope = req.query.scope;       // "group" | "private" (optional)
+    const callType = req.query.callType; 
+    const scope = req.query.scope;       
     const search = req.query.search?.trim().toLowerCase() || "";
 
     const query = {};
@@ -90,9 +88,7 @@ exports.getAllCallRecords = async (req, res) => {
       .populate("receiver", "name email image")
       .populate("group", "groupName groupImage")
       .sort({ createdAt: -1 });
-
-    // name-based search across caller/receiver/group — done in JS since
-    // it spans populated refs on both private and group calls
+ 
     if (search) {
       calls = calls.filter((c) => {
         const callerName = c.caller?.name?.toLowerCase() || "";
@@ -211,7 +207,7 @@ exports.blockReport = async (req, res) => {
       return res.status(404).json({ msg: "Report not found" });
     }
 
-    // uses isBlocked to stay consistent with blockUser/unblockUser + frontend checks
+    
     await User.findByIdAndUpdate(report.sender, { isBlocked: true });
 
     report.status = "resolved";
@@ -284,14 +280,10 @@ exports.updateUser = async (req, res) => {
     res.status(500).json({ msg: "Failed to update user" });
   }
 };
-// ============== ADMIN SELF PROFILE / SETTINGS (new — AdminProfile.jsx) ==============
-
-// Updates the logged-in admin's own name/email/avatar.
-// Uses the id from the verified token (req.user), NOT a userId in the body —
-// an admin should only ever be able to edit their own profile through this route.
+ 
 exports.updateProfile = async (req, res) => {
   try {
-    const adminId = req.user?.id || req.user?._id; // set by authMiddleware after verifying the JWT
+    const adminId = req.user?.id || req.user?._id; 
     const { name, email } = req.body;
 
     const updateData = {};
@@ -313,11 +305,10 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-// Changes the logged-in admin's own password.
-// Verifies the current password before allowing the change.
+ 
 exports.changePassword = async (req, res) => {
   try {
-    const adminId = req.user?.id || req.user?._id; // set by authMiddleware after verifying the JWT
+    const adminId = req.user?.id || req.user?._id; 
     const { oldPassword, newPassword } = req.body;
 
     if (!oldPassword || !newPassword) {
@@ -391,10 +382,7 @@ exports.deleteUser = async (req, res) => {
 
     const io = req.app.get("io");
 
-    // 1. Remove this user from every group they're a member of.
-    //    - If they were the group admin, promote the next member.
-    //    - If they were the ONLY member (and admin), delete the group
-    //      entirely along with its messages.
+    
     const groups = await Group.find({ members: userId });
 
     for (const group of groups) {
@@ -420,8 +408,7 @@ exports.deleteUser = async (req, res) => {
       });
     }
 
-    // 2. Delete every group message this user ever sent (and notify any
-    //    open group chat windows in real time).
+ 
     const userGroupMessages = await GroupMessage.find({ sender: userId });
     for (const msg of userGroupMessages) {
       await GroupMessage.findByIdAndDelete(msg._id);
@@ -432,20 +419,16 @@ exports.deleteUser = async (req, res) => {
         });
     }
 
-    // 3. Delete every private chat this user was part of, along with all
-    //    messages in those chats (notify any open chat windows too).
+    
     const privateChats = await PrivateChat.find({ members: userId });
     for (const chat of privateChats) {
       await PrivateMessage.deleteMany({ chatId: chat._id });
       await PrivateChat.findByIdAndDelete(chat._id);
       if (io) io.to(chat._id.toString()).emit("privateChatDeleted", { chatId: chat._id });
     }
-
-    // 4. Remove any reports this user filed (their reference would
-    //    otherwise dangle too).
+ 
     await Report.deleteMany({ sender: userId });
-
-    // 5. Finally, delete the user document itself.
+ 
     await User.findByIdAndDelete(userId);
 
     res.status(200).json({ msg: "User deleted" });
@@ -454,8 +437,7 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({ msg: "Failed to delete user" });
   }
 };
-
-// ============== GROUP MANAGEMENT (updated) ==============
+ 
 
 exports.deleteGroup = async (req, res) => {
   try {
@@ -490,12 +472,7 @@ exports.updateGroup = async (req, res) => {
   }
 };
 
-// Remove a member from a group.
-// If the removed member is the current admin (group.createdBy), the next
-// member in the members array is automatically promoted to admin so the
-// group always keeps an admin and is never deleted as a side effect.
-// If the admin is the ONLY member left, the removal is rejected — the
-// caller should add another member first or delete the group explicitly.
+ 
 exports.removeGroupMember = async (req, res) => {
   try {
     const { groupId, userId } = req.body;
@@ -518,7 +495,7 @@ exports.removeGroupMember = async (req, res) => {
           msg: "Cannot remove the only member. Add another member before removing the admin, or delete the group instead.",
         });
       }
-      // promote the next member in line as the new admin
+ 
       group.createdBy = group.members[0];
     }
 
@@ -531,10 +508,7 @@ exports.removeGroupMember = async (req, res) => {
   }
 };
 
-// Manually transfer group adminship to any existing member.
-// Admin status is derived purely from `createdBy`, so setting it to the
-// new member automatically demotes the previous admin to a regular member —
-// no separate role flag needs to be touched.
+ 
 exports.changeGroupAdmin = async (req, res) => {
   try {
     const { groupId, newAdminId } = req.body;
@@ -565,7 +539,7 @@ exports.changeGroupAdmin = async (req, res) => {
   }
 };
 
-// ============== GROUP CHAT MODERATION (new) ==============
+ 
 
 exports.getGroupMessages = async (req, res) => {
   try {
@@ -593,8 +567,7 @@ exports.editGroupMessage = async (req, res) => {
       message,
       isEdited: true,
     };
-
-    // If admin uploaded a new image/video/audio, replace the existing media
+ 
     if (req.file) {
       updateData.media = req.file.path;
 
@@ -647,7 +620,7 @@ exports.deleteGroupMessage = async (req, res) => {
   }
 };
 
-// Clears every message in a group's chat (admin moderation action)
+ 
 exports.clearGroupChat = async (req, res) => {
   try {
     const { groupId } = req.body;
@@ -667,9 +640,7 @@ exports.clearGroupChat = async (req, res) => {
   }
 };
 
-// ============== PRIVATE (1-to-1) CHAT MODERATION (new) ==============
-
-// All private conversations a particular user is part of
+ 
 exports.getUserChats = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -685,7 +656,7 @@ exports.getUserChats = async (req, res) => {
   }
 };
 
-// Messages inside one specific private chat
+ 
 exports.getPrivateChatMessages = async (req, res) => {
   try {
     const { chatId } = req.params;
@@ -767,7 +738,7 @@ exports.deletePrivateMessage = async (req, res) => {
   }
 };
 
-// Clears every message in a private chat but keeps the chat itself
+ 
 exports.clearPrivateChat = async (req, res) => {
   try {
     const { chatId } = req.body;
@@ -787,7 +758,7 @@ exports.clearPrivateChat = async (req, res) => {
   }
 };
 
-// Permanently deletes an entire private chat (messages + chat document)
+ 
 exports.deletePrivateChatAdmin = async (req, res) => {
   try {
     const { chatId } = req.body;
@@ -836,11 +807,7 @@ exports.addGroupMember = async (req, res) => {
   }
 };
 
-// One-time (or as-needed) cleanup: strips any member IDs from every group
-// that no longer correspond to an existing User document (e.g. leftover
-// from user deletions that happened before cascade-cleanup was added to
-// deleteUser). Also reassigns admin / deletes now-empty groups, same as
-// the logic inside deleteUser.
+ 
 exports.cleanupOrphanedGroupMembers = async (req, res) => {
   try {
     const allUserIds = new Set(

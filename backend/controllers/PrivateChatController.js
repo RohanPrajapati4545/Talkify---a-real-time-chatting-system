@@ -1,4 +1,4 @@
-const mongoose = require("mongoose"); // 👈 NAYA — aggregate ke liye chahiye
+const mongoose = require("mongoose");  
 const PrivateChat = require("./../models/PrivateChatSchema");
 const User = require("./../models/UserSchema");
 const Call = require("./../models/CallSchema");
@@ -65,7 +65,7 @@ const getMyChats = async (req, res) => {
   }
 };
 
-// 👇 NAYA — logged-in user ke liye har sender se aaye unseen messages ka count
+//  logged-in user ke liye har sender se aaye unseen messages ka count
 // response format: { "<senderId>": count, "<senderId2>": count, ... }
 const getUnreadCounts = async (req, res) => {
   try {

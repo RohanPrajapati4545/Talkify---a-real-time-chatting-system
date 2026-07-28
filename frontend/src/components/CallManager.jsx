@@ -69,7 +69,7 @@ const CallManager = ({ user }) => {
   const acceptCallLockRef = useRef(false);
   const pendingCandidatesRef = useRef([]);
 
-  // 👇 NAYA — call-log ke liye live values ko refs me sync rakhte hain,
+  //   NAYA — call-log ke liye live values ko refs me sync rakhte hain,
   // taaki socket.on() callbacks (jo purani closures ho sakti hain) bhi
   // hamesha latest remoteUser/callType/callDuration/callState padh sakein
   const remoteUserRef = useRef(null);
@@ -105,7 +105,7 @@ const CallManager = ({ user }) => {
   const groupCallLockRef = useRef(false);
   const groupCallActiveRef = useRef(false);
 
-  // 👇 NAYA — group call log ke liye refs
+  //  NAYA — group call log ke liye refs
   const activeGroupInfoRef = useRef(null);
   const groupCallTypeRef = useRef("audio");
   const groupDurationRef = useRef(0);
@@ -170,7 +170,7 @@ const CallManager = ({ user }) => {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoInputs = devices.filter((d) => d.kind === "videoinput");
     console.log(
-      `📷 Found ${videoInputs.length} camera(s):`,
+      ` Found ${videoInputs.length} camera(s):`,
       videoInputs.map((d) => d.label || d.deviceId)
     );
 
@@ -334,7 +334,7 @@ const CallManager = ({ user }) => {
   };
 
   const cleanupGroupCall = () => {
-    // 👇 NAYA — agar maine hi yeh group call start ki thi (call button
+    //   — agar maine hi yeh group call start ki thi (call button
     // dabaya tha), toh chhodte waqt uska log DB me save kar do
     if (isGroupInitiatorRef.current && activeGroupInfoRef.current?._id) {
       socket.emit("logGroupCall", {
@@ -535,7 +535,7 @@ const CallManager = ({ user }) => {
         console.log("Call already in progress, ignoring group call start");
         return;
       }
-      isGroupInitiatorRef.current = true; // 👈 NAYA — maine call start ki
+      isGroupInitiatorRef.current = true; //   NAYA — maine call start ki
       socket.emit("groupCallUser", {
         groupId: group._id,
         groupName: group.groupName,
@@ -554,7 +554,7 @@ const CallManager = ({ user }) => {
         console.log("Already in a call, ignoring group incoming call");
         return;
       }
-      isGroupInitiatorRef.current = false; // 👈 NAYA — maine call receive ki
+      isGroupInitiatorRef.current = false; //   NAYA — maine call receive ki
       setActiveGroupInfo({ _id: groupId, groupName, groupImage });
       setGroupIncomingData({ groupId, fromUser, callType });
       setGroupCallType(callType);
@@ -611,7 +611,7 @@ const CallManager = ({ user }) => {
         return;
       }
       startCallLockRef.current = true;
-      isCallerRef.current = true; // 👈 NAYA — maine call start ki
+      isCallerRef.current = true; //   NAYA — maine call start ki
       callOutcomeRef.current = null;
 
       busyToneRef.current?.pause();
@@ -715,7 +715,7 @@ const CallManager = ({ user }) => {
         console.log("Already in a call, ignoring incoming call");
         return;
       }
-      isCallerRef.current = false; // 👈 NAYA — maine call receive ki, log caller karega
+      isCallerRef.current = false; //   NAYA — maine call receive ki, log caller karega
       setIncomingData({ fromUser, signalData });
       setRemoteUser(fromUser);
       setCallType(callType);
@@ -737,7 +737,7 @@ const CallManager = ({ user }) => {
     socket.on("callRejected", () => {
       clearTimeout(noAnswerTimeoutRef.current);
       toast.error("Call declined");
-      callOutcomeRef.current = "rejected"; // 👈 NAYA
+      callOutcomeRef.current = "rejected"; //   NAYA
       busyToneRef.current?.play().catch((err) => {
         console.log("Busy tone play failed:", err.name, err.message);
       });

@@ -16,32 +16,32 @@ router.post("/warn-report", authMiddleware, adminMiddleware, (AdminController.wa
 router.post("/block-report", authMiddleware, adminMiddleware, (AdminController.blockReport));
 router.post("/delete-report", authMiddleware, adminMiddleware, (AdminController.deleteReport));
 router.get("/get-user/:id", authMiddleware, adminMiddleware, (AdminController.getUserById));
-router.post("/update-user", authMiddleware, upload.single("image"), AdminController.updateUser);
+router.put("/update-user", authMiddleware, upload.single("image"), AdminController.updateUser);
 router.post("/block-user", authMiddleware, adminMiddleware, (AdminController.blockUser));
 router.post("/unblock-user", authMiddleware, adminMiddleware, (AdminController.unblockUser));
 router.post("/delete-user", authMiddleware, adminMiddleware, (AdminController.deleteUser));
 
 // admin's own profile / settings (AdminProfile.jsx)
-router.post("/update-profile", authMiddleware, adminMiddleware, upload.single("image"), (AdminController.updateProfile));
-router.post("/change-password", authMiddleware, adminMiddleware, (AdminController.changePassword));
+router.put("/update-profile", authMiddleware, adminMiddleware, upload.single("image"), (AdminController.updateProfile));
+router.put("/change-password", authMiddleware, adminMiddleware, (AdminController.changePassword));
 
 // groups
 router.get("/get-all-group", authMiddleware, adminMiddleware, (AdminController.getAllGroups));
 router.post("/delete-group", authMiddleware, adminMiddleware, (AdminController.deleteGroup));
-router.post("/update-group", authMiddleware, adminMiddleware, upload.single("image"), (AdminController.updateGroup));
+router.put("/update-group", authMiddleware, adminMiddleware, upload.single("image"), (AdminController.updateGroup));
 router.post("/remove-group-member", authMiddleware, adminMiddleware, (AdminController.removeGroupMember));
 router.post("/change-group-admin", authMiddleware, adminMiddleware, (AdminController.changeGroupAdmin));
 
 // group chat moderation
 router.get("/get-group-messages/:groupId", authMiddleware, adminMiddleware, (AdminController.getGroupMessages));
-router.post("/edit-group-message", authMiddleware, adminMiddleware, upload.single("image"), (AdminController.editGroupMessage));
+router.put("/edit-group-message", authMiddleware, adminMiddleware, upload.single("image"), (AdminController.editGroupMessage));
 router.post("/delete-group-message", authMiddleware, adminMiddleware, (AdminController.deleteGroupMessage));
 router.post("/clear-group-chat", authMiddleware, adminMiddleware, (AdminController.clearGroupChat));
 
 // private (1-to-1) chat moderation
 router.get("/get-user-chats/:userId", authMiddleware, adminMiddleware, (AdminController.getUserChats));
 router.get("/get-private-messages/:chatId", authMiddleware, adminMiddleware, (AdminController.getPrivateChatMessages));
-router.post("/edit-private-message", authMiddleware, adminMiddleware, upload.single("image"), (AdminController.editPrivateMessage));
+router.put("/edit-private-message", authMiddleware, adminMiddleware, upload.single("image"), (AdminController.editPrivateMessage));
 router.post("/delete-private-message", authMiddleware, adminMiddleware, (AdminController.deletePrivateMessage));
 router.post("/clear-private-chat", authMiddleware, adminMiddleware, (AdminController.clearPrivateChat));
 router.post("/delete-private-chat", authMiddleware, adminMiddleware, (AdminController.deletePrivateChatAdmin));
@@ -52,22 +52,12 @@ router.delete("/api/admin/call-records", authMiddleware, (AdminController.delete
 
 router.get("/call-records", authMiddleware, adminMiddleware, (AdminController.getAllCallRecords));
 
-// ============== HOME PAGE CONTENT (new — admin can edit hero copy + the 4 boxes) ==============
-// GET is admin-only here (prefills the editor form); the PUBLIC read used by
-// the actual Home.jsx page lives at GET /api/content/home (see home-content-routes.js)
+ 
 router.get("/home-content", authMiddleware, adminMiddleware, (homeContentController.getHomeContent));
 router.put("/home-content", authMiddleware, adminMiddleware, (homeContentController.updateHomeContent));
-// ============================================================
-// PASTE THIS BLOCK INTO YOUR EXISTING routes/AdminRoute.js
-// Right next to your existing GET/PUT /home-content routes.
-// Adjust `authMiddleware` name if yours is called something else.
-// ============================================================
-
+ 
 const AboutContent = require("../models/AboutContentSchema");
-// (authMiddleware should already be imported at the top of AdminRoute.js
-// — reuse whatever variable name is used for the home-content routes)
-
-// GET /api/admin/about-content
+ 
 router.get("/about-content", authMiddleware, async (req, res) => {
   try {
     let content = await AboutContent.findOne();
@@ -83,7 +73,7 @@ router.get("/about-content", authMiddleware, async (req, res) => {
   }
 });
 
-// PUT /api/admin/about-content
+ 
 router.put("/about-content", authMiddleware, async (req, res) => {
   try {
     let content = await AboutContent.findOne();
@@ -103,13 +93,7 @@ router.put("/about-content", authMiddleware, async (req, res) => {
 });
 
 
-
-// ============================================================
-// PASTE THIS BLOCK INTO YOUR EXISTING routes/AdminRoute.js
-// Right next to your existing home-content / about-content routes.
-// Adjust `authMiddleware` name if yours is called something else.
-// ============================================================
-
+ 
 const SiteSettings = require("../models/SiteSettingsSchema");
 
 // GET /api/admin/settings
@@ -128,7 +112,7 @@ router.get("/settings", authMiddleware, async (req, res) => {
   }
 });
 
-// PUT /api/admin/settings — used for text/boolean fields (siteName, otpLoginEnabled, ...)
+ 
 router.put("/settings", authMiddleware, async (req, res) => {
   try {
     let settings = await SiteSettings.findOne();
@@ -147,9 +131,8 @@ router.put("/settings", authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/admin/settings/logo — separate multipart endpoint just for the
-// logo file (kept apart from the PUT above, which is plain JSON only)
-router.post("/settings/logo", authMiddleware, upload.single("logo"), async (req, res) => {
+ 
+router.put("/settings/logo", authMiddleware, upload.single("logo"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ msg: "No logo file received." });
@@ -166,13 +149,12 @@ router.post("/settings/logo", authMiddleware, upload.single("logo"), async (req,
 
     res.json({ settings });
   } catch (error) {
-    console.log("POST /api/admin/settings/logo error:", error);
+    console.log("PUT /api/admin/settings/logo error:", error);
     res.status(500).json({ message: "Could not upload logo." });
   }
 });
-// POST /api/admin/settings/favicon — separate multipart endpoint just for the
-// favicon file (kept apart from logo — different field, different purpose)
-router.post("/settings/favicon", authMiddleware, upload.single("favicon"), async (req, res) => {
+ 
+router.put("/settings/favicon", authMiddleware, upload.single("favicon"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ msg: "No favicon file received." });
@@ -189,7 +171,7 @@ router.post("/settings/favicon", authMiddleware, upload.single("favicon"), async
 
     res.json({ settings });
   } catch (error) {
-    console.log("POST /api/admin/settings/favicon error:", error);
+    console.log("PUT /api/admin/settings/favicon error:", error);
     res.status(500).json({ message: "Could not upload favicon." });
   }
 });

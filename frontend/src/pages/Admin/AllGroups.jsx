@@ -225,7 +225,7 @@ const AllGroups = () => {
       formData.append("groupName", editGroupName);
       if (editGroupImage) formData.append("image", editGroupImage);
 
-      const res = await axios.post(
+      const res = await axios.put(
         `${process.env.REACT_APP_API_URL}/api/admin/update-group`,
         formData,
         {

@@ -1,6 +1,5 @@
 const User = require("./../models/UserSchema"); 
-
-// PUT /api/users/block/:userId
+ 
 const blockUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -44,7 +43,7 @@ const blockUser = async (req, res) => {
   }
 };
 
-// PUT /api/users/unblock/:userId
+ 
 const unblockUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -75,7 +74,7 @@ const unblockUser = async (req, res) => {
   }
 };
 
-// GET /api/users/blocked-users
+ 
 const getBlockedUsers = async (req, res) => {
   try {
     const me = await User.findById(req.user.id).populate(

@@ -13,7 +13,7 @@ const register=async (req,res)=>{
     try {
         const {name, email, password,confirm_password, contact}=req.body;
 
-        // image optional hai — agar upload nahi hui to Telegram jaisa default avatar (initials-based) set hoga
+       
         const DEFAULT_AVATAR_BASE = "https://ui-avatars.com/api/";
         const image = req.file?.path
             || `${DEFAULT_AVATAR_BASE}?name=${encodeURIComponent(name || "U")}&background=random&color=fff&rounded=true&bold=true`;
@@ -60,7 +60,7 @@ const login = async (req, res) => {
             return res.status(400).json({ msg: " you are not registered user" })
         }
 
-        // 🔒 blocked check — password verify se pehle
+ 
         if (userExist.isBlocked) {
             return res.status(403).json({ msg: "You have been blocked by admin" })
         }
@@ -85,8 +85,7 @@ const login = async (req, res) => {
 }
 
 
-
-// ---------- SEND OTP ----------
+ 
 const sendOtp = async (req, res) => {
   try {
 
@@ -98,7 +97,7 @@ const sendOtp = async (req, res) => {
       return res.status(400).json({ msg: "Please enter a valid 10-digit phone number" });
     }
 
-    // 🔍 Number DB mein registered hai ya nahi — Twilio call se pehle hi check karo
+   
     const existingUser = await userSchema.findOne({ contact: phone });
 
     if (!existingUser) {
@@ -107,12 +106,12 @@ const sendOtp = async (req, res) => {
       });
     }
 
-    // Agar blocked user hai to OTP hi mat bhejo
+ 
     if (existingUser.isBlocked) {
       return res.status(403).json({ msg: "You have been blocked by admin" });
     }
 
-    // Rate limit — same number pe baar baar spam na ho
+ 
     const recentOtp = await Otp.findOne({ contact: phone }).sort({ createdAt: -1 });
     if (recentOtp && Date.now() - recentOtp.createdAt.getTime() < RESEND_COOLDOWN_SECONDS * 1000) {
       const waitSec = Math.ceil(
@@ -121,7 +120,7 @@ const sendOtp = async (req, res) => {
       return res.status(429).json({ msg: `Please wait ${waitSec}s before requesting again` });
     }
 
-    // Purane pending OTPs is number ke liye clear karo
+   
     await Otp.deleteMany({ contact: phone });
 
     const otp = crypto.randomInt(100000, 999999).toString();
@@ -142,7 +141,7 @@ const sendOtp = async (req, res) => {
   }
 };
 
-// ---------- VERIFY OTP ----------
+ 
 const verifyOtp = async (req, res) => {
   try {
     const { phone, otp } = req.body;
@@ -175,11 +174,10 @@ const verifyOtp = async (req, res) => {
       return res.status(400).json({ msg: "Invalid OTP" });
     }
 
-    // ✅ OTP correct — consume it
+ 
     await Otp.deleteOne({ _id: otpRecord._id });
 
-    // Number sendOtp mein already verified ho chuka hai ki registered hai,
-    // isliye yaha bas existing user fetch karo (naya user yaha nahi banega)
+    
     const user = await userSchema.findOne({ contact: phone });
 
     if (!user) {
