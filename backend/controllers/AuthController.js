@@ -2,7 +2,7 @@ const userSchema = require("./../models/UserSchema")
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken")
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 const Otp = require("./../models/OtpSchema");
 const { sendOtpSms } = require("./../controllers/SmsService");
 
@@ -10,16 +10,7 @@ const OTP_EXPIRY_MINUTES = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
 const MAX_ATTEMPTS = 5;
 
-const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    family: 4,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    }
-})
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const register = async (req, res) => {
 
@@ -232,8 +223,8 @@ const sendEmailOtp = async (req, res) => {
             expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
         });
 
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
+        await resend.emails.send({
+            from: "Talkify <onboarding@resend.dev>",
             to: email,
             subject: "Password Recovery OTP",
             text: `Your OTP for password recovery is ${otp}. It is valid for ${OTP_EXPIRY_MINUTES} minutes.`,
