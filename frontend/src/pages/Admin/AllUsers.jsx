@@ -6,9 +6,7 @@ import { io } from "socket.io-client";
 
 const USER_LIMIT = 10;
 const SEARCH_DEBOUNCE_MS = 500;
-
-// Builds a compact list of page numbers with "..." for large page counts.
-// e.g. total=12, current=6 -> [1, "...", 5, 6, 7, "...", 12]
+ 
 const renderPageNumbers = (current, total) => {
   const pages = [];
   if (total <= 7) {
@@ -70,8 +68,7 @@ const AllUsers = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-
-      // ignore stale responses if a newer request has since been fired
+ 
       if (currentRequestId !== requestIdRef.current) return;
 
       const list = res.data.users || [];
@@ -86,11 +83,10 @@ const AllUsers = () => {
       setLoading(false);
     }
   };
-
-  // initial load — page 1, no search term
+ 
   useEffect(() => {
     fetchUsers("", 1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // debounce search input — 500ms
@@ -101,9 +97,7 @@ const AllUsers = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // re-fetch whenever the debounced term changes (skip the very first run,
-  // since the mount effect above already fetched page 1) — always resets
-  // back to page 1
+   
   useEffect(() => {
     if (isFirstSearchRef.current) {
       isFirstSearchRef.current = false;

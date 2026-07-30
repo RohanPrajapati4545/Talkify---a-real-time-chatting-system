@@ -267,12 +267,12 @@ const AuthSettingsPanel = () => {
             <div className=" rounded-3 p-3 h-100" style={{border:"1px solid #493913"}}>
               <label className="form-label admin-label fw-semibold">Site name</label>
               <input
-                type="text"
+                type="text" 
                 className="form-control admin-input"
                 value={nameDraft}
                 onChange={(e) => setNameDraft(e.target.value)}
                 disabled={savingBranding}
-                maxLength={40}
+                maxLength={15}
               />
               <p className=" small mb-0 mt-2" style={{color:"#4d4b48"}}>
                 it will show on the sign-in page, browser tab, and anywhere.

@@ -43,13 +43,11 @@ const saveCachedBrand = (brand) => {
       })
     );
   } catch {
-    // localStorage unavailable (e.g. private mode) — safe to ignore,
-    // just means the flash-prevention cache won't work this session
+    
   }
 };
 
-// Public, no-auth fetch — same endpoint used by Login and any other page
-// that needs the current branding/feature toggles.
+ 
 export const fetchBrand = createAsyncThunk("brand/fetchBrand", async () => {
   const res = await axios.get(`${API_BASE_URL}/api/content/settings?_t=${Date.now()}`);
   const settings = res.data?.settings || {};
@@ -57,7 +55,7 @@ export const fetchBrand = createAsyncThunk("brand/fetchBrand", async () => {
   return {
     siteName: settings.siteName || "Talkify",
     siteLogoUrl: resolveAssetUrl(settings.siteLogoUrl),
-    siteFaviconUrl: resolveAssetUrl(settings.siteFaviconUrl), // NEW
+    siteFaviconUrl: resolveAssetUrl(settings.siteFaviconUrl),
     otpLoginEnabled: settings.otpLoginEnabled ?? true,
   };
 });
@@ -69,11 +67,7 @@ const initialState = {
   loading: true,
 };
 
-// Apply the cached favicon immediately too — the <link id="favicon"> already
-// exists in the static HTML by the time this module runs, so we don't have
-// to wait for React to mount or for fetchBrand to resolve.
-// NOTE: this now reads siteFaviconUrl, NOT siteLogoUrl — logo and favicon
-// are fully independent from here on.
+ 
 if (typeof document !== "undefined") {
   document.title = cached.siteName;
   if (cached.siteFaviconUrl) {
@@ -82,11 +76,9 @@ if (typeof document !== "undefined") {
   }
 }
 
-// Swaps the <link id="favicon"> href at runtime — this is the only way to
-// change a favicon after page load, since browsers only read it once from
-// the static HTML otherwise.
+ 
 const applyFavicon = (faviconUrl) => {
-  if (!faviconUrl) return; // keep the default talkify_icon.png from index.html
+  if (!faviconUrl) return; 
   const link = document.getElementById("favicon");
   if (link) link.href = faviconUrl;
 };
@@ -95,12 +87,10 @@ const brandSlice = createSlice({
   name: "brand",
   initialState,
   reducers: {
-    // Used by the admin settings panel right after a successful save, so
-    // every open tab/page reflects the change without waiting for a refetch.
+  
     setBrand: (state, action) => {
       Object.assign(state, action.payload);
-      // Only siteFaviconUrl changes should touch the actual <link> tag —
-      // a logo-only save must NOT affect the browser tab icon anymore.
+      
       if (action.payload.siteFaviconUrl !== undefined) {
         applyFavicon(action.payload.siteFaviconUrl);
       }
@@ -115,12 +105,12 @@ const brandSlice = createSlice({
       .addCase(fetchBrand.fulfilled, (state, action) => {
         Object.assign(state, action.payload);
         state.loading = false;
-        document.title = state.siteName; // keep the browser tab in sync too
+        document.title = state.siteName;  
         applyFavicon(action.payload.siteFaviconUrl);
         saveCachedBrand(state);
       })
       .addCase(fetchBrand.rejected, (state) => {
-        // keep whatever defaults/previous values were already in state
+    
         state.loading = false;
       });
   },

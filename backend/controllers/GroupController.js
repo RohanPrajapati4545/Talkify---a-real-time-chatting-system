@@ -38,9 +38,7 @@ const createGroup = async (req, res) => {
       .populate("members", "name email image")
       .populate("createdBy", "_id name image");
 
-    // notify every member's sidebar in real time — none of them (except
-    // the creator, via this response) have joined this group's socket
-    // room yet, so target each member's personal room instead
+    
     const io = req.app.get("io");
     if (io) {
       populatedGroup.members.forEach((m) => {
@@ -118,7 +116,7 @@ if (req.file) {
   media = req.file.path;
 
   if (req.body.isVoice === "true") {
-    mediaType = "audio";                              // 👈 sabse pehle explicit check
+    mediaType = "audio";                       
   } else if (req.file.mimetype.startsWith("image")) {
     mediaType = "image";
   } else if (req.file.mimetype.startsWith("video")) {
@@ -177,10 +175,7 @@ const getMessages = async (req, res) => {
     }
 
     const total = await Message.countDocuments(query);
-
-    // naye messages pehle nikalo (taaki "sabse recent 10" mile), phir reverse
-    // karke chronological (oldest→newest) order me bhejo taaki thread me
-    // upar-se-neeche render ho sake
+ 
     const messagesDesc = await Message.find(query)
       .populate("sender", "name image")
       .populate({
@@ -210,7 +205,7 @@ const getMessages = async (req, res) => {
   }
 };
 
-// 👇 NAYA — ek group ke saare call logs (chat thread me merge karne ke liye)
+//   NAYA — ek group ke saare call logs (chat thread me merge karne ke liye)
 const getGroupCallLogs = async (req, res) => {
   try {
     const { groupId } = req.params;

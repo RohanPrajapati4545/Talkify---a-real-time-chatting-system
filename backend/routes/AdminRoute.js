@@ -1,7 +1,7 @@
 const express = require("express")
 const router = express.Router()
 const upload = require("./../middlewares/upload")
-
+const SiteSettings = require("../models/SiteSettingsSchema");
 const AuthController = require("./../controllers/AuthController")
 const adminMiddleware = require("./../middlewares/adminMiddleware")
 const authMiddleware = require("../middlewares/authMiddleware")
@@ -94,9 +94,9 @@ router.put("/about-content", authMiddleware, async (req, res) => {
 
 
  
-const SiteSettings = require("../models/SiteSettingsSchema");
 
-// GET /api/admin/settings
+
+ 
 router.get("/settings", authMiddleware, async (req, res) => {
   try {
     let settings = await SiteSettings.findOne();

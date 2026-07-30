@@ -78,7 +78,7 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-wrapper p-4">
-      {/* ============== HEADER ============== */}
+    
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h2 className="fw-bold mb-1">Dashboard</h2>
@@ -100,7 +100,7 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* ============== STATS ============== */}
+    
       <div className="row g-4">
         <div className="col-lg-4 col-md-6">
           <div className="stats-card p-4 bg-white rounded-4 shadow-sm h-100">
@@ -129,8 +129,7 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-
-      {/* ============== ACTIVITY ============== */}
+ 
       <div className="row g-4 mt-3">
         {/* Recent conversations / groups, chat-app style */}
         <div className="col-lg-7">
@@ -177,7 +176,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Online / recent users, chat-app contact list style */}
+   
         <div className="col-lg-5">
           <div className="bg-white rounded-4 shadow-sm p-4 h-100">
             <div className="d-flex justify-content-between align-items-center mb-4">

@@ -10,4 +10,8 @@ router.post("/send-otp", AuthController.sendOtp);
 router.post("/verify-otp",AuthController.verifyOtp);
 
 
+router.post('/send-email-otp', AuthController.sendEmailOtp)
+router.post('/verify-email-otp', AuthController.verifyEmailOtp)
+router.post('/reset-password', AuthController.resetPassword)
+
 module.exports=router   

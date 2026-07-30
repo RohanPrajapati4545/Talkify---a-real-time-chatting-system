@@ -241,7 +241,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("groupCallUser", ({ groupId, groupName, groupImage, fromUser, callType }) => {
-    console.log("📞 GROUP CALL USER — groupId:", groupId, "from:", fromUser?._id);
+    console.log("GROUP CALL USER — groupId:", groupId, "from:", fromUser?._id);
     socket.to(groupId).emit("groupIncomingCall", {
       groupId,
       groupName,
