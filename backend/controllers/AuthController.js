@@ -3,7 +3,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken")
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
-const Otp = require("./../models/OtpSchemas");
+const Otp = require("./../models/OtpSchema");
 const { sendOtpSms } = require("./../controllers/SmsService");
 
 const OTP_EXPIRY_MINUTES = 5;
@@ -11,7 +11,10 @@ const RESEND_COOLDOWN_SECONDS = 60;
 const MAX_ATTEMPTS = 5;
 
 const transporter = nodemailer.createTransport({
-    service: "Gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    family: 4,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
