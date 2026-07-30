@@ -6,14 +6,19 @@ import { useDispatch, useSelector } from "react-redux";
 import { login } from "../redux/AuthSlice";
 
 const Login = () => {
-  const [mode, setMode] = useState("password");
+  const [mode, setMode] = useState("password"); // "password" | "otp"
 
+  // shared branding + feature toggles (name, logo, OTP on/off) — lives in
+  // Redux, fetched once at the app level (see App.js) so every page stays
+  // in sync with admin changes
   const { siteName, siteLogoUrl, otpLoginEnabled } = useSelector((state) => state.brand);
 
+  // password login state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
+  // otp login state
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -24,9 +29,11 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
 
   const emailRegex = /^[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/;
-  const phoneRegex = /^[6-9]\d{9}$/;
+  const phoneRegex = /^[6-9]\d{9}$/; // 10-digit Indian mobile number
   const MAX_PASSWORD_LENGTH = 15;
 
+  // If OTP login gets disabled (or loads in as disabled), make sure we're
+  // never sitting on the OTP tab with no way to reach it.
   useEffect(() => {
     if (!otpLoginEnabled && mode === "otp") setMode("password");
   }, [otpLoginEnabled, mode]);
@@ -36,6 +43,7 @@ const Login = () => {
   };
 
   const handleEmailChange = (e) => {
+    // sirf letters, numbers, @ aur . allow — koi special char nahi
     setEmail(e.target.value.replace(/[^a-zA-Z0-9@.]/g, ""));
   };
 
@@ -64,6 +72,9 @@ const Login = () => {
       setEmail("");
       setPassword("");
       setShowPassword(false);
+      // ❌ removed: navigate("/") — this was firing unconditionally
+      // and always beat the role-based redirect in the useEffect below.
+      // The useEffect now handles where the user lands.
     } catch (error) {
       toast.error(error.response?.data?.msg || "Login failed");
     } finally {
@@ -160,6 +171,7 @@ const Login = () => {
           <h1 className="cv-auth-title">Sign in</h1>
           <p className="cv-auth-subtitle">Pick up where you left off.</p>
 
+          {/* ============== MODE SWITCHER — OTP tab only shows when admin has it enabled ============== */}
           {otpLoginEnabled && (
             <div className="cv-dial cv-auth-dial">
               <button
@@ -179,6 +191,7 @@ const Login = () => {
             </div>
           )}
 
+          {/* ============== PASSWORD LOGIN ============== */}
           {mode === "password" && (
             <form onSubmit={loginUser}>
               <div className="cv-auth-field">
@@ -206,12 +219,6 @@ const Login = () => {
                 ></i>
               </div>
 
-              <div className="cv-auth-forgot">
-                <span onClick={() => navigate("/forgot-password")}>
-                  Forgot password?
-                </span>
-              </div>
-
               <button
                 type="submit"
                 className="cv-btn-primary cv-auth-submit"
@@ -229,6 +236,7 @@ const Login = () => {
             </form>
           )}
 
+          {/* ============== OTP LOGIN — only reachable when the toggle is on ============== */}
           {otpLoginEnabled && mode === "otp" && (
             <form onSubmit={otpSent ? verifyOtp : sendOtp}>
               <div className="cv-auth-field">
@@ -291,9 +299,7 @@ const Login = () => {
 
                   <div className="cv-auth-switch">
                     <p>Didn't get the code?</p>
-                    <span onClick={() => { setOtpSent(false); setOtp(""); }}>
-                      Change number / resend
-                    </span>
+                    <span>Change number / resend</span>
                   </div>
                 </>
               )}

@@ -4,9 +4,6 @@ import { useSelector } from "react-redux";
 
 import Login from "../../pages/auth/Login";
 import Register from "../../pages/auth/Register";
-import ForgotPassword from "../../pages/auth/ForgotPassword";
-import Recovery from "../../pages/auth/Recovery";
-import Reset from "../../pages/auth/Reset";
 import Home from "../Home";
 import About from "../About";
 import MyGroups from "../MyGroups";
@@ -99,46 +96,6 @@ const AllRoutes = () => {
             ) : (
               <Layout>
                 <Register />
-              </Layout>
-            )
-          }
-        />
-
-        {/* Forgot password flow — only for logged-out users */}
-        <Route
-          path="/forgot-password"
-          element={
-            isAuth ? (
-              <Navigate to={homeForUser} replace />
-            ) : (
-              <Layout>
-                <ForgotPassword />
-              </Layout>
-            )
-          }
-        />
-
-        <Route
-          path="/recovery"
-          element={
-            isAuth ? (
-              <Navigate to={homeForUser} replace />
-            ) : (
-              <Layout>
-                <Recovery />
-              </Layout>
-            )
-          }
-        />
-
-        <Route
-          path="/reset-password"
-          element={
-            isAuth ? (
-              <Navigate to={homeForUser} replace />
-            ) : (
-              <Layout>
-                <Reset />
               </Layout>
             )
           }
