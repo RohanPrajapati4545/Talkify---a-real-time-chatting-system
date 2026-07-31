@@ -1,10 +1,4 @@
-/* ============================================
-   CHATVERSE — "Telegraph" Design System
-   A warm, ink-and-amber take on messaging,
-   borrowing structure from postal stamps and
-   analog dispatch logs instead of generic
-   dark-mode neon chat UI.
-   ============================================ */
+ 
 
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
 
@@ -46,7 +40,8 @@ body {
   font-family: var(--font-body);
 }
 
-/* ============== AUTH PAGES ============== */
+
+
 
 .cv-auth-page {
   min-height: 100vh;
@@ -349,7 +344,7 @@ body {
   color: var(--amber);
 }
 
-/* ============== ONLINE STATUS ============== */
+
 
 .cv-avatar-wrap {
   position: relative;
@@ -450,7 +445,8 @@ body {
   filter: none;
 }
 
-/* ============== INVITE CODE BOX (group info) ============== */
+
+
 
 .cv-invite-code-box {
   background: var(--panel-2);
@@ -536,7 +532,8 @@ body {
   font-family: var(--font-mono);
 }
 
-/* ============== JOIN GROUP MODAL ============== */
+
+
 
 .cv-join-illustration {
   width: 72px;
@@ -591,7 +588,8 @@ body {
   color: var(--danger);
 }
 
-/* ============== PROFILE DASHBOARD ============== */
+
+
 
 .cv-dash {
   min-height: 100vh;
@@ -627,7 +625,7 @@ body {
   min-height: calc(100vh - 73px);
 }
 
-/* --- left sidebar --- */
+
 
 .cv-dash-side {
   border-right: 1px solid var(--hairline);
@@ -729,7 +727,8 @@ body {
   color: var(--danger);
 }
 
-/* --- right main panel --- */
+
+
 
 .cv-dash-main {
   padding: 48px;
@@ -796,7 +795,8 @@ body {
   cursor: not-allowed;
 }
 
-/* --- responsive --- */
+
+
 
 @media (max-width: 900px) {
   .cv-dash-grid {
@@ -840,12 +840,14 @@ body {
   color: var(--amber);
 }
 
-/* 👇 UPDATED — full width (pehle max-width: 1100px tha) */
+
+
 .cv-page-container {
   max-width: 100%;
 }
 
-/* ============== SHELL ============== */
+
+
 
 .cv-shell {
   background: var(--panel);
@@ -859,7 +861,8 @@ body {
   max-height: 86vh;
 }
 
-/* ============== SIDEBAR ============== */
+
+
 
 .cv-sidebar {
   background: var(--panel-2);
@@ -982,7 +985,6 @@ body {
   color: var(--amber);
 }
 
-/* dial-style tab switcher */
 
 .cv-dial {
   display: flex;
@@ -1092,7 +1094,8 @@ body {
   filter: brightness(1.08);
 }
 
-/* ============== MAIN PANE ============== */
+
+
 
 .cv-main {
   display: flex;
@@ -1149,7 +1152,8 @@ body {
   text-transform: uppercase;
 }
 
-/* ============== THREAD HEADER ============== */
+
+
 
 .cv-thread-header {
   display: flex;
@@ -1221,7 +1225,8 @@ body {
   color: var(--amber);
 }
 
-/* ============== MESSAGES ============== */
+
+
 
 .cv-thread {
   flex: 1;
@@ -1338,7 +1343,7 @@ body {
   cursor: pointer;
 }
 
-/* timestamp styled like a postal stamp — signature element */
+
 
 .cv-stamp {
   font-family: var(--font-mono);
@@ -1349,7 +1354,8 @@ body {
   opacity: 0.75;
 }
 
-/* message menu */
+
+
 
 .cv-menu-trigger {
   position: absolute;
@@ -1405,7 +1411,8 @@ body {
   background: var(--amber-soft);
 }
 
-/* reply / edit preview strip */
+
+
 
 .cv-strip {
   display: flex;
@@ -1439,7 +1446,7 @@ body {
   color: var(--paper);
 }
 
-/* media-to-send preview */
+
 
 .cv-media-stage {
   position: relative;
@@ -1469,7 +1476,7 @@ body {
   font-size: 10px;
 }
 
-/* ============== COMPOSER ============== */
+
 
 .cv-composer {
   display: flex;
@@ -1527,7 +1534,7 @@ body {
   transform: scale(1.05);
 }
 
-/* ============== INFO PANELS (group / user) ============== */
+
 
 .cv-info {
   padding: 20px 24px;
@@ -1721,7 +1728,7 @@ body {
   font-size: 14px;
 }
 
-/* ============== LIGHTBOX ============== */
+
 
 .cv-lightbox {
   position: fixed;
@@ -1777,7 +1784,7 @@ body {
   color: var(--ink);
 }
 
-/* ============== MODALS ============== */
+
 
 .cv-modal-content {
   background: var(--panel) !important;
@@ -1875,7 +1882,7 @@ body {
   color: var(--paper);
 }
 
-/* ============== RESPONSIVE ============== */
+
 
 @media (max-width: 992px) {
   .cv-bubble {
@@ -1969,7 +1976,8 @@ body {
   }
 }
 
-/* ============== LOGGED-IN USER CARD ============== */
+
+
 
 .cv-me-card {
   display: flex;
@@ -2021,7 +2029,7 @@ body {
   text-overflow: ellipsis;
 }
 
-/* DATE SEPARATOR (WhatsApp style)  */
+
 
 .cv-date-separator {
   display: flex;
@@ -4008,7 +4016,7 @@ body.cv-chat-open {
   }
 }
 
-/* ============== DROPDOWN / SELECT (theme-matched) ============== */
+ 
 
 select.admin-search {
   appearance: none;
@@ -4326,13 +4334,9 @@ select.admin-search option {
 .cv-strength-strong .cv-strength-bar span { background: #2a9d8f; }
 .cv-strength-strong p { color: #2a9d8f; }
 .cv-auth-field {
-  position: relative;/* ============================================
-   CHATVERSE — "Telegraph" Design System
-   A warm, ink-and-amber take on messaging,
-   borrowing structure from postal stamps and
-   analog dispatch logs instead of generic
-   dark-mode neon chat UI.
-   ============================================ */
+  position: relative;
+  
+
 
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
 
@@ -8307,7 +8311,8 @@ body.cv-chat-open {
   }
 }
 
-/* ============== DROPDOWN / SELECT (theme-matched) ============== */
+
+
 
 select.admin-search {
   appearance: none;
@@ -8751,8 +8756,8 @@ select.admin-search option {
   align-items: center;
 }
 
-/* optional: subtle divider so the calls list doesn't feel identical to
-   groups/chats — remove if you prefer the exact same row style */
+
+
 .cv-list .cv-row {
   border-bottom: 1px solid var(--hairline, rgba(0, 0, 0, 0.06));
 }
@@ -8776,7 +8781,8 @@ select.admin-search option {
   }
 }
 }
-/* ============== CONTACT PAGE ============== */
+
+
 
 .cv-contact-grid {
   max-width: 1000px;
@@ -9011,8 +9017,8 @@ select.admin-search option {
   align-items: center;
 }
 
-/* optional: subtle divider so the calls list doesn't feel identical to
-   groups/chats — remove if you prefer the exact same row style */
+
+
 .cv-list .cv-row {
   border-bottom: 1px solid var(--hairline, rgba(0, 0, 0, 0.06));
 }
@@ -9033,5 +9039,121 @@ select.admin-search option {
 
   .cv-call-log-meta {
     font-size: 10px;
+  }
+}
+
+
+
+.admin-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.admin-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+
+.admin-hamburger-btn {
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  z-index: 1060;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  background: var(--panel-3);
+  color: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, left 0.25s ease;
+}
+
+.admin-hamburger-btn:hover {
+  color: var(--amber);
+  border-color: var(--amber);
+}
+
+ 
+.admin-sidebar-wrap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 264px;
+  z-index: 1050;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+}
+
+.admin-sidebar-wrap.open {
+  transform: translateX(0);
+}
+
+.admin-sidebar-wrap .admin-sidebar {
+  height: 100%;
+  min-height: 100%;
+  overflow-y: auto;
+}
+
+.admin-sidebar-wrap .admin-sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.admin-sidebar-wrap .admin-sidebar::-webkit-scrollbar-thumb {
+  background: var(--panel-3);
+  border-radius: 10px;
+}
+
+ 
+.admin-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1040;
+}
+
+ 
+.admin-content {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding-top: 60px;  
+  margin-left: 0;
+  transition: margin-left 0.25s ease;
+}
+
+.admin-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-content::-webkit-scrollbar-thumb {
+  background: var(--panel-3);
+  border-radius: 10px;
+}
+
+.admin-footer-fixed {
+  flex-shrink: 0;
+}
+
+ 
+@media (min-width: 768px) {
+  .admin-sidebar-wrap.open ~ .admin-content {
+    margin-left: 264px;
+  }
+
+  .admin-body:has(.admin-sidebar-wrap.open) .admin-hamburger-btn {
+    left: 279px;
   }
 }

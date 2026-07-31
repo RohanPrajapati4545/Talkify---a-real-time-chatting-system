@@ -4,62 +4,43 @@ import AdminSideBar from "../../components/AdminSideBar";
 import AdminFooter from "./AdminFooter";
 
 const AdminLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
   return (
-    <div className="admin-layout d-flex flex-column" style={{ minHeight: "100vh" }}>
+    <div className="admin-layout">
+      <div className="admin-body">
 
-      <div className="admin-body d-flex flex-grow-1">
+        {/* Hamburger toggle — visible on ALL screen sizes now */}
+        <button
+          className="admin-hamburger-btn"
+          type="button"
+          onClick={toggleSidebar}
+          aria-label="Toggle sidebar"
+        >
+          <i className={`fa-solid ${sidebarOpen ? "fa-xmark" : "fa-bars"}`}></i>
+        </button>
 
-        <div className="desktop-sidebar d-none d-md-block">
+        {/* Backdrop for mobile when sidebar is open */}
+        {sidebarOpen && (
+          <div
+            className="admin-sidebar-backdrop d-md-none"
+            onClick={toggleSidebar}
+          ></div>
+        )}
+
+        <div className={`admin-sidebar-wrap ${sidebarOpen ? "open" : "closed"}`}>
           <AdminSideBar />
         </div>
 
-        {!sidebarOpen && (
-          <button
-            className="btn btn-light d-md-none position-fixed"
-            type="button"
-            data-bs-toggle="offcanvas"
-            data-bs-target="#adminSidebar"
-            onClick={() => setSidebarOpen(true)}
-            style={{
-              top: "15px",
-              left: "15px",
-              zIndex: 1050,
-            }}
-          >
-            <i className="fa-solid fa-bars"></i>
-          </button>
-        )}
-
-        <div
-          className="offcanvas offcanvas-start"
-          tabIndex="-1"
-          id="adminSidebar"
-          onHidden={() => setSidebarOpen(false)}
-        >
-          <div className="offcanvas-header">
-            <button
-              type="button"
-              className="btn-close"
-              data-bs-dismiss="offcanvas"
-              onClick={() => setSidebarOpen(false)}
-            ></button>
-          </div>
-
-          <div className="offcanvas-body p-0">
-            <AdminSideBar />
-          </div>
-        </div>
-
-        <div className="admin-content flex-grow-1">
+        <div className={`admin-content ${sidebarOpen ? "" : "full"}`}>
           <Outlet />
         </div>
 
       </div>
 
       <AdminFooter />
-
     </div>
   );
 };

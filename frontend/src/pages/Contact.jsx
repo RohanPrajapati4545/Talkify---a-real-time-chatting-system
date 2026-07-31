@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 
-// 👇 adjust this if you already have a central axios instance/base URL
-// (e.g. import api from "../utils/axiosInstance" and use api.post(...) instead)
+ 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const Contact = () => {
@@ -104,7 +103,7 @@ const Contact = () => {
           <div className="cv-contact-info-card">
             <i className="fa-solid fa-phone"></i>
             <h3>Phone</h3>
-            <p>+91 98765 43210</p>
+            <p>+91 74153 77427</p>
           </div>
           <div className="cv-contact-info-card">
             <i className="fa-solid fa-location-dot"></i>
