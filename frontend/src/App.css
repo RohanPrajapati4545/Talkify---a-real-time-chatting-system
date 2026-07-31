@@ -2029,7 +2029,7 @@ body {
   text-overflow: ellipsis;
 }
 
-
+/* DATE SEPARATOR (WhatsApp style)  */
 
 .cv-date-separator {
   display: flex;
@@ -9156,4 +9156,56 @@ select.admin-search option {
   .admin-body:has(.admin-sidebar-wrap.open) .admin-hamburger-btn {
     left: 279px;
   }
+}
+/* ============== ADMIN SEARCH — FIX: force text/bg visibility over Bootstrap ============== */
+
+.admin-search,
+input.admin-search,
+select.admin-search,
+textarea.admin-search {
+  background-color: var(--panel-3) !important;
+  color: var(--paper) !important;
+  caret-color: var(--paper);
+}
+
+.admin-search::placeholder {
+  color: var(--muted) !important;
+  opacity: 1; /* firefox fix — placeholder ko halka na kare */
+}
+
+.admin-search:focus {
+  background-color: var(--panel-2) !important;
+  color: var(--paper) !important;
+}
+
+/* browser autofill (chrome/edge) — dark bg pe pura yellow/white box aa jata hai, isko override karo */
+.admin-search:-webkit-autofill,
+.admin-search:-webkit-autofill:hover,
+.admin-search:-webkit-autofill:focus,
+.admin-search:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--paper) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--panel-3) inset !important;
+  box-shadow: 0 0 0 1000px var(--panel-3) inset !important;
+  caret-color: var(--paper) !important;
+  transition: background-color 9999s ease-in-out 0s; /* autofill ka delayed bg change rokta hai */
+}
+
+ .admin-content input.form-control,
+.admin-content select.form-control,
+.admin-content textarea.form-control {
+  background-color: var(--panel-3) !important;
+  color: var(--paper) !important;
+  border-color: var(--hairline) !important;
+}
+
+.admin-content input.form-control::placeholder {
+  color: var(--muted) !important;
+}
+
+.admin-content input.form-control:focus,
+.admin-content select.form-control:focus,
+.admin-content textarea.form-control:focus {
+  background-color: var(--panel-2) !important;
+  border-color: var(--amber) !important;
+  box-shadow: 0 0 0 3px var(--amber-soft) !important;
 }
