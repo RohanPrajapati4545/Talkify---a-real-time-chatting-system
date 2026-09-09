@@ -63,7 +63,6 @@ const io = new Server(server, {
 app.set("io", io);
 
 app.use(cors(corsOption));
-app.options("*", cors(corsOption));
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
