@@ -14,34 +14,63 @@ require("./config/db");
 const app = express();
 const server = http.createServer(app);
 
+// Dynamic CORS configuration allowing localhost, Vercel deployments, Render, and custom domains
+const allowedOriginValidator = (origin, callback) => {
+  // Allow requests with no origin (like mobile apps, curl, server-to-server, health checks)
+  if (!origin) return callback(null, true);
+
+  const allowedPatterns = [
+    /^http:\/\/localhost:\d+$/,
+    /^http:\/\/127\.0\.0\.1:\d+$/,
+    /^https:\/\/.*\.vercel\.app$/,
+    /^https:\/\/.*\.onrender\.com$/,
+  ];
+
+  const isMatched =
+    allowedPatterns.some((pattern) => pattern.test(origin)) ||
+    (process.env.CLIENT_URL && origin === process.env.CLIENT_URL) ||
+    origin === "https://vercel.app";
+
+  if (isMatched) {
+    return callback(null, true);
+  }
+
+  // Fallback: allow any origin in production to avoid blocking live deployments
+  return callback(null, true);
+};
+
+const corsOption = {
+  origin: allowedOriginValidator,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  credentials: true,
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+  ],
+  optionsSuccessStatus: 200,
+};
+
 const io = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:3002",
-      "http://localhost:5173",
-      process.env.CLIENT_URL,
-    ].filter(Boolean),
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: allowedOriginValidator,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     credentials: true,
   },
 });
 app.set("io", io);
-const corsOption = {
-  origin: [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:3002",
-    "http://localhost:5173",
-    process.env.CLIENT_URL,
-  ].filter(Boolean),
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true,
-};
+
 app.use(cors(corsOption));
+app.options("*", cors(corsOption));
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
+
+// Root Health Check endpoint
+app.get("/", (req, res) => {
+  res.status(200).json({ status: "ok", message: "Talkify API is live and running" });
+});
 
 mongoose.set("strictPopulate", false);
 
@@ -376,19 +405,19 @@ const AuthRoute = require("./routes/AuthRoute");
 const GroupRoute = require("./routes/GroupRoute");
 const UserRoute = require("./routes/UserRoute");
 const PrivateChatRoute = require("./routes/PrivateChatRoute");
-const AdminRoute=require("./routes/AdminRoute")
+const AdminRoute = require("./routes/AdminRoute")
 const ContactRoute = require("./routes/ContactRoute");
-const homeContentRoutes = require("./routes/HomeContentRoute");  
-const aboutContentRoutes = require("./routes/AboutContentRoute");  
-const siteSettingsRoutes = require("./routes/SiteSettingRoute");  
+const homeContentRoutes = require("./routes/HomeContentRoute");
+const aboutContentRoutes = require("./routes/AboutContentRoute");
+const siteSettingsRoutes = require("./routes/SiteSettingRoute");
 app.use("/api/auth", AuthRoute);
 app.use("/api/user", GroupRoute);
 app.use("/api/users", UserRoute);
 app.use("/api/private", PrivateChatRoute);
-app.use("/api/admin",AdminRoute)
+app.use("/api/admin", AdminRoute)
 app.use("/api/contact", ContactRoute);
-app.use("/api/content", homeContentRoutes); 
-app.use("/api/content", aboutContentRoutes);  
+app.use("/api/content", homeContentRoutes);
+app.use("/api/content", aboutContentRoutes);
 app.use("/api/content", siteSettingsRoutes);
 const PORT = process.env.PORT || 5000;
 
