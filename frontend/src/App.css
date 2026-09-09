@@ -2155,48 +2155,9 @@ body {
   .cv-menu-trigger {
     opacity: 1;
   }
-
-  body.cv-chat-active .cv-header,
-  body.cv-chat-active .rb-header,
-  body.cv-chat-active .cv-footer,
-  body.cv-chat-active .rb-footer {
-    display: none !important;
-  }
 }
 
 @media (max-width: 768px) {
-  body.cv-chat-active,
-  body.cv-chat-active html {
-    height: 100dvh !important;
-    height: 100% !important;
-    overflow: hidden !important;
-  }
-
-  body.cv-chat-active .rb-header,
-  body.cv-chat-active .cv-header,
-  body.cv-chat-active .rb-footer,
-  body.cv-chat-active .cv-footer {
-    display: none !important;
-  }
-
-  body.cv-chat-active .cv-page-container {
-    height: 100dvh !important;
-    height: 100% !important;
-    max-height: 100dvh !important;
-    overflow: hidden !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  body.cv-chat-active .cv-shell,
-  body.cv-chat-active .cv-grid,
-  body.cv-chat-active .cv-main {
-    height: 100% !important;
-    max-height: 100% !important;
-    min-height: 0 !important;
-    overflow: hidden !important;
-  }
-
   .cv-thread-header {
     position: sticky !important;
     top: 0 !important;
