@@ -1,0 +1,74 @@
+const mongoose = require("mongoose");
+
+const MessageSchema = new mongoose.Schema(
+  {
+     groupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Group",
+      required: true,
+    },
+
+    sender: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    message: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    media: {
+      type: String,
+      default: "",
+    },
+
+    mediaType: {
+      type: String,
+      enum: ["image", "video", "audio", ""],
+      default: "",
+    },
+    isDeleted: {
+  type: Boolean,
+  default: false,
+},
+
+isEdited: {
+  type: Boolean,
+  default: false,
+},
+replyTo: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Message",
+  default: null
+},
+
+isSystem: {
+  type: Boolean,
+  default: false,
+},
+isPinned: {
+  type: Boolean,
+  default: false,
+},
+pinnedBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  default: null,
+},
+pinnedAt: {
+  type: Date,
+  default: null,
+},
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model(
+  "Message",
+  MessageSchema
+);
