@@ -2172,17 +2172,31 @@ body {
   }
 }
 
+/* Force fixed body & viewport in mobile chat mode so virtual keyboard cannot scroll window */
 @media (max-width: 768px) {
-  /* Hide main site header in mobile chat mode for maximum screen area */
+  html:has(body.cv-chat-active),
+  body.cv-chat-active {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+  }
+
   .tk-chat-layout .layout-header-container,
   body.cv-chat-active .rb-header,
   body.cv-chat-active .layout-header-container {
     display: none !important;
   }
 
+  .tk-chat-layout,
   .cv-page-container,
   .tk-chat-layout .cv-page-container,
   body.cv-chat-active .cv-page-container {
+    position: relative !important;
     height: 100dvh !important;
     height: 100vh !important;
     height: 100% !important;
@@ -2218,16 +2232,27 @@ body {
   }
 
   .cv-main {
+    position: relative !important;
     display: flex !important;
     flex-direction: column !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
   }
 
+  /* Receiver Header (Pinned Sticky Top) */
   .cv-thread-header {
+    position: sticky !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
     padding: 10px 12px !important;
-    background: #0a0e13 !important;
+    background: #080b0e !important;
     border-bottom: 1px solid #1a2430 !important;
     flex-shrink: 0 !important;
-    z-index: 20 !important;
+    z-index: 50 !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4) !important;
   }
 
   .cv-thread-id {
@@ -2268,6 +2293,7 @@ body {
     cursor: pointer;
   }
 
+  /* Chat Messages List (The only scrollable section) */
   .cv-thread {
     flex: 1 1 auto !important;
     min-height: 0 !important;
@@ -2275,7 +2301,7 @@ body {
     overflow-y: auto !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch !important;
-    overscroll-behavior: contain !important;
+    overscroll-behavior-y: contain !important;
   }
 
   .cv-bubble {
@@ -2293,16 +2319,20 @@ body {
     border-radius: 8px !important;
   }
 
+  /* Sticky Bottom Composer */
   .cv-composer {
-    flex-shrink: 0 !important;
     position: sticky !important;
     bottom: 0 !important;
-    z-index: 30 !important;
+    left: 0 !important;
+    right: 0 !important;
+    flex-shrink: 0 !important;
+    z-index: 50 !important;
     padding: 8px 10px !important;
     gap: 8px !important;
-    background: #0a0e13 !important;
+    background: #080b0e !important;
     border-top: 1px solid #1a2430 !important;
     width: 100% !important;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3) !important;
   }
 
   .cv-composer input[type="text"] {
