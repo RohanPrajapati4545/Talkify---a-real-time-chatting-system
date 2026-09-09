@@ -9,7 +9,16 @@ const Layout = ({ children }) => {
   const isChatRoute = location.pathname === '/chat' || location.pathname.startsWith('/chat/');
 
   return (
-    <div className="d-flex flex-column min-vh-100 position-relative" style={{ minHeight: '100vh', background: '#080b0e' }}>
+    <div
+      className={`d-flex flex-column position-relative ${isChatRoute ? 'tk-chat-layout' : 'min-vh-100'}`}
+      style={{
+        minHeight: isChatRoute ? '100dvh' : '100vh',
+        height: isChatRoute ? '100dvh' : 'auto',
+        maxHeight: isChatRoute ? '100dvh' : 'none',
+        background: '#080b0e',
+        overflow: isChatRoute ? 'hidden' : 'visible',
+      }}
+    >
       {/* Global Background Particles matching Talkify Emerald & Cyan theme */}
       <div
         className="global-particles-wrapper"
@@ -21,7 +30,7 @@ const Layout = ({ children }) => {
           height: '100vh',
           pointerEvents: 'none',
           zIndex: 0,
-          overflow: 'hidden'
+          overflow: 'hidden',
         }}
       >
         <Particles
@@ -40,26 +49,30 @@ const Layout = ({ children }) => {
 
       {/* Main Content & Navigation */}
       <div
+        className="layout-content-wrapper"
         style={{
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
           flexGrow: 1,
-          height: isChatRoute ? '100vh' : 'auto',
-          maxHeight: isChatRoute ? '100vh' : 'none',
-          overflow: isChatRoute ? 'hidden' : 'visible'
+          height: isChatRoute ? '100%' : 'auto',
+          maxHeight: isChatRoute ? '100%' : 'none',
+          overflow: isChatRoute ? 'hidden' : 'visible',
+          minHeight: 0,
         }}
       >
-        <Header />
+        <div className={`layout-header-container ${isChatRoute ? 'chat-page-header-wrap' : ''}`}>
+          <Header />
+        </div>
 
         <div
-          className="flex-grow-1 w-100"
+          className="flex-grow-1 w-100 layout-main-content"
           style={{
             display: 'flex',
             flexDirection: 'column',
             minHeight: 0,
-            height: isChatRoute ? 'calc(100% - 64px)' : 'auto',
-            overflow: isChatRoute ? 'hidden' : 'visible'
+            height: isChatRoute ? '100%' : 'auto',
+            overflow: isChatRoute ? 'hidden' : 'visible',
           }}
         >
           {children}
