@@ -107,6 +107,13 @@ io.on("connection", (socket) => {
 
   console.log("User Connected:", socket.id);
 
+  // Immediately send the current online users list to this connected client
+  socket.emit("onlineUsers", Array.from(onlineUsers.keys()));
+
+  socket.on("getOnlineUsers", () => {
+    socket.emit("onlineUsers", Array.from(onlineUsers.keys()));
+  });
+
   socket.on("userOnline", (userId) => {
     if (!userId) return;
     const uid = userId.toString();
@@ -114,6 +121,7 @@ io.on("connection", (socket) => {
     socket.join(`user_${uid}`);
     socket.userId = uid;
     addOnlineUser(uid, socket.id);
+    socket.emit("onlineUsers", Array.from(onlineUsers.keys()));
     broadcastOnlineUsers();
   });
 
@@ -193,18 +201,12 @@ io.on("connection", (socket) => {
 
     console.log(`[Socket] sendPrivateMessage from ${senderId} to ${receiverId} in chat ${chatId}`);
 
-    // 1. Emit to the private chat room
-    if (chatId) {
-      io.to(chatId).emit("receivePrivateMessage", msg);
-    }
+    const targetRooms = [];
+    if (chatId) targetRooms.push(chatId);
+    if (receiverId) targetRooms.push(`user_${receiverId}`);
+    if (senderId) targetRooms.push(`user_${senderId}`);
 
-    // 2. ALSO emit directly to user rooms to guarantee real-time delivery even if room wasn't pre-joined
-    if (receiverId) {
-      io.to(`user_${receiverId}`).emit("receivePrivateMessage", msg);
-    }
-    if (senderId) {
-      io.to(`user_${senderId}`).emit("receivePrivateMessage", msg);
-    }
+    io.to(targetRooms).emit("receivePrivateMessage", msg);
   });
 
   socket.on("privateMessageUpdated", (msg) => {
@@ -213,9 +215,12 @@ io.on("connection", (socket) => {
     const senderId = (msg.sender?._id || msg.sender)?.toString();
     const chatId = (msg.chatId?._id || msg.chatId)?.toString();
 
-    if (chatId) io.to(chatId).emit("privateMessageUpdated", msg);
-    if (receiverId) io.to(`user_${receiverId}`).emit("privateMessageUpdated", msg);
-    if (senderId) io.to(`user_${senderId}`).emit("privateMessageUpdated", msg);
+    const targetRooms = [];
+    if (chatId) targetRooms.push(chatId);
+    if (receiverId) targetRooms.push(`user_${receiverId}`);
+    if (senderId) targetRooms.push(`user_${senderId}`);
+
+    io.to(targetRooms).emit("privateMessageUpdated", msg);
   });
 
   socket.on("privateMessageDeleted", (msg) => {
@@ -224,9 +229,12 @@ io.on("connection", (socket) => {
     const senderId = (msg.sender?._id || msg.sender)?.toString();
     const chatId = (msg.chatId?._id || msg.chatId)?.toString();
 
-    if (chatId) io.to(chatId).emit("privateMessageDeleted", msg);
-    if (receiverId) io.to(`user_${receiverId}`).emit("privateMessageDeleted", msg);
-    if (senderId) io.to(`user_${senderId}`).emit("privateMessageDeleted", msg);
+    const targetRooms = [];
+    if (chatId) targetRooms.push(chatId);
+    if (receiverId) targetRooms.push(`user_${receiverId}`);
+    if (senderId) targetRooms.push(`user_${senderId}`);
+
+    io.to(targetRooms).emit("privateMessageDeleted", msg);
   });
 
   socket.on("privateMessagePinned", (data) => {
@@ -236,9 +244,12 @@ io.on("connection", (socket) => {
     const senderId = (msg?.sender?._id || msg?.sender)?.toString();
     const chatId = (data.chatId?._id || data.chatId)?.toString();
 
-    if (chatId) io.to(chatId).emit("privateMessagePinned", data);
-    if (receiverId) io.to(`user_${receiverId}`).emit("privateMessagePinned", data);
-    if (senderId) io.to(`user_${senderId}`).emit("privateMessagePinned", data);
+    const targetRooms = [];
+    if (chatId) targetRooms.push(chatId);
+    if (receiverId) targetRooms.push(`user_${receiverId}`);
+    if (senderId) targetRooms.push(`user_${senderId}`);
+
+    io.to(targetRooms).emit("privateMessagePinned", data);
   });
 
   socket.on("iceCandidate", ({ toUserId, signalData }) => {

@@ -144,6 +144,9 @@ const { siteName, siteLogoUrl } = useSelector((state) => state.brand);
     groupsRef.current = groups;
   }, [groups]);
 
+  const handledPrivateMsgIdsRef = useRef(new Set());
+  const handledGroupMsgIdsRef = useRef(new Set());
+
   // Robust Socket Connection & Reconnection listener (crucial for mobile sleep/wake & network switch)
   useEffect(() => {
     const handleConnectOrReconnect = () => {
@@ -152,6 +155,7 @@ const { siteName, siteLogoUrl } = useSelector((state) => state.brand);
         console.log("[Socket] Reconnected / connected, emitting userOnline:", currentUserId);
         socket.emit("userOnline", currentUserId);
       }
+      socket.emit("getOnlineUsers");
       if (privateChatRef.current?._id) {
         socket.emit("joinPrivateChat", privateChatRef.current._id.toString());
       }
@@ -681,6 +685,16 @@ useEffect(() => {
   useEffect(() => {
     const handleReceivePrivateMsg = (msg) => {
       if (!msg) return;
+
+      const msgId = msg._id?.toString();
+      if (msgId) {
+        if (handledPrivateMsgIdsRef.current.has(msgId)) return;
+        handledPrivateMsgIdsRef.current.add(msgId);
+        if (handledPrivateMsgIdsRef.current.size > 2000) {
+          handledPrivateMsgIdsRef.current.clear();
+        }
+      }
+
       const currentUserId = userRef.current?._id?.toString();
       const senderId = (msg.sender?._id || msg.sender)?.toString();
       const receiverId = (msg.receiver?._id || msg.receiver)?.toString();
@@ -699,6 +713,7 @@ useEffect(() => {
 
       if (chatIsOpen) {
         setPrivateMessages((prev) => {
+          // If we already have this message by ID or if sender already has optimistic temp message with same text
           if (prev.some((m) => m._id?.toString() === msg._id?.toString())) {
             return prev;
           }
@@ -1853,33 +1868,17 @@ const handleLoadOlderMessages = () => {
 };
 
   const sendMessage = async () => {
-
-    if (sendingMessage) return;
-
     if (editingMessage) {
-
       setSendingMessage(true);
       try {
         const res = await axios.put(
           `${process.env.REACT_APP_API_URL}/api/user/update-message/${editingMessage._id}`,
-          {
-            message
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
+          { message },
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-
-        setMessages(prev =>
-          prev.map(m =>
-            m._id === editingMessage._id
-              ? res.data
-              : m
-          )
+        setMessages((prev) =>
+          prev.map((m) => (m._id === editingMessage._id ? res.data : m))
         );
-
         setEditingMessage(null);
         setMessage("");
       } catch (error) {
@@ -1888,38 +1887,68 @@ const handleLoadOlderMessages = () => {
       } finally {
         setSendingMessage(false);
       }
-
       return;
     }
 
-    if (!message.trim() && !media) return;
+    const currentMsgText = message.trim();
+    const currentMedia = media;
+    const currentMediaKind = mediaKind;
+    const currentReplyTo = replyingTo;
+    const currentGroup = selectedGroup;
 
-    if (!selectedGroup?._id) {
+    if (!currentMsgText && !currentMedia) return;
+    if (!currentGroup?._id) {
       toast.error("No group selected");
       return;
     }
 
+    const tempId = "temp_" + Date.now();
+    const optimisticMsg = {
+      _id: tempId,
+      group: currentGroup._id,
+      groupId: currentGroup._id,
+      sender: { _id: user._id, name: user.name, image: user.image },
+      message: currentMsgText,
+      media: currentMedia ? URL.createObjectURL(currentMedia) : "",
+      mediaType: currentMediaKind === "voice" ? "audio" : (currentMedia?.type?.startsWith("image") ? "image" : (currentMedia?.type?.startsWith("video") ? "video" : "audio")),
+      createdAt: new Date().toISOString(),
+      replyTo: currentReplyTo,
+      isPending: true,
+    };
+
+    // 1. Instantly show in UI & clear composer in 0ms!
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setMessage("");
+    setMedia(null);
+    setMediaKind(null);
+    setReplyingTo(null);
+    setShowEmojiPicker(false);
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    socket.emit("stopTyping", {
+      groupId: currentGroup._id,
+      userId: user._id,
+    });
+    setGroupLastActivity((prev) => ({
+      ...prev,
+      [currentGroup._id]: Date.now(),
+    }));
+
     const formData = new FormData();
-    formData.append("groupId", selectedGroup._id);
-    if (replyingTo) {
-      formData.append("replyTo", replyingTo._id);
+    formData.append("groupId", currentGroup._id);
+    if (currentReplyTo) {
+      formData.append("replyTo", currentReplyTo._id);
     }
-
-    if (message.trim()) {
-      formData.append("message", message);
+    if (currentMsgText) {
+      formData.append("message", currentMsgText);
     }
-
-    if (media) {
-      formData.append("media", media);
-      console.log("media =", media);
-      console.log("mediaKind =", mediaKind);
-      if (mediaKind === "voice") {
-
+    if (currentMedia) {
+      formData.append("media", currentMedia);
+      if (currentMediaKind === "voice") {
         formData.append("isVoice", "true");
       }
     }
 
-    setSendingMessage(true);
     try {
       const res = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/user/send-message`,
@@ -1931,60 +1960,34 @@ const handleLoadOlderMessages = () => {
         }
       );
 
+      if (res.data?._id) {
+        handledGroupMsgIdsRef.current.add(res.data._id.toString());
+      }
+
+      setMessages((prev) =>
+        prev.map((m) => (m._id === tempId ? res.data : m))
+      );
+
       socket.emit("sendMessage", res.data);
-
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      socket.emit("stopTyping", {
-        groupId: selectedGroup._id,
-        userId: user._id,
-      });
-
-      setGroupLastActivity((prev) => ({
-        ...prev,
-        [selectedGroup._id]: Date.now(),
-      }));
-
-      setMessage("");
-      setMedia(null);
-      setMediaKind(null);
-      setReplyingTo(null);
-      setShowEmojiPicker(false);
     } catch (error) {
       console.log(error);
-      toast.error("Message failed");
-    } finally {
-      setSendingMessage(false);
+      toast.error("Message failed to send");
+      setMessages((prev) => prev.filter((m) => m._id !== tempId));
     }
   };
 
   const sendPrivateMessage = async () => {
-
-    if (sendingMessage) return;
-
     if (editingMessage) {
-
       setSendingMessage(true);
       try {
         const res = await axios.put(
           `${process.env.REACT_APP_API_URL}/api/private/update-message/${editingMessage._id}`,
-          {
-            message
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
+          { message },
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-
-        setPrivateMessages(prev =>
-          prev.map(m =>
-            m._id === editingMessage._id
-              ? res.data
-              : m
-          )
+        setPrivateMessages((prev) =>
+          prev.map((m) => (m._id === editingMessage._id ? res.data : m))
         );
-
         setEditingMessage(null);
         setMessage("");
         setMedia(null);
@@ -1995,82 +1998,103 @@ const handleLoadOlderMessages = () => {
       } finally {
         setSendingMessage(false);
       }
-
       return;
     }
 
-    if (!message.trim() && !media) return;
+    const currentMsgText = message.trim();
+    const currentMedia = media;
+    const currentMediaKind = mediaKind;
+    const currentReplyTo = replyingTo;
+    const currentTargetUser = selectedUser;
+    const currentChat = privateChat;
 
-    if (!privateChat?._id) {
-      toast.error("Chat not initialized");
-      return;
-    }
-
-    if (!selectedUser?._id) {
+    if (!currentMsgText && !currentMedia) return;
+    if (!currentTargetUser?._id) {
       toast.error("No user selected");
       return;
     }
 
+    const currentChatId = currentChat?._id || privateChatMap?.[currentTargetUser._id];
+    const tempId = "temp_" + Date.now();
+    const optimisticMsg = {
+      _id: tempId,
+      chatId: currentChatId,
+      sender: { _id: user._id, name: user.name, image: user.image },
+      receiver: currentTargetUser,
+      message: currentMsgText,
+      media: currentMedia ? URL.createObjectURL(currentMedia) : "",
+      mediaType: currentMediaKind === "voice" ? "audio" : (currentMedia?.type?.startsWith("image") ? "image" : (currentMedia?.type?.startsWith("video") ? "video" : "audio")),
+      createdAt: new Date().toISOString(),
+      replyTo: currentReplyTo,
+      isPending: true,
+    };
+
+    // 1. Instantly show in UI & clear composer in 0ms!
+    setPrivateMessages((prev) => [...prev, optimisticMsg]);
+    setMessage("");
+    setMedia(null);
+    setMediaKind(null);
+    setReplyingTo(null);
+    setShowEmojiPicker(false);
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    socket.emit("stopTypingPrivate", {
+      chatId: currentChatId,
+      senderId: user._id,
+      receiverId: currentTargetUser._id,
+    });
+
+    setUserLastActivity((prev) => ({
+      ...prev,
+      [currentTargetUser._id]: Date.now(),
+    }));
+
     const formData = new FormData();
-
-    formData.append("chatId", privateChat._id);
-    formData.append("receiverId", selectedUser._id);
-
-    if (replyingTo) {
-      formData.append("replyTo", replyingTo._id);
+    if (currentChatId) {
+      formData.append("chatId", currentChatId);
     }
-
-    if (message.trim()) {
-      formData.append("message", message);
+    formData.append("receiverId", currentTargetUser._id);
+    if (currentReplyTo) {
+      formData.append("replyTo", currentReplyTo._id);
     }
-
-    if (media) {
-      formData.append("media", media);
-      console.log("media =", media);
-      console.log("mediaKind =", mediaKind);
-      if (mediaKind === "voice") {
+    if (currentMsgText) {
+      formData.append("message", currentMsgText);
+    }
+    if (currentMedia) {
+      formData.append("media", currentMedia);
+      if (currentMediaKind === "voice") {
         formData.append("isVoice", "true");
       }
     }
 
-    setSendingMessage(true);
     try {
-
       const res = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/private/send-private-message`,
         formData,
         {
           headers: {
-            Authorization: `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
+      if (res.data?._id) {
+        handledPrivateMsgIdsRef.current.add(res.data._id.toString());
+      }
+
+      setPrivateMessages((prev) =>
+        prev.map((m) => (m._id === tempId ? res.data : m))
+      );
+
+      if (!privateChat && res.data.chatId) {
+        setPrivateChat({ _id: res.data.chatId });
+      }
+
       socket.emit("sendPrivateMessage", res.data);
-
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      socket.emit("stopTypingPrivate", {
-        chatId: privateChat._id,
-        senderId: user._id,
-        receiverId: selectedUser._id,
-      });
-
-      setUserLastActivity((prev) => ({
-        ...prev,
-        [selectedUser._id]: Date.now(),
-      }));
-
-      setMessage("");
-      setMedia(null);
-      setReplyingTo(null);
-      setMediaKind(null);
-      setShowEmojiPicker(false);
-
     } catch (error) {
       console.log(error);
-      toast.error("Private message failed");
-    } finally {
-      setSendingMessage(false);
+      toast.error("Private message failed to send");
+      setPrivateMessages((prev) => prev.filter((m) => m._id !== tempId));
     }
   };
   const handleSend = () => {
@@ -2093,9 +2117,10 @@ const handleLoadOlderMessages = () => {
     if (user?._id) {
       socket.emit("userOnline", user._id);
     }
+    socket.emit("getOnlineUsers");
 
     socket.on("onlineUsers", (ids) => {
-      setOnlineUsers(ids);
+      setOnlineUsers(ids || []);
     });
 
     return () => {
@@ -2109,6 +2134,16 @@ const handleLoadOlderMessages = () => {
   useEffect(() => {
     const handleReceiveGroupMsg = (msg) => {
       if (!msg) return;
+
+      const msgId = msg._id?.toString();
+      if (msgId) {
+        if (handledGroupMsgIdsRef.current.has(msgId)) return;
+        handledGroupMsgIdsRef.current.add(msgId);
+        if (handledGroupMsgIdsRef.current.size > 2000) {
+          handledGroupMsgIdsRef.current.clear();
+        }
+      }
+
       const gId = (msg.group?._id || msg.group || msg.groupId)?.toString();
       const currentUserId = userRef.current?._id?.toString();
       const senderId = (msg.sender?._id || msg.sender)?.toString();

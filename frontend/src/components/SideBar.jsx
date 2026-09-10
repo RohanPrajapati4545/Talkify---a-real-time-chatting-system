@@ -75,19 +75,38 @@ const SideBar = ({
 
   const longPressTimerRef = useRef(null);
   const isLongPressTriggeredRef = useRef(false);
+  const lastLongPressTimeRef = useRef(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const startPressTimer = (item, type) => {
     isLongPressTriggeredRef.current = false;
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
       isLongPressTriggeredRef.current = true;
-      if (navigator.vibrate) navigator.vibrate(45);
+      lastLongPressTimeRef.current = Date.now();
+      if (navigator.vibrate) {
+        try {
+          navigator.vibrate(45);
+        } catch (_) {}
+      }
       setSelectedItem({ type, id: item._id, data: item });
     }, 450);
   };
 
   const cancelPressTimer = () => {
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+  };
+
+  const handleTouchEnd = (e) => {
+    cancelPressTimer();
+    if (isLongPressTriggeredRef.current) {
+      if (e && e.cancelable) {
+        e.preventDefault();
+      }
+      setTimeout(() => {
+        isLongPressTriggeredRef.current = false;
+      }, 350);
+    }
   };
 
   useEffect(() => {
@@ -782,8 +801,35 @@ useEffect(() => {
     );
   };
 
+  const handleManualRefresh = async (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      socket.emit("getOnlineUsers");
+      if (user?._id) {
+        socket.emit("userOnline", user._id);
+      }
+      fetchPinnedChats();
+      fetchBlockedUsers();
+
+      if (activeTab === "calls") {
+        await fetchAllCallHistory();
+      } else {
+        await fetchList(debouncedTerm, 1, false);
+      }
+      toast.info("Refreshed", { autoClose: 1000, hideProgressBar: true });
+    } catch (err) {
+      console.error("Refresh failed:", err);
+    } finally {
+      setTimeout(() => {
+        setIsRefreshing(false);
+      }, 400);
+    }
+  };
+
   const handleRowClick = (item, type) => {
-    if (isLongPressTriggeredRef.current) {
+    if (isLongPressTriggeredRef.current || (Date.now() - lastLongPressTimeRef.current < 400)) {
       isLongPressTriggeredRef.current = false;
       return;
     }
@@ -816,25 +862,33 @@ useEffect(() => {
 
   return (
     <div className="cv-sidebar">
-      {selectedItem ? (
+      {/* WhatsApp Style Selection Top Action Bar (Absolute Overlay) */}
+      {selectedItem && (
         <div className="cv-sidebar-selection-bar">
           <div className="cv-selection-left">
             <button
               type="button"
-              className="cv-selection-action-btn"
+              className="cv-selection-close-btn"
               onClick={() => setSelectedItem(null)}
               title="Cancel selection"
             >
               <i className="fa-solid fa-arrow-left"></i>
             </button>
-            <span className="cv-selection-count">1</span>
+            <div className="cv-selection-info">
+              <span className="cv-selection-count">1</span>
+              <span className="cv-selection-name">
+                {selectedItem.type === "group"
+                  ? selectedItem.data?.groupName
+                  : selectedItem.data?.name}
+              </span>
+            </div>
           </div>
 
           <div className="cv-selection-actions">
             {/* Pin / Unpin */}
             <button
               type="button"
-              className="cv-selection-action-btn"
+              className={`cv-selection-action-btn ${isItemSelectedPinned ? "active" : ""}`}
               onClick={(e) => {
                 handleTogglePinChat(e, selectedItem.id, selectedItem.type);
                 setSelectedItem(null);
@@ -848,7 +902,7 @@ useEffect(() => {
             {selectedItem.type === "user" && (
               <button
                 type="button"
-                className="cv-selection-action-btn"
+                className={`cv-selection-action-btn ${isUserBlocked(selectedItem.id) ? "active" : ""}`}
                 onClick={handleSidebarBlockUser}
                 title={isUserBlocked(selectedItem.id) ? "Unblock User" : "Block User"}
               >
@@ -867,30 +921,30 @@ useEffect(() => {
             </button>
           </div>
         </div>
-      ) : (
-        <div className="cv-sidebar-top">
-          <div className="cv-menu-wrapper" ref={menuRef}>
-            {showMenu && (
-              <div className="cv-profile-menu">
-                <div
-                  className="cv-profile-item"
-                  onClick={() => {
-                    setShowMenu(false);
-                  }}
-                >
-                  <i className="fa-solid fa-user"></i>
-                  Profile
-                </div>
-
-                <div className="cv-profile-item danger" onClick={handleLogout}>
-                  <i className="fa-solid fa-right-from-bracket"></i>
-                  Logout
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
       )}
+
+      <div className="cv-sidebar-top">
+        <div className="cv-menu-wrapper" ref={menuRef}>
+          {showMenu && (
+            <div className="cv-profile-menu">
+              <div
+                className="cv-profile-item"
+                onClick={() => {
+                  setShowMenu(false);
+                }}
+              >
+                <i className="fa-solid fa-user"></i>
+                Profile
+              </div>
+
+              <div className="cv-profile-item danger" onClick={handleLogout}>
+                <i className="fa-solid fa-right-from-bracket"></i>
+                Logout
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {user && (
         <div
@@ -909,45 +963,57 @@ useEffect(() => {
         </div>
       )}
 
-      <div className="cv-dial">
-        <button
-          type="button"
-          className={activeTab === "groups" ? "active" : ""}
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveTab("groups");
-          }}
-        >
-          Groups
-          {totalGroupUnread > 0 && (
-            <span className="cv-dial-badge">
-              {totalGroupUnread > 99 ? "99+" : totalGroupUnread}
-            </span>
-          )}
-        </button>
+      <div className="cv-dial-row">
+        <div className="cv-dial">
+          <button
+            type="button"
+            className={activeTab === "groups" ? "active" : ""}
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab("groups");
+            }}
+          >
+            Groups
+            {totalGroupUnread > 0 && (
+              <span className="cv-dial-badge">
+                {totalGroupUnread > 99 ? "99+" : totalGroupUnread}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            className={activeTab === "chats" ? "active" : ""}
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab("chats");
+            }}
+          >
+            Chats
+            {totalUserUnread > 0 && (
+              <span className="cv-dial-badge">
+                {totalUserUnread > 99 ? "99+" : totalUserUnread}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            className={activeTab === "calls" ? "active" : ""}
+            onClick={handleCallsTabClick}
+          >
+            Calls
+          </button>
+        </div>
 
         <button
           type="button"
-          className={activeTab === "chats" ? "active" : ""}
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveTab("chats");
-          }}
+          className="cv-tab-refresh-btn"
+          onClick={handleManualRefresh}
+          title="Refresh section"
+          disabled={isRefreshing}
         >
-          Chats
-          {totalUserUnread > 0 && (
-            <span className="cv-dial-badge">
-              {totalUserUnread > 99 ? "99+" : totalUserUnread}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          className={activeTab === "calls" ? "active" : ""}
-          onClick={handleCallsTabClick}
-        >
-          Calls
+          <i className={`fa-solid fa-arrows-rotate ${isRefreshing ? "fa-spin" : ""}`}></i>
         </button>
       </div>
 
@@ -963,6 +1029,16 @@ useEffect(() => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          {searchTerm && (
+            <button
+              type="button"
+              className="cv-search-clear-btn"
+              onClick={() => setSearchTerm("")}
+              title="Clear search"
+            >
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+          )}
         </div>
       )}
 
@@ -1002,7 +1078,8 @@ useEffect(() => {
                     onMouseUp={cancelPressTimer}
                     onMouseLeave={cancelPressTimer}
                     onTouchStart={() => startPressTimer(group, "group")}
-                    onTouchEnd={cancelPressTimer}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={cancelPressTimer}
                     onTouchMove={cancelPressTimer}
                     onContextMenu={(e) => {
                       e.preventDefault();
@@ -1098,7 +1175,8 @@ useEffect(() => {
                   onMouseUp={cancelPressTimer}
                   onMouseLeave={cancelPressTimer}
                   onTouchStart={() => startPressTimer(u, "user")}
-                  onTouchEnd={cancelPressTimer}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchCancel={cancelPressTimer}
                   onTouchMove={cancelPressTimer}
                   onContextMenu={(e) => {
                     e.preventDefault();

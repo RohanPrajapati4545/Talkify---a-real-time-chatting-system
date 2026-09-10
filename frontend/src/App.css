@@ -361,16 +361,21 @@ body {
    WHATSAPP STYLE SELECTION ACTION BAR IN SIDEBAR
    ========================================================================== */
 .cv-sidebar-selection-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 54px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 8px 14px;
-  background: #0d1217;
-  border-bottom: 1px solid #1a2430;
-  min-height: 54px;
-  animation: cvFadeIn 0.2s ease;
-  position: relative;
-  z-index: 10;
+  background: #0b1016;
+  border-bottom: 1px solid #1e293b;
+  animation: cvFadeIn 0.15s ease;
+  z-index: 200;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
 }
 
 .cv-selection-left {
@@ -381,13 +386,14 @@ body {
   flex: 1;
 }
 
-.cv-selection-close-btn {
+.cv-selection-close-btn,
+.cv-selection-action-btn {
   background: transparent;
   border: none;
   color: #94a3b8;
   font-size: 15px;
   cursor: pointer;
-  padding: 6px 8px;
+  padding: 7px 9px;
   border-radius: 6px;
   transition: all 0.15s ease;
   display: flex;
@@ -395,9 +401,15 @@ body {
   justify-content: center;
 }
 
-.cv-selection-close-btn:hover {
+.cv-selection-close-btn:hover,
+.cv-selection-action-btn:hover {
   color: #ffffff;
   background: #1a2430;
+}
+
+.cv-selection-action-btn.danger:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
 }
 
 .cv-selection-info {
@@ -430,18 +442,95 @@ body {
   flex-shrink: 0;
 }
 
-.cv-selection-action-btn {
-  background: transparent;
-  border: none;
+/* ==========================================================================
+   DIAL ROW & TAB REFRESH BUTTON
+   ========================================================================== */
+.cv-dial-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 14px 8px;
+}
+
+.cv-dial-row .cv-dial {
+  flex: 1;
+  margin: 0 !important;
+}
+
+.cv-tab-refresh-btn {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 10px;
+  background: #121820;
+  border: 1px solid #1a2430;
   color: #94a3b8;
-  font-size: 15px;
-  cursor: pointer;
-  padding: 7px 9px;
-  border-radius: 6px;
-  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.cv-tab-refresh-btn:hover {
+  color: #00f5a0;
+  border-color: rgba(0, 245, 160, 0.4);
+  background: rgba(0, 245, 160, 0.08);
+  box-shadow: 0 0 12px rgba(0, 245, 160, 0.2);
+}
+
+.cv-tab-refresh-btn:active {
+  transform: scale(0.92);
+}
+
+.cv-search-clear-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cv-search-clear-btn:hover {
+  color: #f8fafc;
+}
+
+.cv-row.is-selected-item {
+  background: rgba(0, 245, 160, 0.1) !important;
+  border-left: 3px solid #00f5a0 !important;
+}
+
+.cv-row-select-check {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  background: #00f5a0;
+  color: #080b0e;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  border: 2px solid #0d1217;
+  box-shadow: 0 0 6px rgba(0, 245, 160, 0.8);
+  animation: cvPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cvPopIn {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
 }
 
 .cv-selection-action-btn:hover,
@@ -453,11 +542,6 @@ body {
 .cv-selection-action-btn.danger:hover {
   color: #ef4444;
   background: rgba(239, 68, 68, 0.12);
-}
-
-.cv-row.is-selected-item {
-  background: rgba(0, 245, 160, 0.09) !important;
-  border-left: 3px solid #00f5a0 !important;
 }
 
 .cv-row-select-check {
