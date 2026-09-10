@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Swal from "sweetalert2";
 import { logout } from "../pages/redux/AuthSlice";
 import Loader from "./Loader";
+import socket from "../socket/Socket";
 
 const Header = () => {
   const [showMenu, setShowMenu] = useState(false);
@@ -29,13 +30,21 @@ const Header = () => {
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
         setShowMenu(false);
+      }
+      if (
+        mobileNavRef.current &&
+        !mobileNavRef.current.contains(event.target) &&
+        !event.target.closest(".rb-mobile-toggle")
+      ) {
+        setShowMobileNav(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const goTo = (path) => {
@@ -61,6 +70,9 @@ const Header = () => {
     }).then((result) => {
       if (result.isConfirmed) {
         setLoading(true);
+        if (user?._id) {
+          socket.emit("userOffline", user._id);
+        }
         dispatch(logout());
         navigate("/");
         window.scrollTo({ top: 0, left: 0, behavior: "smooth" });

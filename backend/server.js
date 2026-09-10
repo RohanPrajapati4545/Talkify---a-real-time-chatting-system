@@ -120,8 +120,10 @@ io.on("connection", (socket) => {
   socket.on("userOffline", (userId) => {
     if (!userId) return;
     const uid = userId.toString();
-    removeOnlineUser(uid, socket.id);
+    console.log(" USER OFFLINE (LOGOUT):", `user_${uid}`, "socket:", socket.id);
+    onlineUsers.delete(uid);
     socket.userId = null;
+    socket.leave(`user_${uid}`);
     broadcastOnlineUsers();
   });
 

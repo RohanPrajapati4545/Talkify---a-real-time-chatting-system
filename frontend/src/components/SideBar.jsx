@@ -439,9 +439,14 @@ const SideBar = ({
       if (append) setLoadMoreLoading(true);
       else setLoading(true);
 
+      const params =
+        activeTab === "groups"
+          ? { search: term, page, limit: PAGE_LIMIT }
+          : { search: term, all: "true" };
+
       try {
         const { data } = await axios.get(url, {
-          params: { search: term, page, limit: PAGE_LIMIT },
+          params,
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -453,7 +458,7 @@ const SideBar = ({
         const items = activeTab === "groups" ? data.groups : data.users;
 
         setListResults((prev) => (append ? [...prev, ...(items || [])] : (items || [])));
-        setHasMore(Boolean(data.pagination?.hasMore));
+        setHasMore(activeTab === "groups" ? Boolean(data.pagination?.hasMore) : false);
         setListPage(page);
       } catch (err) {
         console.error("Fetch list failed:", err);
@@ -1149,17 +1154,6 @@ useEffect(() => {
                 </div>
               );
             })}
-
-            {hasMore && (
-              <button
-                type="button"
-                className="cv-load-more-btn"
-                onClick={handleLoadMore}
-                disabled={loadMoreLoading}
-              >
-                {loadMoreLoading ? "Loading..." : "Load more"}
-              </button>
-            )}
           </>
         ) : (
           <div className="cv-empty-list">

@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import AdminSideBar from "../../components/AdminSideBar";
 import AdminFooter from "./AdminFooter";
 import { logout } from "../redux/AuthSlice";
+import socket from "../../socket/Socket";
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(
@@ -70,6 +71,9 @@ const AdminLayout = () => {
       color: "#f8fafc",
     }).then((result) => {
       if (result.isConfirmed) {
+        if (user?._id) {
+          socket.emit("userOffline", user._id);
+        }
         dispatch(logout());
         navigate("/login");
       }

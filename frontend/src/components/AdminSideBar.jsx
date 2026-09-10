@@ -3,6 +3,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "./../pages/redux/AuthSlice";
 import { useDispatch, useSelector } from "react-redux";
 import Swal from "sweetalert2";
+import socket from "../socket/Socket";
 
 const AdminSideBar = ({ onClose }) => {
   const dispatch = useDispatch();
@@ -34,6 +35,9 @@ const AdminSideBar = ({ onClose }) => {
       color: "#f8fafc",
     }).then((result) => {
       if (result.isConfirmed) {
+        if (user?._id) {
+          socket.emit("userOffline", user._id);
+        }
         dispatch(logout());
         navigate("/login");
       }

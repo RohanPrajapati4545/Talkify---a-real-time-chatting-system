@@ -4,8 +4,9 @@ const Message = require("./../models/MessageSchema");
 
 const getAllUsers = async (req, res) => {
   try {
+    const isAll = req.query.all === "true" || req.query.limit === "0";
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = isAll ? 0 : parseInt(req.query.limit) || 10;
     const search = req.query.search?.trim() || "";
 
     const query = { _id: { $ne: req.user.id } };
@@ -19,19 +20,21 @@ const getAllUsers = async (req, res) => {
 
     const total = await User.countDocuments(query);
 
-    const users = await User.find(query, "name email image")
-      .sort({ name: 1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
+    let findQuery = User.find(query, "name email image").sort({ name: 1 });
+    if (!isAll && limit > 0) {
+      findQuery = findQuery.skip((page - 1) * limit).limit(limit);
+    }
+
+    const users = await findQuery;
 
     res.status(200).json({
       users,
       pagination: {
-        page,
-        limit,
+        page: isAll ? 1 : page,
+        limit: isAll ? total : limit,
         total,
-        totalPages: Math.ceil(total / limit),
-        hasMore: page * limit < total,
+        totalPages: isAll ? 1 : Math.ceil(total / limit),
+        hasMore: isAll ? false : page * limit < total,
       },
     });
   } catch (error) {
