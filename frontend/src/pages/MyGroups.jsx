@@ -42,12 +42,17 @@ const { siteName, siteLogoUrl } = useSelector((state) => state.brand);
   const [privateMessages, setPrivateMessages] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const selectedUserRef = useRef(null);
+  const selectedGroupRef = useRef(null);
+  const showUserInfoRef = useRef(false);
+  const showGroupInfoRef = useRef(false);
+  const showMediaRef = useRef(false);
+  const previewImageRef = useRef(null);
 
   const privateChatRef = useRef(null);
-  const [showUserInfo, setShowUserInfo] = useState(false)
+  const [showUserInfo, setShowUserInfo] = useState(false);
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const messagesEndRef = useRef(null);
   const [allUsers, setAllUsers] = useState([]);
   const [showGroupInfo, setShowGroupInfo] = useState(false);
@@ -55,6 +60,70 @@ const { siteName, siteLogoUrl } = useSelector((state) => state.brand);
   const dispatch = useDispatch();
   const [showMenu, setShowMenu] = useState(false);
   const [showMedia, setShowMedia] = useState(false);
+
+  useEffect(() => {
+    selectedUserRef.current = selectedUser;
+  }, [selectedUser]);
+
+  useEffect(() => {
+    selectedGroupRef.current = selectedGroup;
+  }, [selectedGroup]);
+
+  useEffect(() => {
+    showUserInfoRef.current = showUserInfo;
+  }, [showUserInfo]);
+
+  useEffect(() => {
+    showGroupInfoRef.current = showGroupInfo;
+  }, [showGroupInfo]);
+
+  useEffect(() => {
+    showMediaRef.current = showMedia;
+  }, [showMedia]);
+
+  useEffect(() => {
+    previewImageRef.current = previewImage;
+  }, [previewImage]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      // 1. If Image Preview is open, close preview
+      if (previewImageRef.current) {
+        setPreviewImage(null);
+        return;
+      }
+
+      // 2. If Media panel is open, close media
+      if (showMediaRef.current) {
+        setShowMedia(false);
+        return;
+      }
+
+      // 3. If User Info or Group Info is open, close info and stay in chat
+      if (showUserInfoRef.current || showGroupInfoRef.current) {
+        setShowUserInfo(false);
+        setShowGroupInfo(false);
+        return;
+      }
+
+      // 4. If Chat is open (mobile view), close active chat and return to sidebar list
+      if (selectedUserRef.current || selectedGroupRef.current) {
+        try {
+          localStorage.removeItem("talkify_active_chat_user");
+          localStorage.removeItem("talkify_active_chat_group");
+        } catch (err) {}
+        setSelectedUser(null);
+        setSelectedGroup(null);
+        setShowEmojiPicker(false);
+        return;
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
   const [groupLastActivity, setGroupLastActivity] = useState({});
   const [userLastActivity, setUserLastActivity] = useState({});
   const { token, user } = useSelector(
@@ -469,10 +538,10 @@ useEffect(() => {
     });
   }, [groups]);
 
-  const openPrivateChat = async (user) => {
-    if (!user) return;
+  const openPrivateChat = async (targetUser, pushHistory = true) => {
+    if (!targetUser) return;
     try {
-      localStorage.setItem("talkify_active_chat_user", JSON.stringify(user));
+      localStorage.setItem("talkify_active_chat_user", JSON.stringify(targetUser));
       localStorage.removeItem("talkify_active_chat_group");
     } catch (e) {}
 
@@ -480,13 +549,18 @@ useEffect(() => {
     setShowMedia(false);
     setPreviewImage(null);
     setShowEmojiPicker(false);
-    setSelectedUser(user);
+    setSelectedUser(targetUser);
     setSelectedGroup(null);
+
+    if (pushHistory) {
+      window.history.pushState({ talkifyView: "chat", type: "private", id: targetUser._id }, "");
+    }
+
     setActionLoading(true);
     try {
       const res = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/private/open-chat`,
-        { userId: user._id },
+        { userId: targetUser._id },
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -503,7 +577,7 @@ useEffect(() => {
 
       setUnreadCounts((prev) => ({
         ...prev,
-        users: { ...prev.users, [user._id]: 0 },
+        users: { ...prev.users, [targetUser._id]: 0 },
       }));
 
     } catch (err) {
@@ -513,7 +587,7 @@ useEffect(() => {
     }
   };
 
-  const openGroupChat = (group) => {
+  const openGroupChat = (group, pushHistory = true) => {
     if (!group) return;
     try {
       localStorage.setItem("talkify_active_chat_group", JSON.stringify(group));
@@ -526,6 +600,10 @@ useEffect(() => {
     setShowEmojiPicker(false);
     setSelectedGroup(group);
     setSelectedUser(null);
+
+    if (pushHistory) {
+      window.history.pushState({ talkifyView: "chat", type: "group", id: group._id }, "");
+    }
 
     setUnreadCounts((prev) => ({
       ...prev,
@@ -1151,11 +1229,6 @@ const handleLeaveGroup = () => {
     }
   });
 };
-const selectedGroupRef = useRef(null);
-
-useEffect(() => {
-  selectedGroupRef.current = selectedGroup;
-}, [selectedGroup]);
 useEffect(() => {
   socket.on("groupMemberLeft", ({ groupId, userId, newCreatedBy, group }) => {
     // update the group's members/admin everywhere it's referenced
@@ -2217,11 +2290,20 @@ const handleLoadOlderMessages = () => {
 
   const chatOpen = Boolean(selectedGroup || selectedUser);
 
-  const goBackToList = () => {
+  const goBackToList = (e) => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
+
+    if (window.history.state && window.history.state.talkifyView) {
+      window.history.back();
+      return;
+    }
+
     try {
       localStorage.removeItem("talkify_active_chat_user");
       localStorage.removeItem("talkify_active_chat_group");
-    } catch (e) {}
+    } catch (err) {}
 
     setSelectedGroup(null);
     setSelectedUser(null);
@@ -2232,6 +2314,37 @@ const handleLoadOlderMessages = () => {
     setShowEmojiPicker(false);
   };
 
+  const openUserInfoView = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setShowUserInfo(true);
+    window.history.pushState({ talkifyView: "user-info" }, "");
+  };
+
+  const openGroupInfoView = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setShowGroupInfo(true);
+    window.history.pushState({ talkifyView: "group-info" }, "");
+  };
+
+  const openMediaView = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setShowMedia((prev) => {
+      const next = !prev;
+      if (next) {
+        window.history.pushState({ talkifyView: "media" }, "");
+      }
+      return next;
+    });
+  };
+
+  const openPreviewImageView = (imgUrl, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setPreviewImage(imgUrl);
+    if (imgUrl) {
+      window.history.pushState({ talkifyView: "preview" }, "");
+    }
+  };
+
   useEffect(() => {
     try {
       const savedUserStr = localStorage.getItem("talkify_active_chat_user");
@@ -2239,12 +2352,12 @@ const handleLoadOlderMessages = () => {
       if (savedUserStr) {
         const savedUser = JSON.parse(savedUserStr);
         if (savedUser && savedUser._id) {
-          openPrivateChat(savedUser);
+          openPrivateChat(savedUser, true);
         }
       } else if (savedGroupStr) {
         const savedGroup = JSON.parse(savedGroupStr);
         if (savedGroup && savedGroup._id) {
-          openGroupChat(savedGroup);
+          openGroupChat(savedGroup, true);
         }
       }
     } catch (e) {
@@ -2732,7 +2845,7 @@ useEffect(() => {
                     <div className="cv-actions">
                       <div
                         className="cv-action"
-                        onClick={() => setShowMedia(!showMedia)}
+                        onClick={openMediaView}
                       >
                         <div className="cv-action-circle">
                           <i className="fa-solid fa-images"></i>
@@ -2787,8 +2900,8 @@ useEffect(() => {
                                     <img
                                       src={msg.media}
                                       alt=""
-                                      onClick={() =>
-                                        setPreviewImage(msg.media)
+                                      onClick={(e) =>
+                                        openPreviewImageView(msg.media, e)
                                       }
                                     />
 
@@ -2824,11 +2937,14 @@ useEffect(() => {
                 
                     <div className="cv-thread-header">
 
-                      <div className="cv-thread-id" onClick={() => setShowUserInfo(true)}>
+                      <div className="cv-thread-id" onClick={openUserInfoView}>
 
                         <i
                           className="fa-solid fa-arrow-left d-md-none cv-back-btn"
-                          onClick={goBackToList}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            goBackToList(e);
+                          }}
                         ></i>
 
                         <div className="cv-avatar-wrap">
@@ -2877,7 +2993,7 @@ useEffect(() => {
                         <i className="fa-solid fa-video" onClick={() => triggerCall(selectedUser, "video")}></i>
                         <i
                           className="fa-solid fa-circle-info"
-                          onClick={() => setShowUserInfo(true)}
+                          onClick={openUserInfoView}
                         ></i>
                       </div>
 
@@ -3278,7 +3394,10 @@ useEffect(() => {
                   <div className="cv-info-header">
                     <i
                       className="fa-solid fa-arrow-left d-md-none cv-back-btn"
-                      onClick={goBackToList}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        goBackToList(e);
+                      }}
                     ></i>
                     <h5>Group Info</h5>
                     <i className="fa-solid fa-xmark" onClick={() => setShowGroupInfo(false)}></i>
@@ -3290,8 +3409,8 @@ useEffect(() => {
                       src={selectedGroup.groupImage}
                       alt=""
                       className="cv-info-avatar"
-                      onClick={() =>
-                        setPreviewImage(selectedGroup.groupImage)
+                      onClick={(e) =>
+                        openPreviewImageView(selectedGroup.groupImage, e)
                       }
                     />
 
@@ -3323,7 +3442,7 @@ useEffect(() => {
                       </div>
                     )}
 
-                    <div className="cv-action" onClick={() => setShowMedia(!showMedia)}>
+                    <div className="cv-action" onClick={openMediaView}>
                       <div className="cv-action-circle">
                         <i className="fa-solid fa-images"></i>
                       </div>
@@ -3574,13 +3693,13 @@ useEffect(() => {
 
                   <div className="cv-thread-header">
 
-                    <div className="cv-thread-id" onClick={() => setShowGroupInfo(true)}>
+                    <div className="cv-thread-id" onClick={openGroupInfoView}>
 
                       <i
                         className="fa-solid fa-arrow-left d-md-none cv-back-btn"
                         onClick={(e) => {
                           e.stopPropagation();
-                          goBackToList();
+                          goBackToList(e);
                         }}
                       ></i>
 
@@ -3609,7 +3728,7 @@ useEffect(() => {
                       ></i>
                       <i className="fa-solid fa-phone" onClick={() => triggerGroupCall(selectedGroup, "audio")}></i>
                       <i className="fa-solid fa-video" onClick={() => triggerGroupCall(selectedGroup, "video")}></i>
-                      <i className="fa-solid fa-circle-info" onClick={() => setShowGroupInfo(true)}></i>
+                      <i className="fa-solid fa-circle-info" onClick={openGroupInfoView}></i>
                     </div>
 
                   </div>
