@@ -2521,21 +2521,39 @@ useEffect(() => {
     selectedUser && privateTypingStatus[selectedUser._id]
   );
   useEffect(() => {
-    const vv = window.visualViewport;
+    document.documentElement.classList.add("cv-chat-active");
+    document.body.classList.add("cv-chat-active");
 
-    const setVH = () => {
-      const height = vv ? vv.height : window.innerHeight;
+    const updateAppHeight = () => {
+      const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      document.documentElement.style.setProperty("--app-height", `${height}px`);
       document.documentElement.style.setProperty("--vh", `${height * 0.01}px`);
+
+      // Prevent mobile browser from auto-scrolling window when virtual keyboard opens
+      if (window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
     };
 
-    setVH();
+    updateAppHeight();
 
-    vv?.addEventListener("resize", setVH);
-    window.addEventListener("resize", setVH);
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", updateAppHeight);
+      vv.addEventListener("scroll", updateAppHeight);
+    }
+    window.addEventListener("resize", updateAppHeight);
+    window.addEventListener("scroll", updateAppHeight);
 
     return () => {
-      vv?.removeEventListener("resize", setVH);
-      window.removeEventListener("resize", setVH);
+      document.documentElement.classList.remove("cv-chat-active");
+      document.body.classList.remove("cv-chat-active");
+      if (vv) {
+        vv.removeEventListener("resize", updateAppHeight);
+        vv.removeEventListener("scroll", updateAppHeight);
+      }
+      window.removeEventListener("resize", updateAppHeight);
+      window.removeEventListener("scroll", updateAppHeight);
     };
   }, []);
 
@@ -2612,10 +2630,6 @@ useEffect(() => {
     }
   };
 
-  useEffect(() => {
-    document.body.classList.add("cv-chat-active");
-    return () => document.body.classList.remove("cv-chat-active");
-  }, []);
 
   return (<>
 

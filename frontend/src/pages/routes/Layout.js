@@ -9,7 +9,16 @@ const Layout = ({ children }) => {
   const isChatRoute = location.pathname === '/chat' || location.pathname.startsWith('/chat/');
 
   return (
-    <div className="d-flex flex-column min-vh-100 position-relative" style={{ minHeight: '100vh', background: '#080b0e' }}>
+    <div
+      className={`d-flex flex-column position-relative ${isChatRoute ? 'cv-layout-chat' : 'min-vh-100'}`}
+      style={{
+        minHeight: isChatRoute ? 'var(--app-height, 100dvh)' : '100vh',
+        height: isChatRoute ? 'var(--app-height, 100dvh)' : 'auto',
+        maxHeight: isChatRoute ? 'var(--app-height, 100dvh)' : 'none',
+        overflow: isChatRoute ? 'hidden' : 'visible',
+        background: '#080b0e'
+      }}
+    >
       {/* Global Background Particles matching Talkify Emerald & Cyan theme */}
       <div
         className="global-particles-wrapper"
@@ -45,9 +54,10 @@ const Layout = ({ children }) => {
           display: 'flex',
           flexDirection: 'column',
           flexGrow: 1,
-          height: isChatRoute ? '100vh' : 'auto',
-          maxHeight: isChatRoute ? '100vh' : 'none',
-          overflow: isChatRoute ? 'hidden' : 'visible'
+          height: isChatRoute ? '100%' : 'auto',
+          maxHeight: isChatRoute ? '100%' : 'none',
+          overflow: isChatRoute ? 'hidden' : 'visible',
+          minHeight: 0
         }}
       >
         <Header />
@@ -58,7 +68,8 @@ const Layout = ({ children }) => {
             display: 'flex',
             flexDirection: 'column',
             minHeight: 0,
-            height: isChatRoute ? 'calc(100% - 64px)' : 'auto',
+            height: isChatRoute ? '100%' : 'auto',
+            flex: isChatRoute ? '1 1 0' : 'initial',
             overflow: isChatRoute ? 'hidden' : 'visible'
           }}
         >
