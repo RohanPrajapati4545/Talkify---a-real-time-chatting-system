@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import socket from "../socket/Socket"; 
+import Swal from "sweetalert2";
+import { toast } from "react-toastify";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL;
 
@@ -43,6 +45,50 @@ const SideBar = ({
 
   const [showFabMenu, setShowFabMenu] = useState(false);
   const fabMenuRef = useRef(null);
+
+  const [selectedItem, setSelectedItem] = useState(null); // { type: "group" | "user", id: string, data: object }
+  const [blockedUsers, setBlockedUsers] = useState([]);
+
+  const fetchBlockedUsers = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/users/blocked-users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (Array.isArray(res.data)) {
+        setBlockedUsers(res.data.map((u) => u._id || u));
+      }
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    fetchBlockedUsers();
+  }, [fetchBlockedUsers]);
+
+  const isUserBlocked = (id) => blockedUsers.includes(id);
+
+  // Clear selection on tab switch
+  useEffect(() => {
+    setSelectedItem(null);
+  }, [activeTab]);
+
+  const longPressTimerRef = useRef(null);
+  const isLongPressTriggeredRef = useRef(false);
+
+  const startPressTimer = (item, type) => {
+    isLongPressTriggeredRef.current = false;
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressTriggeredRef.current = true;
+      if (navigator.vibrate) navigator.vibrate(45);
+      setSelectedItem({ type, id: item._id, data: item });
+    }, 450);
+  };
+
+  const cancelPressTimer = () => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+  };
 
   useEffect(() => {
     const handleClickOutsideFab = (e) => {
@@ -107,7 +153,7 @@ const SideBar = ({
   }, [fetchPinnedChats]);
 
   const handleTogglePinChat = async (e, chatId, chatType) => {
-    e.stopPropagation();
+    if (e && e.stopPropagation) e.stopPropagation();
     const token = localStorage.getItem("token");
     if (!token) return;
 
@@ -135,6 +181,121 @@ const SideBar = ({
     } catch (err) {
       console.error("Toggle pin chat error:", err);
       fetchPinnedChats();
+    }
+  };
+
+  const isItemSelectedPinned = useMemo(() => {
+    if (!selectedItem) return false;
+    return pinnedChats.some(
+      (p) => p.chatId.toString() === selectedItem.id.toString() && p.chatType === selectedItem.type
+    );
+  }, [selectedItem, pinnedChats]);
+
+  const handleSidebarBlockUser = async () => {
+    if (!selectedItem || selectedItem.type !== "user") return;
+    const targetUser = selectedItem.data;
+    const blocked = isUserBlocked(targetUser._id);
+
+    Swal.fire({
+      title: blocked ? "Unblock User?" : "Block User?",
+      text: blocked
+        ? "You will start receiving messages from this user again."
+        : "You won't receive messages from this user anymore.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#10b981",
+      confirmButtonText: blocked ? "Unblock" : "Block",
+      background: "#0e1326",
+      color: "#f8fafc",
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+      try {
+        const token = localStorage.getItem("token");
+        const url = blocked
+          ? `${API_BASE_URL}/api/users/unblock/${targetUser._id}`
+          : `${API_BASE_URL}/api/users/block/${targetUser._id}`;
+        await axios.put(url, {}, { headers: { Authorization: `Bearer ${token}` } });
+        setBlockedUsers((prev) =>
+          blocked ? prev.filter((id) => id !== targetUser._id) : [...prev, targetUser._id]
+        );
+        toast.success(blocked ? "User unblocked" : "User blocked");
+        setSelectedItem(null);
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to update block status");
+      }
+    });
+  };
+
+  const handleSidebarDeleteChat = async () => {
+    if (!selectedItem) return;
+    const token = localStorage.getItem("token");
+
+    if (selectedItem.type === "user") {
+      const targetUser = selectedItem.data;
+      const chatId = privateChatMap?.[targetUser._id];
+
+      Swal.fire({
+        title: "Delete Chat?",
+        text: "Are you sure you want to delete this chat history? This action cannot be undone.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#ef4444",
+        confirmButtonText: "Delete",
+        background: "#0e1326",
+        color: "#f8fafc",
+      }).then(async (result) => {
+        if (!result.isConfirmed) return;
+        try {
+          if (chatId) {
+            await axios.delete(`${API_BASE_URL}/api/private/delete-chat/${chatId}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+          }
+          toast.success("Chat deleted");
+          fetchList(debouncedTerm, 1, false);
+          setSelectedItem(null);
+        } catch (err) {
+          toast.error(err.response?.data?.message || "Failed to delete chat");
+        }
+      });
+    } else {
+      // Group
+      const group = selectedItem.data;
+      const isCreator = (group.createdBy?._id || group.createdBy)?.toString() === user?._id?.toString();
+
+      Swal.fire({
+        title: isCreator ? "Delete Group?" : "Leave Group?",
+        text: isCreator
+          ? "Are you sure you want to permanently delete this group?"
+          : "Are you sure you want to leave this group?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#ef4444",
+        confirmButtonText: isCreator ? "Delete Group" : "Leave Group",
+        background: "#0e1326",
+        color: "#f8fafc",
+      }).then(async (result) => {
+        if (!result.isConfirmed) return;
+        try {
+          if (isCreator) {
+            await axios.delete(`${API_BASE_URL}/api/user/delete-group/${group._id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            toast.success("Group deleted");
+          } else {
+            await axios.put(
+              `${API_BASE_URL}/api/users/leave-group`,
+              { groupId: group._id },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success("You left the group");
+          }
+          fetchList(debouncedTerm, 1, false);
+          setSelectedItem(null);
+        } catch (err) {
+          toast.error(err.response?.data?.message || "Failed action on group");
+        }
+      });
     }
   };
 
@@ -557,30 +718,115 @@ useEffect(() => {
     );
   };
 
+  const handleRowClick = (item, type) => {
+    if (isLongPressTriggeredRef.current) {
+      isLongPressTriggeredRef.current = false;
+      return;
+    }
+
+    if (selectedItem) {
+      if (selectedItem.id.toString() === item._id.toString() && selectedItem.type === type) {
+        setSelectedItem(null);
+      } else {
+        setSelectedItem({ type, id: item._id, data: item });
+      }
+      return;
+    }
+
+    if (type === "group") {
+      if (onSelectGroup) {
+        onSelectGroup(item);
+      } else {
+        setShowGroupInfo?.(false);
+        setShowMedia?.(false);
+        setPreviewImage?.(null);
+        setSelectedGroup?.(item);
+        setSelectedUser?.(null);
+      }
+    } else if (type === "user") {
+      if (openPrivateChat) {
+        openPrivateChat(item);
+      }
+    }
+  };
+
   return (
     <div className="cv-sidebar">
-      <div className="cv-sidebar-top">
-        <div className="cv-menu-wrapper" ref={menuRef}>
-          {showMenu && (
-            <div className="cv-profile-menu">
-              <div
-                className="cv-profile-item"
-                onClick={() => {
-                  setShowMenu(false);
-                }}
-              >
-                <i className="fa-solid fa-user"></i>
-                Profile
-              </div>
+      {selectedItem ? (
+        <div className="cv-sidebar-selection-bar">
+          <div className="cv-selection-left">
+            <button
+              type="button"
+              className="cv-selection-action-btn"
+              onClick={() => setSelectedItem(null)}
+              title="Cancel selection"
+            >
+              <i className="fa-solid fa-arrow-left"></i>
+            </button>
+            <span className="cv-selection-count">1</span>
+          </div>
 
-              <div className="cv-profile-item danger" onClick={handleLogout}>
-                <i className="fa-solid fa-right-from-bracket"></i>
-                Logout
-              </div>
-            </div>
-          )}
+          <div className="cv-selection-actions">
+            {/* Pin / Unpin */}
+            <button
+              type="button"
+              className="cv-selection-action-btn"
+              onClick={(e) => {
+                handleTogglePinChat(e, selectedItem.id, selectedItem.type);
+                setSelectedItem(null);
+              }}
+              title={isItemSelectedPinned ? "Unpin chat" : "Pin chat"}
+            >
+              <i className={`fa-solid ${isItemSelectedPinned ? "fa-thumbtack-slash" : "fa-thumbtack"}`}></i>
+            </button>
+
+            {/* Block / Unblock (user chats only) */}
+            {selectedItem.type === "user" && (
+              <button
+                type="button"
+                className="cv-selection-action-btn"
+                onClick={handleSidebarBlockUser}
+                title={isUserBlocked(selectedItem.id) ? "Unblock User" : "Block User"}
+              >
+                <i className={`fa-solid ${isUserBlocked(selectedItem.id) ? "fa-unlock" : "fa-ban"}`}></i>
+              </button>
+            )}
+
+            {/* Delete / Leave */}
+            <button
+              type="button"
+              className="cv-selection-action-btn danger"
+              onClick={handleSidebarDeleteChat}
+              title={selectedItem.type === "group" ? "Delete / Leave Group" : "Delete Chat"}
+            >
+              <i className="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="cv-sidebar-top">
+          <div className="cv-menu-wrapper" ref={menuRef}>
+            {showMenu && (
+              <div className="cv-profile-menu">
+                <div
+                  className="cv-profile-item"
+                  onClick={() => {
+                    setShowMenu(false);
+                  }}
+                >
+                  <i className="fa-solid fa-user"></i>
+                  Profile
+                </div>
+
+                <div className="cv-profile-item danger" onClick={handleLogout}>
+                  <i className="fa-solid fa-right-from-bracket"></i>
+                  Logout
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {user && (
         <div
@@ -679,28 +925,38 @@ useEffect(() => {
                 const isPinned = pinnedChats.some(
                   (p) => p.chatId.toString() === group._id.toString() && p.chatType === "group"
                 );
+                const isSelected =
+                  selectedItem?.id?.toString() === group._id.toString() &&
+                  selectedItem?.type === "group";
 
                 return (
                   <div
                     key={group._id}
-                    className={`cv-row ${isPinned ? "is-pinned-row" : ""}`}
-                    onClick={() => {
-                      if (onSelectGroup) {
-                        onSelectGroup(group);
-                      } else {
-                        setShowGroupInfo(false);
-                        setShowMedia(false);
-                        setPreviewImage(null);
-                        setSelectedGroup(group);
-                        setSelectedUser(null);
-                      }
+                    className={`cv-row ${isPinned ? "is-pinned-row" : ""} ${isSelected ? "is-selected-item" : ""}`}
+                    onClick={() => handleRowClick(group, "group")}
+                    onMouseDown={() => startPressTimer(group, "group")}
+                    onMouseUp={cancelPressTimer}
+                    onMouseLeave={cancelPressTimer}
+                    onTouchStart={() => startPressTimer(group, "group")}
+                    onTouchEnd={cancelPressTimer}
+                    onTouchMove={cancelPressTimer}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setSelectedItem({ type: "group", id: group._id, data: group });
                     }}
                   >
-                    <img
-                      src={group.groupImage}
-                      className="cv-row-avatar"
-                      alt=""
-                    />
+                    <div className="cv-avatar-wrap">
+                      <img
+                        src={group.groupImage}
+                        className="cv-row-avatar"
+                        alt=""
+                      />
+                      {isSelected && (
+                        <span className="cv-row-select-check">
+                          <i className="fa-solid fa-circle-check"></i>
+                        </span>
+                      )}
+                    </div>
 
                     <div className="flex-grow-1">
                       <div className="cv-row-name">{group.groupName}</div>
@@ -765,17 +1021,36 @@ useEffect(() => {
               const isPinned = pinnedChats.some(
                 (p) => p.chatId.toString() === u._id.toString() && p.chatType === "user"
               );
+              const isSelected =
+                selectedItem?.id?.toString() === u._id.toString() &&
+                selectedItem?.type === "user";
 
               return (
                 <div
                   key={u._id}
-                  className={`cv-row ${isPinned ? "is-pinned-row" : ""}`}
-                  onClick={() => openPrivateChat(u)}
+                  className={`cv-row ${isPinned ? "is-pinned-row" : ""} ${isSelected ? "is-selected-item" : ""}`}
+                  onClick={() => handleRowClick(u, "user")}
+                  onMouseDown={() => startPressTimer(u, "user")}
+                  onMouseUp={cancelPressTimer}
+                  onMouseLeave={cancelPressTimer}
+                  onTouchStart={() => startPressTimer(u, "user")}
+                  onTouchEnd={cancelPressTimer}
+                  onTouchMove={cancelPressTimer}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setSelectedItem({ type: "user", id: u._id, data: u });
+                  }}
                 >
                   <div className="cv-avatar-wrap">
                     <img src={u.image} className="cv-row-avatar" alt="" />
-                    {isOnline && isOnline(u._id) && (
-                      <span className="cv-online-dot"></span>
+                    {isSelected ? (
+                      <span className="cv-row-select-check">
+                        <i className="fa-solid fa-circle-check"></i>
+                      </span>
+                    ) : (
+                      isOnline && isOnline(u._id) && (
+                        <span className="cv-online-dot"></span>
+                      )
                     )}
                   </div>
 

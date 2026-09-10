@@ -314,20 +314,173 @@ body {
 }
 
 @media (max-width: 768px) {
+  .cv-auth-page {
+    padding: 12px 14px 24px 14px !important;
+    min-height: calc(100vh - 64px) !important;
+    min-height: calc(100dvh - 64px) !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    background: #080b0e !important;
+  }
 
   .cv-auth-box,
   .cv-auth-box-tall {
-    grid-template-columns: 1fr;
-    min-height: auto;
+    grid-template-columns: 1fr !important;
+    min-height: auto !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    margin: 0 !important;
   }
 
   .cv-auth-right {
-    display: none;
+    display: none !important;
   }
 
   .cv-auth-left {
-    padding: 34px 24px;
+    padding: 10px 4px 30px 4px !important;
+    background: transparent !important;
+    width: 100% !important;
+    flex: 1 1 auto !important;
+    justify-content: flex-start !important;
   }
+
+  .cv-auth-title {
+    font-size: 26px !important;
+    margin-top: 4px !important;
+  }
+}
+
+/* ==========================================================================
+   WHATSAPP STYLE SELECTION ACTION BAR IN SIDEBAR
+   ========================================================================== */
+.cv-sidebar-selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #0d1217;
+  border-bottom: 1px solid #1a2430;
+  min-height: 54px;
+  animation: cvFadeIn 0.2s ease;
+  position: relative;
+  z-index: 10;
+}
+
+.cv-selection-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cv-selection-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cv-selection-close-btn:hover {
+  color: #ffffff;
+  background: #1a2430;
+}
+
+.cv-selection-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cv-selection-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: #00f5a0;
+}
+
+.cv-selection-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+}
+
+.cv-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.cv-selection-action-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 7px 9px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cv-selection-action-btn:hover,
+.cv-selection-action-btn.active {
+  color: #00f5a0;
+  background: rgba(0, 245, 160, 0.12);
+}
+
+.cv-selection-action-btn.danger:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.cv-row.is-selected-item {
+  background: rgba(0, 245, 160, 0.09) !important;
+  border-left: 3px solid #00f5a0 !important;
+}
+
+.cv-row-select-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #00f5a0;
+  color: #080b0e;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.cv-row-pinned-indicator {
+  color: #00f5a0 !important;
+  font-size: 13px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
 }
 
 .cv-forward-preview {
