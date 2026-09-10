@@ -2274,6 +2274,8 @@ const handleLoadOlderMessages = () => {
     }
   }, [privateMessages, selectedUser, privateCallLogs]);
 
+  const chatOpen = Boolean(selectedGroup || selectedUser);
+
   const scrollToBottom = useCallback((smooth = false) => {
     const pContainer = privateMessagesRef.current;
     if (pContainer) {
@@ -2451,8 +2453,6 @@ const handleLoadOlderMessages = () => {
       d1.getFullYear() !== d2.getFullYear()
     );
   };
-
-  const chatOpen = Boolean(selectedGroup || selectedUser);
 
   const goBackToList = (e) => {
     if (e && e.stopPropagation) {
