@@ -251,6 +251,22 @@ const privateMessagesScrollAnchorRef = useRef(null);
   const [privateChatMap, setPrivateChatMap] = useState({});
   const [memberSearchTerm, setMemberSearchTerm] = useState("");
   const membersSectionRef = useRef(null);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const headerMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(e.target)) {
+        setShowHeaderMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("touchstart", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+    };
+  }, []);
 
   const isOnline = useCallback(
     (userId) => {
@@ -3184,7 +3200,7 @@ useEffect(() => {
                           )}
                         </div>
 
-                        <div>
+                        <div className="cv-thread-user-meta">
                           <h5>{selectedUser.name}</h5>
                           <div className="cv-thread-status">
                             {isPrivateUserTyping ? (
@@ -3204,17 +3220,54 @@ useEffect(() => {
                       </div>
 
                       <div className="cv-thread-actions">
-                        <i
-                          className="fa-solid fa-magnifying-glass"
-                          onClick={() => setShowMsgSearch((prev) => !prev)}
-                          title="Search messages"
-                        ></i>
-                        <i className="fa-solid fa-phone" onClick={() => triggerCall(selectedUser, "audio")}></i>
-                        <i className="fa-solid fa-video" onClick={() => triggerCall(selectedUser, "video")}></i>
-                        <i
-                          className="fa-solid fa-circle-info"
-                          onClick={openUserInfoView}
-                        ></i>
+                        <button
+                          type="button"
+                          className="cv-header-action-btn"
+                          onClick={() => triggerCall(selectedUser, "video")}
+                          title="Video call"
+                        >
+                          <i className="fa-solid fa-video"></i>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="cv-header-action-btn"
+                          onClick={() => triggerCall(selectedUser, "audio")}
+                          title="Voice call"
+                        >
+                          <i className="fa-solid fa-phone"></i>
+                        </button>
+
+                        <div className="cv-header-menu-wrap" ref={headerMenuRef}>
+                          <button
+                            type="button"
+                            className="cv-header-action-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowHeaderMenu((prev) => !prev);
+                            }}
+                            title="More options"
+                          >
+                            <i className="fa-solid fa-ellipsis-vertical"></i>
+                          </button>
+
+                          {showHeaderMenu && (
+                            <div className="cv-header-dropdown" onClick={(e) => e.stopPropagation()}>
+                              <div onClick={() => { setShowHeaderMenu(false); openUserInfoView(); }}>
+                                <i className="fa-solid fa-user me-2"></i>View contact
+                              </div>
+                              <div onClick={() => { setShowHeaderMenu(false); setShowMsgSearch(true); }}>
+                                <i className="fa-solid fa-magnifying-glass me-2"></i>Search
+                              </div>
+                              <div onClick={() => { setShowHeaderMenu(false); openUserInfoView(); setShowMedia(true); }}>
+                                <i className="fa-solid fa-images me-2"></i>Media, links, and docs
+                              </div>
+                              <div onClick={() => { setShowHeaderMenu(false); handleDeleteChat(); }} className="text-danger">
+                                <i className="fa-solid fa-trash-can me-2"></i>Delete chat
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                     </div>
@@ -3515,83 +3568,89 @@ useEffect(() => {
                     ) : (
                       <div className="cv-composer">
 
-                        <div
-                          className="cv-attach"
-                          onClick={() => document.getElementById("privateMediaInput").click()}
-                        >
-                          <i className="fa-solid fa-images"></i>
-                        </div>
-
-                        <input
-                          id="privateMediaInput"
-                          type="file"
-                          hidden
-                          accept="image/*,video/*"
-                          onChange={handleMediaUpload}
-                        />
-
-                        <div
-                          ref={emojiPickerRef}
-                          style={{ position: "relative", display: "flex", alignItems: "center" }}
-                        >
+                        <div className="cv-composer-input-pill">
                           <div
-                            className="cv-attach"
-                            onClick={() => setShowEmojiPicker((prev) => !prev)}
+                            ref={emojiPickerRef}
+                            style={{ position: "relative", display: "flex", alignItems: "center" }}
                           >
-                            <i className="fa-solid fa-face-smile"></i>
+                            <button
+                              type="button"
+                              className="cv-composer-icon-btn"
+                              onClick={() => setShowEmojiPicker((prev) => !prev)}
+                              title="Emoji"
+                            >
+                              <i className="fa-regular fa-face-smile"></i>
+                            </button>
+
+                            {showEmojiPicker && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  bottom: "48px",
+                                  left: 0,
+                                  width: "260px",
+                                  maxHeight: "220px",
+                                  overflowY: "auto",
+                                  background: "#121820",
+                                  border: "1px solid #1a2430",
+                                  borderRadius: "12px",
+                                  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                                  padding: "8px",
+                                  display: "grid",
+                                  gridTemplateColumns: "repeat(7, 1fr)",
+                                  gap: "4px",
+                                  zIndex: 50,
+                                }}
+                              >
+                                {EMOJI_LIST.map((emoji, i) => (
+                                  <span
+                                    key={i}
+                                    onClick={() => appendEmoji(emoji)}
+                                    style={{
+                                      fontSize: "20px",
+                                      cursor: "pointer",
+                                      textAlign: "center",
+                                      lineHeight: "28px",
+                                      borderRadius: "6px",
+                                    }}
+                                    onMouseDown={(e) => e.preventDefault()}
+                                  >
+                                    {emoji}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
 
-                          {showEmojiPicker && (
-                            <div
-                              style={{
-                                position: "absolute",
-                                bottom: "48px",
-                                left: 0,
-                                width: "260px",
-                                maxHeight: "220px",
-                                overflowY: "auto",
-                                background: "#fff",
-                                border: "1px solid #e0e0e0",
-                                borderRadius: "10px",
-                                boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-                                padding: "8px",
-                                display: "grid",
-                                gridTemplateColumns: "repeat(7, 1fr)",
-                                gap: "4px",
-                                zIndex: 20,
-                              }}
-                            >
-                              {EMOJI_LIST.map((emoji, i) => (
-                                <span
-                                  key={i}
-                                  onClick={() => appendEmoji(emoji)}
-                                  style={{
-                                    fontSize: "20px",
-                                    cursor: "pointer",
-                                    textAlign: "center",
-                                    lineHeight: "28px",
-                                    borderRadius: "6px",
-                                  }}
-                                  onMouseDown={(e) => e.preventDefault()}
-                                >
-                                  {emoji}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                          <input
+                            type="text"
+                            placeholder="Message"
+                            value={message}
+                            onChange={(e) => handlePrivateTyping(e.target.value)}
+                            onFocus={handleInputFocus}
+                            onClick={handleInputFocus}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleSend();
+                            }}
+                          />
 
-                        <input
-                          type="text"
-                          placeholder="Write a message…"
-                          value={message}
-                          onChange={(e) => handlePrivateTyping(e.target.value)}
-                          onFocus={handleInputFocus}
-                          onClick={handleInputFocus}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleSend();
-                          }}
-                        />
+                          <button
+                            type="button"
+                            className="cv-composer-icon-btn"
+                            onClick={() => document.getElementById("privateMediaInput").click()}
+                            title="Attach media"
+                          >
+                            <i className="fa-solid fa-paperclip"></i>
+                          </button>
+
+                          <input
+                            id="privateMediaInput"
+                            type="file"
+                            hidden
+                            accept="image/*,video/*"
+                            onChange={handleMediaUpload}
+                          />
+                        </div>
 
                         <button
                           type="button"
@@ -3607,13 +3666,14 @@ useEffect(() => {
                                   : startRecording
                           }
                           disabled={sendingMessage}
+                          title={message.trim() || media ? "Send" : isRecording ? "Stop" : "Voice message"}
                         >
                           {sendingMessage ? (
                             <i className="fa-solid fa-circle-notch fa-spin"></i>
                           ) : message.trim() || media ? (
                             <i className="fa-solid fa-paper-plane"></i>
                           ) : isRecording ? (
-                            <i className="fa-solid fa-stop" style={{ color: "red" }}></i>
+                            <i className="fa-solid fa-stop" style={{ color: "#080b0e" }}></i>
                           ) : (
                             <i className="fa-solid fa-microphone"></i>
                           )}
@@ -4076,32 +4136,84 @@ useEffect(() => {
                         }}
                       ></i>
 
-                      <img
-                        src={selectedGroup.groupImage}
-                        alt=""
-                        className="cv-thread-avatar"
-                      />
+                      <div className="cv-avatar-wrap">
+                        {selectedGroup.groupImage ? (
+                          <img
+                            src={selectedGroup.groupImage}
+                            alt={selectedGroup.groupName}
+                            className="cv-thread-avatar"
+                          />
+                        ) : (
+                          <div className="cv-thread-avatar-fallback">
+                            {selectedGroup.groupName ? selectedGroup.groupName.slice(0, 2).toUpperCase() : "G"}
+                          </div>
+                        )}
+                      </div>
 
-                      <div>
+                      <div className="cv-thread-user-meta">
                         <h5>{selectedGroup.groupName}</h5>
-                        <small>
-                          {currentGroupTypingNames.length > 0
-                            ? `${currentGroupTypingNames.join(", ")} is typing…`
-                            : `${selectedGroup.members.length} members`}
-                        </small>
+                        <div className="cv-thread-status">
+                          <small className="cv-thread-subtitle">
+                            {currentGroupTypingNames.length > 0 ? (
+                              <span className="cv-typing-text">{currentGroupTypingNames.join(", ")} is typing…</span>
+                            ) : (
+                              `${selectedGroup.members?.length || 0} members`
+                            )}
+                          </small>
+                        </div>
                       </div>
 
                     </div>
 
-                        <div className="cv-thread-actions">
-                      <i
-                        className="fa-solid fa-magnifying-glass"
-                        onClick={() => setShowMsgSearch((prev) => !prev)}
-                        title="Search messages"
-                      ></i>
-                      <i className="fa-solid fa-phone" onClick={() => triggerGroupCall(selectedGroup, "audio")}></i>
-                      <i className="fa-solid fa-video" onClick={() => triggerGroupCall(selectedGroup, "video")}></i>
-                      <i className="fa-solid fa-circle-info" onClick={openGroupInfoView}></i>
+                    <div className="cv-thread-actions">
+                      <button
+                        type="button"
+                        className="cv-header-action-btn"
+                        onClick={() => triggerGroupCall(selectedGroup, "video")}
+                        title="Video call"
+                      >
+                        <i className="fa-solid fa-video"></i>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="cv-header-action-btn"
+                        onClick={() => triggerGroupCall(selectedGroup, "audio")}
+                        title="Voice call"
+                      >
+                        <i className="fa-solid fa-phone"></i>
+                      </button>
+
+                      <div className="cv-header-menu-wrap" ref={headerMenuRef}>
+                        <button
+                          type="button"
+                          className="cv-header-action-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowHeaderMenu((prev) => !prev);
+                          }}
+                          title="More options"
+                        >
+                          <i className="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+
+                        {showHeaderMenu && (
+                          <div className="cv-header-dropdown" onClick={(e) => e.stopPropagation()}>
+                            <div onClick={() => { setShowHeaderMenu(false); openGroupInfoView(); }}>
+                              <i className="fa-solid fa-circle-info me-2"></i>Group info
+                            </div>
+                            <div onClick={() => { setShowHeaderMenu(false); setShowMsgSearch(true); }}>
+                              <i className="fa-solid fa-magnifying-glass me-2"></i>Search
+                            </div>
+                            <div onClick={() => { setShowHeaderMenu(false); openGroupInfoView(); setShowMedia(true); }}>
+                              <i className="fa-solid fa-images me-2"></i>Media, links, and docs
+                            </div>
+                            <div onClick={() => { setShowHeaderMenu(false); handleLeaveGroup(); }} className="text-danger">
+                              <i className="fa-solid fa-right-from-bracket me-2"></i>Leave group
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                   </div>
@@ -4381,81 +4493,87 @@ useEffect(() => {
 
                   <div className="cv-composer">
 
-                    <div
-                      className="cv-attach"
-                      onClick={() => document.getElementById("chatMediaInput").click()}
-                    >
-                      <i className="fa-solid fa-images"></i>
-                    </div>
-
-                    <input
-                      id="chatMediaInput"
-                      type="file"
-                      hidden
-                      accept="image/*,video/*"
-                      onChange={handleMediaUpload}
-                    />
-
-                    <div
-                      ref={emojiPickerRef}
-                      style={{ position: "relative", display: "flex", alignItems: "center" }}
-                    >
+                    <div className="cv-composer-input-pill">
                       <div
-                        className="cv-attach"
-                        onClick={() => setShowEmojiPicker((prev) => !prev)}
+                        ref={emojiPickerRef}
+                        style={{ position: "relative", display: "flex", alignItems: "center" }}
                       >
-                        <i className="fa-solid fa-face-smile"></i>
+                        <button
+                          type="button"
+                          className="cv-composer-icon-btn"
+                          onClick={() => setShowEmojiPicker((prev) => !prev)}
+                          title="Emoji"
+                        >
+                          <i className="fa-regular fa-face-smile"></i>
+                        </button>
+
+                        {showEmojiPicker && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              bottom: "48px",
+                              left: 0,
+                              width: "260px",
+                              maxHeight: "220px",
+                              overflowY: "auto",
+                              background: "#121820",
+                              border: "1px solid #1a2430",
+                              borderRadius: "12px",
+                              boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                              padding: "8px",
+                              display: "grid",
+                              gridTemplateColumns: "repeat(7, 1fr)",
+                              gap: "4px",
+                              zIndex: 50,
+                            }}
+                          >
+                            {EMOJI_LIST.map((emoji, i) => (
+                              <span
+                                key={i}
+                                onClick={() => appendEmoji(emoji)}
+                                style={{
+                                  fontSize: "20px",
+                                  cursor: "pointer",
+                                  textAlign: "center",
+                                  lineHeight: "28px",
+                                  borderRadius: "6px",
+                                }}
+                                onMouseDown={(e) => e.preventDefault()}
+                              >
+                                {emoji}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
-                      {showEmojiPicker && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            bottom: "48px",
-                            left: 0,
-                            width: "260px",
-                            maxHeight: "220px",
-                            overflowY: "auto",
-                            background: "#fff",
-                            border: "1px solid #e0e0e0",
-                            borderRadius: "10px",
-                            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-                            padding: "8px",
-                            display: "grid",
-                            gridTemplateColumns: "repeat(7, 1fr)",
-                            gap: "4px",
-                            zIndex: 20,
-                          }}
-                        >
-                          {EMOJI_LIST.map((emoji, i) => (
-                            <span
-                              key={i}
-                              onClick={() => appendEmoji(emoji)}
-                              style={{
-                                fontSize: "20px",
-                                cursor: "pointer",
-                                textAlign: "center",
-                                lineHeight: "28px",
-                                borderRadius: "6px",
-                              }}
-                              onMouseDown={(e) => e.preventDefault()}
-                            >
-                              {emoji}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                      <input
+                        type="text"
+                        placeholder="Message"
+                        value={message}
+                        onChange={(e) => handleGroupTyping(e.target.value)}
+                        onFocus={handleInputFocus}
+                        onClick={handleInputFocus}
+                        onKeyDown={handleKeyPress}
+                      />
 
-                    <input
-                      type="text"
-                      placeholder="Write a message…"
-                      value={message}
-                      onChange={(e) => handleGroupTyping(e.target.value)}
-                      onFocus={handleInputFocus}
-                      onClick={handleInputFocus}
-                      onKeyDown={handleKeyPress}
-                    />
+                      <button
+                        type="button"
+                        className="cv-composer-icon-btn"
+                        onClick={() => document.getElementById("chatMediaInput").click()}
+                        title="Attach media"
+                      >
+                        <i className="fa-solid fa-paperclip"></i>
+                      </button>
+
+                      <input
+                        id="chatMediaInput"
+                        type="file"
+                        hidden
+                        accept="image/*,video/*"
+                        onChange={handleMediaUpload}
+                      />
+                    </div>
 
                     <button
                       type="button"
@@ -4471,13 +4589,14 @@ useEffect(() => {
                               : startRecording
                       }
                       disabled={sendingMessage}
+                      title={message.trim() || media ? "Send" : isRecording ? "Stop" : "Voice message"}
                     >
                       {sendingMessage ? (
                         <i className="fa-solid fa-circle-notch fa-spin"></i>
                       ) : message.trim() || media ? (
                         <i className="fa-solid fa-paper-plane"></i>
                       ) : isRecording ? (
-                        <i className="fa-solid fa-stop" style={{ color: "red" }}></i>
+                        <i className="fa-solid fa-stop" style={{ color: "#080b0e" }}></i>
                       ) : (
                         <i className="fa-solid fa-microphone"></i>
                       )}
