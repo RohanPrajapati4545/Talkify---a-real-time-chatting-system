@@ -198,14 +198,39 @@ const Header = () => {
             </div>
           </div>
 
-          {/* Mobile Menu Toggle on Right */}
-          <button
-            className="rb-header-toggle"
-            onClick={() => setShowMobileNav(true)}
-            aria-label="Open Navigation"
-          >
-            <i className="fa-solid fa-bars"></i>
-          </button>
+          {/* Mobile Menu Toggle / User Avatar on Right */}
+          {token && user ? (
+            <button
+              type="button"
+              className="rb-header-toggle rb-header-toggle-avatar"
+              onClick={() => setShowMobileNav((prev) => !prev)}
+              onMouseEnter={() => setShowMobileNav(true)}
+              aria-label="User Menu"
+              title={user.name || "Profile & Menu"}
+            >
+              <div className="rb-avatar-ring-mobile">
+                {user.image ? (
+                  <img
+                    src={user.image}
+                    alt={user.name || "User"}
+                    className="rb-header-avatar-mobile"
+                  />
+                ) : (
+                  <i className="fa-solid fa-user"></i>
+                )}
+              </div>
+              <i className={`fa-solid fa-chevron-down rb-mobile-chevron ${showMobileNav ? "open" : ""}`}></i>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="rb-header-toggle"
+              onClick={() => setShowMobileNav((prev) => !prev)}
+              aria-label="Open Navigation"
+            >
+              <i className="fa-solid fa-bars"></i>
+            </button>
+          )}
         </div>
       </header>
 

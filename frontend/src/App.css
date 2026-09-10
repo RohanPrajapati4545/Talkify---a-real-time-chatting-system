@@ -1976,9 +1976,12 @@ body.cv-chat-active {
 }
 
 .cv-info {
-  padding: 20px 24px;
-  overflow-y: auto;
-  height: 86vh;
+  padding: 20px 24px 40px;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 .cv-info-header {
@@ -2039,8 +2042,8 @@ body.cv-chat-active {
 .cv-actions {
   display: flex;
   justify-content: center;
-  gap: 38px;
-  margin: 10px 0 26px;
+  gap: 14px 18px;
+  margin: 10px 0 20px;
   flex-wrap: wrap;
 }
 
@@ -2049,35 +2052,40 @@ body.cv-chat-active {
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  gap: 7px;
+  gap: 6px;
+  min-width: 48px;
 }
 
 .cv-action-circle {
-  width: 54px;
-  height: 54px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: var(--panel-3);
-  color: var(--amber);
+  color: #00f5a0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  transition: all 0.15s ease;
-  border: 1px solid var(--hairline);
+  font-size: 17px;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(0, 245, 160, 0.2);
 }
 
 .cv-action:hover .cv-action-circle {
-  background: var(--amber);
-  color: var(--ink);
+  background: #00f5a0;
+  color: #080b0e;
+  box-shadow: 0 0 12px rgba(0, 245, 160, 0.4);
+  transform: scale(1.05);
 }
 
 .cv-action.danger .cv-action-circle {
-  color: var(--danger);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.2);
 }
 
 .cv-action.danger:hover .cv-action-circle {
-  background: var(--danger);
+  background: #ef4444;
   color: #fff;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
 }
 
 .cv-action p {
@@ -2087,6 +2095,143 @@ body.cv-chat-active {
   text-transform: uppercase;
   letter-spacing: 0.4px;
   font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+/* Dedicated See Members Card */
+.cv-see-members-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #101622;
+  border: 1px solid #1a2536;
+  border-radius: 12px;
+  margin: 12px 0 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cv-see-members-card:hover {
+  background: #141c2c;
+  border-color: rgba(0, 245, 160, 0.4);
+  transform: translateY(-1px);
+}
+
+.cv-see-members-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cv-see-members-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(0, 245, 160, 0.12);
+  color: #00f5a0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+
+.cv-see-members-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.cv-see-members-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.cv-see-members-count {
+  font-size: 11.5px;
+  color: #94a3b8;
+}
+
+.cv-see-members-arrow {
+  color: #64748b;
+  font-size: 12px;
+  transition: transform 0.2s ease;
+}
+
+.cv-see-members-card:hover .cv-see-members-arrow {
+  color: #00f5a0;
+  transform: translateX(3px);
+}
+
+/* Members Section Header & Search */
+.cv-members-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.cv-members-header-row h5 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.cv-member-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #0b1016;
+  border: 1px solid #1a2536;
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 12px;
+  color: #94a3b8;
+  max-width: 170px;
+}
+
+.cv-member-search-wrap input {
+  background: transparent;
+  border: none;
+  color: #f8fafc;
+  outline: none;
+  font-size: 12px;
+  width: 100%;
+}
+
+.cv-member-search-clear {
+  cursor: pointer;
+  color: #64748b;
+}
+
+.cv-member-search-clear:hover {
+  color: #f8fafc;
+}
+
+.cv-member-info-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cv-member-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cv-member-email {
+  font-size: 11.5px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cv-media-grid {
@@ -2398,13 +2543,23 @@ body.cv-chat-active {
   }
 
   .cv-sidebar,
-  .cv-main,
-  .cv-info {
+  .cv-main {
     height: 100% !important;
     max-height: 100% !important;
     min-height: 0 !important;
     flex: 1 1 0 !important;
     overflow: hidden !important;
+  }
+
+  .cv-info {
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    flex: 1 1 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px 18px 50px !important;
   }
 
   .cv-bubble {
@@ -5852,10 +6007,64 @@ select.admin-search option {
   font-size: 16px;
   width: 36px;
   height: 36px;
-  border-radius: 6px;
+  border-radius: 8px;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rb-header-toggle-avatar {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 4px !important;
+  width: auto !important;
+  min-width: 50px !important;
+  height: 38px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  cursor: pointer;
+}
+
+.rb-avatar-ring-mobile {
+  position: relative;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 245, 160, 0.4);
+  padding: 1.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  background: #0d1217;
+}
+
+.rb-header-toggle-avatar:hover .rb-avatar-ring-mobile {
+  border-color: #00f5a0;
+  box-shadow: 0 0 10px rgba(0, 245, 160, 0.45);
+  transform: scale(1.05);
+}
+
+.rb-header-avatar-mobile {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.rb-mobile-chevron {
+  font-size: 11px;
+  color: #94a3b8;
+  transition: transform 0.25s ease, color 0.2s ease;
+  margin-left: 2px;
+}
+
+.rb-header-toggle-avatar:hover .rb-mobile-chevron,
+.rb-mobile-chevron.open {
+  color: #00f5a0;
+  transform: rotate(180deg);
 }
 
 /* Mobile Nav Drawer */
@@ -15143,4 +15352,224 @@ input[type="search"]::placeholder {
   font-size: 11px;
   color: #94a3b8;
   margin-left: 6px;
+}
+
+/* ==========================================================================
+   Chat File Download & Member Right-Side Chat Actions
+   ========================================================================== */
+.cv-media-container {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.cv-media-container .cv-media {
+  display: block;
+  border-radius: 8px;
+  max-width: 100%;
+}
+
+.cv-media-download-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(8, 11, 14, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 245, 160, 0.35);
+  color: #00f5a0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.cv-media-container:hover .cv-media-download-btn {
+  opacity: 1;
+  transform: scale(1.06);
+  background: rgba(8, 11, 14, 0.92);
+  border-color: #00f5a0;
+  box-shadow: 0 0 12px rgba(0, 245, 160, 0.4);
+}
+
+.cv-media-download-btn:hover {
+  background: #00f5a0 !important;
+  color: #080b0e !important;
+  border-color: #00f5a0 !important;
+  transform: scale(1.15) !important;
+}
+
+.cv-media-item-wrap {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.cv-media-grid-dl-btn {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(8, 11, 14, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(0, 245, 160, 0.35);
+  color: #00f5a0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.2s ease;
+  z-index: 3;
+}
+
+.cv-media-grid-dl-btn:hover {
+  background: #00f5a0;
+  color: #080b0e;
+  transform: scale(1.1);
+}
+
+.cv-lightbox-btn {
+  background: transparent;
+  border: none;
+  color: #f8fafc;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cv-lightbox-btn:hover {
+  color: #00f5a0;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.cv-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+  gap: 12px;
+}
+
+.cv-member-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cv-member-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cv-member-info-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cv-member-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cv-member-email {
+  font-size: 11.5px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cv-member-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.cv-member-chat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 245, 160, 0.12);
+  border: 1px solid rgba(0, 245, 160, 0.3);
+  color: #00f5a0;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cv-member-chat-btn:hover {
+  background: #00f5a0;
+  color: #080b0e;
+  border-color: #00f5a0;
+  box-shadow: 0 0 14px rgba(0, 245, 160, 0.4);
+  transform: translateY(-1px);
+}
+
+.cv-member-chat-btn i {
+  font-size: 11.5px;
+}
+
+.cv-member-remove {
+  color: #f43f5e;
+  cursor: pointer;
+  padding: 6px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  border-radius: 6px;
+}
+
+.cv-member-remove:hover {
+  background: rgba(244, 63, 94, 0.15);
+  transform: scale(1.1);
+}
+
+.cv-admin-tag {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+@media (max-width: 480px) {
+  .cv-member-chat-btn-text {
+    display: none;
+  }
+  .cv-member-chat-btn {
+    padding: 6px 9px;
+    border-radius: 50%;
+  }
 }

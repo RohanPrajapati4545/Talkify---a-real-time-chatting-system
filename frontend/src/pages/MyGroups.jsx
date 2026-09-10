@@ -249,6 +249,8 @@ const privateMessagesScrollAnchorRef = useRef(null);
 
   const [unreadCounts, setUnreadCounts] = useState({ groups: {}, users: {} });
   const [privateChatMap, setPrivateChatMap] = useState({});
+  const [memberSearchTerm, setMemberSearchTerm] = useState("");
+  const membersSectionRef = useRef(null);
 
   const isOnline = useCallback(
     (userId) => {
@@ -258,6 +260,47 @@ const privateMessagesScrollAnchorRef = useRef(null);
     },
     [onlineUsers]
   );
+
+  const downloadMediaFile = async (url, defaultName = "download") => {
+    if (!url) return;
+    try {
+      let filename = defaultName;
+      try {
+        const cleanUrl = url.split("?")[0].split("#")[0];
+        const lastPart = cleanUrl.substring(cleanUrl.lastIndexOf("/") + 1);
+        if (lastPart && lastPart.includes(".")) {
+          filename = lastPart;
+        }
+      } catch (_) {}
+
+      const response = await fetch(url, { mode: "cors" });
+      if (response.ok) {
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+        toast.success("Download started!", { autoClose: 1500 });
+        return;
+      }
+    } catch (e) {
+      console.warn("Direct blob download failed, falling back to anchor:", e);
+    }
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = defaultName;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Download started!", { autoClose: 1500 });
+  };
 
   const isPrivateUserTyping = Boolean(
     selectedUser && privateTypingStatus[selectedUser._id]
@@ -3049,7 +3092,7 @@ useEffect(() => {
                               .filter(msg => msg.media)
                               .map(msg => (
 
-                                <div key={msg._id}>
+                                <div key={msg._id} className="cv-media-item-wrap">
 
                                   {msg.mediaType === "image" ? (
 
@@ -3073,6 +3116,27 @@ useEffect(() => {
                                     />
 
                                   )}
+
+                                  <button
+                                    type="button"
+                                    className="cv-media-grid-dl-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      downloadMediaFile(
+                                        msg.media,
+                                        `file_${msg._id || Date.now()}.${
+                                          msg.mediaType === "image"
+                                            ? "jpg"
+                                            : msg.mediaType === "audio"
+                                            ? "mp3"
+                                            : "mp4"
+                                        }`
+                                      );
+                                    }}
+                                    title="Download"
+                                  >
+                                    <i className="fa-solid fa-download"></i>
+                                  </button>
 
                                 </div>
 
@@ -3266,7 +3330,6 @@ useEffect(() => {
                                 )}
 
                                 <div className={`cv-bubble ${side}`}>
-
                                   {!msg.isDeleted && (
                                     <div
                                       className="cv-menu-trigger"
@@ -3285,6 +3348,24 @@ useEffect(() => {
                                         <div className={`cv-dropdown ${side}`}>
                                           <div onClick={() => handleReply(msg)}>Reply</div>
                                           <div onClick={() => forwardMessage(msg)}>Forward</div>
+                                          {msg.media && (
+                                            <div
+                                              onClick={() =>
+                                                downloadMediaFile(
+                                                  msg.media,
+                                                  `file_${msg._id || Date.now()}.${
+                                                    msg.mediaType === "image"
+                                                      ? "jpg"
+                                                      : msg.mediaType === "audio"
+                                                      ? "mp3"
+                                                      : "mp4"
+                                                  }`
+                                                )
+                                              }
+                                            >
+                                              <i className="fa-solid fa-download me-2"></i>Download
+                                            </div>
+                                          )}
                                           <div onClick={() => handlePinPrivateMessage(msg)}>
                                             {msg.isPinned ? "Unpin" : "Pin"}
                                           </div>
@@ -3322,7 +3403,7 @@ useEffect(() => {
                                   )}
 
                                   {msg.media && (
-                                    <>
+                                    <div className="cv-media-container">
                                       {msg.mediaType === "image" ? (
                                         <img
                                           src={msg.media}
@@ -3339,7 +3420,27 @@ useEffect(() => {
                                           controls
                                         />
                                       )}
-                                    </>
+                                      <button
+                                        type="button"
+                                        className="cv-media-download-btn"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          downloadMediaFile(
+                                            msg.media,
+                                            `file_${msg._id || Date.now()}.${
+                                              msg.mediaType === "image"
+                                                ? "jpg"
+                                                : msg.mediaType === "audio"
+                                                ? "mp3"
+                                                : "mp4"
+                                            }`
+                                          );
+                                        }}
+                                        title="Download file"
+                                      >
+                                        <i className="fa-solid fa-download"></i>
+                                      </button>
+                                    </div>
                                   )}
 
                                   <div className="cv-stamp">
@@ -3582,6 +3683,23 @@ useEffect(() => {
 
                   <div className="cv-actions">
 
+                    {/* See Members Action Button */}
+                    <div
+                      className="cv-action"
+                      onClick={() =>
+                        membersSectionRef.current?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        })
+                      }
+                      title="See group members"
+                    >
+                      <div className="cv-action-circle">
+                        <i className="fa-solid fa-users"></i>
+                      </div>
+                      <p>Members</p>
+                    </div>
+
                     {selectedGroup?.createdBy?._id === user?._id && (
                       <div className="cv-action" onClick={openEditGroupModal}>
                         <div className="cv-action-circle">
@@ -3611,18 +3729,17 @@ useEffect(() => {
                         <div className="cv-action-circle">
                           <i className="fa-solid fa-remove"></i>
                         </div>
-                        <p>Clear Chat</p>
+                        <p>Clear</p>
                       </div>
                     )}
 
-                  
-                      <div className="cv-action danger" onClick={handleLeaveGroup}>
-                        <div className="cv-action-circle">
-                          <i className="fa-solid fa-right-from-bracket"></i>
-                        </div>
-                        <p>Leave</p>
+                    <div className="cv-action danger" onClick={handleLeaveGroup}>
+                      <div className="cv-action-circle">
+                        <i className="fa-solid fa-right-from-bracket"></i>
                       </div>
-                 
+                      <p>Leave</p>
+                    </div>
+
                     {selectedGroup?.createdBy?._id === user?._id && (
                       <div className="cv-action danger" onClick={handleDeleteGroup}>
                         <div className="cv-action-circle">
@@ -3633,6 +3750,7 @@ useEffect(() => {
                     )}
 
                   </div>
+
 
                   {selectedGroup?.createdBy?._id === user?._id && (
                     <div className="cv-invite-code-box">
@@ -3664,8 +3782,9 @@ useEffect(() => {
                             title="Regenerate code"
                           >
                             <i
-                              className={`fa-solid fa-rotate-right ${regenLoading ? "fa-spin" : ""
-                                }`}
+                              className={`fa-solid fa-rotate-right ${
+                                regenLoading ? "fa-spin" : ""
+                              }`}
                             ></i>
                           </button>
                         </div>
@@ -3688,7 +3807,7 @@ useEffect(() => {
                           {messages
                             .filter((msg) => msg.media)
                             .map((msg) => (
-                              <div key={msg._id}>
+                              <div key={msg._id} className="cv-media-item-wrap">
                                 {msg.mediaType === "image" ? (
                                   <img
                                     src={msg.media}
@@ -3702,6 +3821,26 @@ useEffect(() => {
                                 ) : (
                                   <video controls src={msg.media} />
                                 )}
+                                <button
+                                  type="button"
+                                  className="cv-media-grid-dl-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    downloadMediaFile(
+                                      msg.media,
+                                      `file_${msg._id || Date.now()}.${
+                                        msg.mediaType === "image"
+                                          ? "jpg"
+                                          : msg.mediaType === "audio"
+                                          ? "mp3"
+                                          : "mp4"
+                                      }`
+                                    );
+                                  }}
+                                  title="Download"
+                                >
+                                  <i className="fa-solid fa-download"></i>
+                                </button>
                               </div>
                             ))}
 
@@ -3716,8 +3855,17 @@ useEffect(() => {
                       <div className="cv-lightbox-content" onClick={(e) => e.stopPropagation()}>
                         <img src={previewImage} alt="" />
                         <div className="cv-lightbox-actions">
-                          <a href={previewImage} download><i className="fa-solid fa-download"></i></a>
-                          <button type="button" onClick={() => setPreviewImage(null)}><i className="fa-solid fa-xmark"></i></button>
+                          <button
+                            type="button"
+                            className="cv-lightbox-btn"
+                            onClick={() => downloadMediaFile(previewImage, `image_${Date.now()}.jpg`)}
+                            title="Download image"
+                          >
+                            <i className="fa-solid fa-download"></i>
+                          </button>
+                          <button type="button" onClick={() => setPreviewImage(null)}>
+                            <i className="fa-solid fa-xmark"></i>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -3809,11 +3957,38 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  <div className="cv-members">
+                  <div className="cv-members" ref={membersSectionRef}>
 
-                    <h5>Members</h5>
+                    <div className="cv-members-header-row">
+                      <h5>Members ({selectedGroup.members?.length || 0})</h5>
+                      {selectedGroup.members?.length > 4 && (
+                        <div className="cv-member-search-wrap">
+                          <i className="fa-solid fa-magnifying-glass"></i>
+                          <input
+                            type="text"
+                            placeholder="Search members..."
+                            value={memberSearchTerm}
+                            onChange={(e) => setMemberSearchTerm(e.target.value)}
+                          />
+                          {memberSearchTerm && (
+                            <i
+                              className="fa-solid fa-xmark cv-member-search-clear"
+                              onClick={() => setMemberSearchTerm("")}
+                            ></i>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     {[...selectedGroup.members]
+                      .filter((member) => {
+                        if (!memberSearchTerm.trim()) return true;
+                        const term = memberSearchTerm.toLowerCase();
+                        return (
+                          member.name?.toLowerCase().includes(term) ||
+                          member.email?.toLowerCase().includes(term)
+                        );
+                      })
                       .sort((a, b) => {
                         if (a._id === selectedGroup?.createdBy?._id) return -1;
                         if (b._id === selectedGroup?.createdBy?._id) return 1;
@@ -3822,21 +3997,61 @@ useEffect(() => {
                       .map((member) => (
                         <div key={member._id} className="cv-member-row">
 
-                          <div className="cv-member-left">
-                            <img src={member.image} alt="" />
-                            <span>{member.name}</span>
+                          <div
+                            className="cv-member-left"
+                            onClick={() => {
+                              if (member._id !== user?._id) {
+                                openPrivateChat(member);
+                              }
+                            }}
+                            style={{ cursor: member._id !== user?._id ? "pointer" : "default" }}
+                            title={member._id !== user?._id ? "Message user" : "You"}
+                          >
+                            <div className="cv-avatar-wrap">
+                              <img src={member.image} alt="" />
+                              {isOnline(member._id) && (
+                                <span className="cv-online-dot cv-online-dot-xs"></span>
+                              )}
+                            </div>
+                            <div className="cv-member-info-col">
+                              <span className="cv-member-name">
+                                {member.name} {member._id === user?._id && "(You)"}
+                              </span>
+                              <span className="cv-member-email">{member.email}</span>
+                            </div>
                           </div>
 
-                          {member._id === selectedGroup?.createdBy?._id ? (
-                            <span className="cv-admin-tag">Admin</span>
-                          ) : (
-                            selectedGroup?.createdBy?._id === user?._id && (
+                          <div className="cv-member-right-actions">
+                            {member._id === selectedGroup?.createdBy?._id && (
+                              <span className="cv-admin-tag">Admin</span>
+                            )}
+
+                            {member._id !== user?._id && (
+                              <button
+                                type="button"
+                                className="cv-member-chat-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openPrivateChat(member);
+                                }}
+                                title={`Chat with ${member.name}`}
+                              >
+                                <i className="fa-solid fa-message"></i>
+                                <span className="cv-member-chat-btn-text">Chat</span>
+                              </button>
+                            )}
+
+                            {selectedGroup?.createdBy?._id === user?._id && member._id !== selectedGroup?.createdBy?._id && (
                               <i
-                                onClick={() => handleRemoveMember(member)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveMember(member);
+                                }}
                                 className="fa-solid fa-trash-can cv-member-remove"
+                                title="Remove from group"
                               ></i>
-                            )
-                          )}
+                            )}
+                          </div>
 
                         </div>
                       ))}
@@ -4016,6 +4231,24 @@ useEffect(() => {
                                     <div className={`cv-dropdown ${side}`}>
                                       <div onClick={() => handleReply(msg)}>Reply</div>
                                       <div onClick={() => forwardMessage(msg)}>Forward</div>
+                                      {msg.media && (
+                                        <div
+                                          onClick={() =>
+                                            downloadMediaFile(
+                                              msg.media,
+                                              `file_${msg._id || Date.now()}.${
+                                                msg.mediaType === "image"
+                                                  ? "jpg"
+                                                  : msg.mediaType === "audio"
+                                                  ? "mp3"
+                                                  : "mp4"
+                                              }`
+                                            )
+                                          }
+                                        >
+                                          <i className="fa-solid fa-download me-2"></i>Download
+                                        </div>
+                                      )}
                                       {isGroupAdminOrSystemAdmin && (
                                         <div onClick={() => handlePinGroupMessage(msg)}>
                                           {msg.isPinned ? "Unpin" : "Pin"}
@@ -4053,7 +4286,7 @@ useEffect(() => {
                               )}
 
                               {msg.media && (
-                                <>
+                                <div className="cv-media-container">
                                   {msg.mediaType === "image" ? (
                                     <img src={msg.media} className="cv-media" alt="" onClick={() => setPreviewImage(msg.media)} />
                                   ) : msg.mediaType === "audio" ? (
@@ -4061,7 +4294,27 @@ useEffect(() => {
                                   ) : (
                                     <video src={msg.media} className="cv-media" controls />
                                   )}
-                                </>
+                                  <button
+                                    type="button"
+                                    className="cv-media-download-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      downloadMediaFile(
+                                        msg.media,
+                                        `file_${msg._id || Date.now()}.${
+                                          msg.mediaType === "image"
+                                            ? "jpg"
+                                            : msg.mediaType === "audio"
+                                            ? "mp3"
+                                            : "mp4"
+                                        }`
+                                      );
+                                    }}
+                                    title="Download file"
+                                  >
+                                    <i className="fa-solid fa-download"></i>
+                                  </button>
+                                </div>
                               )}
 
                               <div className="cv-stamp">
