@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import axios from "axios";
 import LiveChatHeroWidget from "../components/reactbits/LiveChatHeroWidget";
 import BentoGrid from "../components/reactbits/BentoGrid";
@@ -87,6 +88,7 @@ const STEPS = [
 
 const Home = () => {
   const navigate = useNavigate();
+  const { isAuth } = useSelector((state) => state.auth || {});
   const [content, setContent] = useState(DEFAULT_CONTENT);
 
   useEffect(() => {
@@ -149,19 +151,21 @@ const Home = () => {
           <div className="tk-hero-cta-group">
             <button
               className="tk-btn-hero-primary"
-              onClick={() => navigate("/register")}
+              onClick={() => navigate(isAuth ? "/chat" : "/register")}
             >
-              <span>{content.heroCtaPrimaryText}</span>
+              <span>{isAuth ? "Start Chatting" : content.heroCtaPrimaryText}</span>
               <i className="fa-solid fa-arrow-right tk-arrow-anim"></i>
             </button>
 
-            <button
-              className="tk-btn-hero-secondary"
-              onClick={() => navigate("/login")}
-            >
-              <i className="fa-solid fa-arrow-right-to-bracket me-2"></i>
-              <span>{content.heroCtaGhostText}</span>
-            </button>
+            {!isAuth && (
+              <button
+                className="tk-btn-hero-secondary"
+                onClick={() => navigate("/login")}
+              >
+                <i className="fa-solid fa-arrow-right-to-bracket me-2"></i>
+                <span>{content.heroCtaGhostText}</span>
+              </button>
+            )}
           </div>
 
           {/* Quick Features Pill Row */}
@@ -295,17 +299,19 @@ const Home = () => {
             <div className="tk-cta-btns">
               <button
                 className="tk-btn-hero-primary tk-btn-large"
-                onClick={() => navigate("/register")}
+                onClick={() => navigate(isAuth ? "/chat" : "/register")}
               >
-                <span>{content.closerButtonText}</span>
+                <span>{isAuth ? "Start Chatting Now" : content.closerButtonText}</span>
                 <i className="fa-solid fa-arrow-right tk-arrow-anim"></i>
               </button>
-              <button
-                className="tk-btn-hero-secondary tk-btn-large"
-                onClick={() => navigate("/login")}
-              >
-                <span>Sign In</span>
-              </button>
+              {!isAuth && (
+                <button
+                  className="tk-btn-hero-secondary tk-btn-large"
+                  onClick={() => navigate("/login")}
+                >
+                  <span>Sign In</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

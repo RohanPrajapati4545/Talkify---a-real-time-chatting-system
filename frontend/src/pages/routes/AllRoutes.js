@@ -1,5 +1,5 @@
-import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 import Login from "../../pages/auth/Login";
@@ -24,6 +24,29 @@ import AboutEditor from "../Admin/AboutEditor";
 import AuthSettingsPanel from "../Admin/AuthSettingsPanel";
 import AdminSettings from "../Admin/AdminSettings";
 
+const SessionStartHandler = ({ isAdmin }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const sessionActive = sessionStorage.getItem("talkify_session_started");
+    if (!sessionActive) {
+      sessionStorage.setItem("talkify_session_started", "true");
+      try {
+        localStorage.removeItem("talkify_active_chat_user");
+        localStorage.removeItem("talkify_active_chat_group");
+      } catch (e) {}
+
+      // On 1st time opening link in a new session, always start on Home "/" (unless admin)
+      if (location.pathname !== "/" && !location.pathname.startsWith("/admin") && !isAdmin) {
+        navigate("/", { replace: true });
+      }
+    }
+  }, [navigate, location.pathname, isAdmin]);
+
+  return null;
+};
+
 const AllRoutes = () => {
   const { isAuth, user } = useSelector((state) => state.auth);
   const isAdmin = isAuth && user?.role === "admin";
@@ -33,6 +56,7 @@ const AllRoutes = () => {
 
   return (
     <BrowserRouter>
+      <SessionStartHandler isAdmin={isAdmin} />
       <Routes>
 
         {/* Public Pages — admin never sees these, always bounced to /admin */}
