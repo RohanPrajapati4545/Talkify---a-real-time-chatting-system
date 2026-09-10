@@ -129,6 +129,55 @@ const { siteName, siteLogoUrl } = useSelector((state) => state.brand);
   const { token, user } = useSelector(
     (state) => state.auth
   );
+
+  const userRef = useRef(user);
+  const groupsRef = useRef(groups);
+
+  useEffect(() => {
+    userRef.current = user;
+    if (user?._id) {
+      socket.emit("userOnline", user._id);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    groupsRef.current = groups;
+  }, [groups]);
+
+  // Robust Socket Connection & Reconnection listener (crucial for mobile sleep/wake & network switch)
+  useEffect(() => {
+    const handleConnectOrReconnect = () => {
+      const currentUserId = userRef.current?._id;
+      if (currentUserId) {
+        console.log("[Socket] Reconnected / connected, emitting userOnline:", currentUserId);
+        socket.emit("userOnline", currentUserId);
+      }
+      if (privateChatRef.current?._id) {
+        socket.emit("joinPrivateChat", privateChatRef.current._id.toString());
+      }
+      if (Array.isArray(groupsRef.current)) {
+        groupsRef.current.forEach((g) => {
+          if (g?._id) socket.emit("joinGroup", g._id.toString());
+        });
+      }
+    };
+
+    socket.on("connect", handleConnectOrReconnect);
+    if (socket.io) {
+      socket.io.on("reconnect", handleConnectOrReconnect);
+    }
+
+    if (socket.connected) {
+      handleConnectOrReconnect();
+    }
+
+    return () => {
+      socket.off("connect", handleConnectOrReconnect);
+      if (socket.io) {
+        socket.io.off("reconnect", handleConnectOrReconnect);
+      }
+    };
+  }, []);
   // ---- Group messages pagination ----
 const [messagesPage, setMessagesPage] = useState(1);
 const [hasMoreMessages, setHasMoreMessages] = useState(false);
@@ -197,6 +246,25 @@ const privateMessagesScrollAnchorRef = useRef(null);
   const [unreadCounts, setUnreadCounts] = useState({ groups: {}, users: {} });
   const [privateChatMap, setPrivateChatMap] = useState({});
 
+  const isOnline = useCallback(
+    (userId) => {
+      if (!userId) return false;
+      const uid = (userId._id || userId).toString();
+      return onlineUsers.some((id) => (id?._id || id)?.toString() === uid);
+    },
+    [onlineUsers]
+  );
+
+  const isPrivateUserTyping = Boolean(
+    selectedUser && privateTypingStatus[selectedUser._id]
+  );
+
+  const currentGroupTypingNames = useMemo(() => {
+    if (!selectedGroup || !groupTypingUsers[selectedGroup._id]) return [];
+    return Object.values(groupTypingUsers[selectedGroup._id]);
+  }, [selectedGroup, groupTypingUsers]);
+
+  const isGroupTyping = currentGroupTypingNames.length > 0;
 
   const [mediaKind, setMediaKind] = useState(null); // "voice" | null
 
@@ -331,7 +399,6 @@ const getAllUsers = async () => {
   };
 
   const isUserBlocked = (id) => blockedUsers.includes(id);
-  const isOnline = (id) => onlineUsers.includes(id);
 
   const toggleBlockUser = () => {
     if (!selectedUser) return;
@@ -612,64 +679,63 @@ useEffect(() => {
   };
 
   useEffect(() => {
+    const handleReceivePrivateMsg = (msg) => {
+      if (!msg) return;
+      const currentUserId = userRef.current?._id?.toString();
+      const senderId = (msg.sender?._id || msg.sender)?.toString();
+      const receiverId = (msg.receiver?._id || msg.receiver)?.toString();
 
-    socket.on(
-      "receivePrivateMessage",
-      (msg) => {
+      const isMine = senderId === currentUserId;
+      const otherId = isMine ? receiverId : senderId;
 
-        const isMine = (msg.sender?._id || msg.sender) === user?._id;
+      const activeChatId = privateChatRef.current?._id?.toString();
+      const msgChatId = (msg.chatId?._id || msg.chatId)?.toString();
+      const activeSelectedUserId = selectedUserRef.current?._id?.toString();
 
-        const otherId =
-          isMine
-            ? msg.receiver?._id || msg.receiver
-            : msg.sender?._id || msg.sender;
-
-        const chatIsOpen =
-          privateChatRef.current &&
-          msg.chatId &&
-          msg.chatId.toString() === privateChatRef.current._id?.toString();
-
-        if (chatIsOpen) {
-          setPrivateMessages(prev => [
-            ...prev,
-            msg
-          ]);
-        }
-
-        if (otherId) {
-          setUserLastActivity((prev) => ({ ...prev, [otherId]: Date.now() }));
-        }
-
-        const isReceiver =
-          msg.receiver?._id === user?._id || msg.receiver === user?._id;
-
-        if (otherId && !isMine && !chatIsOpen) {
-          setUnreadCounts((prev) => ({
-            ...prev,
-            users: {
-              ...prev.users,
-              [otherId]: (prev.users[otherId] || 0) + 1,
-            },
-          }));
-        }
-
-        if (isReceiver && chatIsOpen) {
-          socket.emit("markPrivateMessageSeen", {
-            chatId: msg.chatId,
-            messageId: msg._id,
-            seenBy: user._id,
-          });
-        }
-      }
-    )
-    return () => {
-
-      socket.off(
-        "receivePrivateMessage"
+      const chatIsOpen = Boolean(
+        (activeChatId && msgChatId && activeChatId === msgChatId) ||
+        (activeSelectedUserId && otherId && activeSelectedUserId === otherId)
       );
 
+      if (chatIsOpen) {
+        setPrivateMessages((prev) => {
+          if (prev.some((m) => m._id?.toString() === msg._id?.toString())) {
+            return prev;
+          }
+          return [...prev, msg];
+        });
+      }
+
+      if (otherId) {
+        setUserLastActivity((prev) => ({ ...prev, [otherId]: Date.now() }));
+      }
+
+      const isReceiver = receiverId === currentUserId;
+
+      if (otherId && !isMine && !chatIsOpen) {
+        setUnreadCounts((prev) => ({
+          ...prev,
+          users: {
+            ...prev.users,
+            [otherId]: (prev.users[otherId] || 0) + 1,
+          },
+        }));
+      }
+
+      if (isReceiver && chatIsOpen && currentUserId && msgChatId) {
+        socket.emit("markPrivateMessageSeen", {
+          chatId: msgChatId,
+          messageId: msg._id,
+          seenBy: currentUserId,
+        });
+      }
     };
 
+    socket.on("receivePrivateMessage", handleReceivePrivateMsg);
+
+    return () => {
+      socket.off("receivePrivateMessage", handleReceivePrivateMsg);
+    };
   }, []);
 
   useEffect(() => {
@@ -1012,10 +1078,12 @@ const handleChatSearchLoadMore = () => {
   const handlePrivateTyping = (value) => {
     setMessage(value);
 
-    if (!privateChat?._id || !selectedUser?._id) return;
+    if (!selectedUser?._id || !user?._id) return;
+
+    const currentChatId = privateChat?._id || privateChatMap?.[selectedUser._id] || "";
 
     socket.emit("typingPrivate", {
-      chatId: privateChat._id,
+      chatId: currentChatId,
       senderId: user._id,
       receiverId: selectedUser._id,
       userName: user.name,
@@ -1025,11 +1093,11 @@ const handleChatSearchLoadMore = () => {
 
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit("stopTypingPrivate", {
-        chatId: privateChat._id,
+        chatId: currentChatId,
         senderId: user._id,
         receiverId: selectedUser._id,
       });
-    }, 1000);
+    }, 1500);
   };
 
   const appendEmoji = (emoji) => {
@@ -2039,18 +2107,27 @@ const handleLoadOlderMessages = () => {
     getMyGroups();
   }, []);
   useEffect(() => {
-    socket.on("receiveMessage", (msg) => {
-      const gId = msg.group?._id || msg.group || msg.groupId;
-      const isMine = (msg.sender?._id || msg.sender) === user?._id;
+    const handleReceiveGroupMsg = (msg) => {
+      if (!msg) return;
+      const gId = (msg.group?._id || msg.group || msg.groupId)?.toString();
+      const currentUserId = userRef.current?._id?.toString();
+      const senderId = (msg.sender?._id || msg.sender)?.toString();
+      const isMine = senderId === currentUserId;
+      const activeGroupId = selectedGroupRef.current?._id?.toString();
 
-      if (selectedGroup?._id === gId) {
-        setMessages((prev) => [...prev, msg]);
+      if (activeGroupId && gId && activeGroupId === gId) {
+        setMessages((prev) => {
+          if (prev.some((m) => m._id?.toString() === msg._id?.toString())) {
+            return prev;
+          }
+          return [...prev, msg];
+        });
       }
 
       if (gId) {
         setGroupLastActivity((prev) => ({ ...prev, [gId]: Date.now() }));
 
-        if (!isMine && selectedGroup?._id !== gId) {
+        if (!isMine && activeGroupId !== gId) {
           setUnreadCounts((prev) => ({
             ...prev,
             groups: {
@@ -2060,12 +2137,14 @@ const handleLoadOlderMessages = () => {
           }));
         }
       }
-    });
+    };
+
+    socket.on("receiveMessage", handleReceiveGroupMsg);
 
     return () => {
-      socket.off("receiveMessage");
+      socket.off("receiveMessage", handleReceiveGroupMsg);
     };
-  }, [selectedGroup, user?._id]);
+  }, []);
 
   useEffect(() => {
 
@@ -2624,14 +2703,6 @@ useEffect(() => {
         style={{ color: "var(--muted)", fontSize: "14px", cursor: "pointer" }}
       ></i>
     </div>
-  );
-
-  const currentGroupTypingNames = selectedGroup
-    ? Object.values(groupTypingUsers[selectedGroup._id] || {})
-    : [];
-
-  const isPrivateUserTyping = Boolean(
-    selectedUser && privateTypingStatus[selectedUser._id]
   );
   useEffect(() => {
     document.documentElement.classList.add("cv-chat-active");
@@ -3210,6 +3281,14 @@ useEffect(() => {
                             </React.Fragment>
                           );
                         })
+                      )}
+
+                      {isPrivateUserTyping && (
+                        <div className="cv-typing-indicator-bubble">
+                          <span className="cv-typing-dot"></span>
+                          <span className="cv-typing-dot"></span>
+                          <span className="cv-typing-dot"></span>
+                        </div>
                       )}
 
                     </div>
@@ -3927,6 +4006,17 @@ useEffect(() => {
                       );
 
                     })}
+
+                    {isGroupTyping && (
+                      <div className="cv-typing-indicator-bubble">
+                        <span className="cv-typing-dot"></span>
+                        <span className="cv-typing-dot"></span>
+                        <span className="cv-typing-dot"></span>
+                        <span className="cv-typing-names">
+                          {currentGroupTypingNames.join(", ")} {currentGroupTypingNames.length > 1 ? "are" : "is"} typing…
+                        </span>
+                      </div>
+                    )}
 
                     <div ref={messagesEndRef}></div>
 

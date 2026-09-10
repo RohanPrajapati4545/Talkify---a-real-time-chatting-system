@@ -59,6 +59,9 @@ const io = new Server(server, {
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     credentials: true,
   },
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  transports: ["websocket", "polling"],
 });
 app.set("io", io);
 
@@ -77,19 +80,22 @@ const onlineUsers = new Map();
 const activeGroupCalls = new Map();
 
 const addOnlineUser = (userId, socketId) => {
-  if (!onlineUsers.has(userId)) {
-    onlineUsers.set(userId, new Set());
+  const uid = userId?.toString();
+  if (!uid) return;
+  if (!onlineUsers.has(uid)) {
+    onlineUsers.set(uid, new Set());
   }
-  onlineUsers.get(userId).add(socketId);
+  onlineUsers.get(uid).add(socketId);
 };
 
 const removeOnlineUser = (userId, socketId) => {
-  if (!onlineUsers.has(userId)) return;
+  const uid = userId?.toString();
+  if (!uid || !onlineUsers.has(uid)) return;
 
-  onlineUsers.get(userId).delete(socketId);
+  onlineUsers.get(uid).delete(socketId);
 
-  if (onlineUsers.get(userId).size === 0) {
-    onlineUsers.delete(userId);
+  if (onlineUsers.get(uid).size === 0) {
+    onlineUsers.delete(uid);
   }
 };
 
@@ -102,108 +108,157 @@ io.on("connection", (socket) => {
   console.log("User Connected:", socket.id);
 
   socket.on("userOnline", (userId) => {
-    console.log(" JOINING ROOM:", `user_${userId}`);
-    socket.join(`user_${userId}`);
-    socket.userId = userId;
-    addOnlineUser(userId, socket.id);
+    if (!userId) return;
+    const uid = userId.toString();
+    console.log(" JOINING ROOM:", `user_${uid}`, "socket:", socket.id);
+    socket.join(`user_${uid}`);
+    socket.userId = uid;
+    addOnlineUser(uid, socket.id);
     broadcastOnlineUsers();
   });
 
   socket.on("userOffline", (userId) => {
-    removeOnlineUser(userId, socket.id);
+    if (!userId) return;
+    const uid = userId.toString();
+    removeOnlineUser(uid, socket.id);
     socket.userId = null;
     broadcastOnlineUsers();
   });
 
   socket.on("joinGroup", (groupId) => {
-    socket.join(groupId);
-    console.log(`${socket.id} joined Group ${groupId}`);
+    if (!groupId) return;
+    const gid = groupId.toString();
+    socket.join(gid);
+    console.log(`${socket.id} joined Group ${gid}`);
   });
 
   socket.on("sendMessage", (msg) => {
-    io.to(msg.groupId).emit("receiveMessage", msg);
+    if (!msg) return;
+    const gid = (msg.group?._id || msg.group || msg.groupId)?.toString();
+    if (gid) {
+      io.to(gid).emit("receiveMessage", msg);
+    }
   });
 
   socket.on("groupMessageUpdated", (msg) => {
-    io.to(msg.groupId).emit("groupMessageUpdated", msg);
+    if (!msg) return;
+    const gid = (msg.group?._id || msg.group || msg.groupId)?.toString();
+    if (gid) {
+      io.to(gid).emit("groupMessageUpdated", msg);
+    }
   });
 
   socket.on("groupMessageDeleted", (msg) => {
-    io.to(msg.groupId).emit("groupMessageDeleted", msg);
+    if (!msg) return;
+    const gid = (msg.group?._id || msg.group || msg.groupId)?.toString();
+    if (gid) {
+      io.to(gid).emit("groupMessageDeleted", msg);
+    }
   });
 
   socket.on("groupMessagePinned", (data) => {
-    io.to(data.groupId).emit("groupMessagePinned", data);
+    if (!data) return;
+    const gid = data.groupId?.toString();
+    if (gid) {
+      io.to(gid).emit("groupMessagePinned", data);
+    }
   });
 
   socket.on("typing", ({ groupId, userId, userName }) => {
-    socket.to(groupId).emit("userTyping", { groupId, userId, userName });
+    if (groupId) {
+      socket.to(groupId.toString()).emit("userTyping", { groupId, userId, userName });
+    }
   });
 
   socket.on("stopTyping", ({ groupId, userId }) => {
-    socket.to(groupId).emit("userStopTyping", { groupId, userId });
+    if (groupId) {
+      socket.to(groupId.toString()).emit("userStopTyping", { groupId, userId });
+    }
   });
 
   socket.on("joinPrivateChat", (chatId) => {
-    socket.join(chatId);
-    console.log(`${socket.id} joined Private Chat ${chatId}`);
+    if (!chatId) return;
+    const cid = chatId.toString();
+    socket.join(cid);
+    console.log(`${socket.id} joined Private Chat ${cid}`);
   });
 
   socket.on("sendPrivateMessage", (msg) => {
-    const receiverId = msg.receiver?._id || msg.receiver;
+    if (!msg) return;
+    const receiverId = (msg.receiver?._id || msg.receiver)?.toString();
+    const senderId = (msg.sender?._id || msg.sender)?.toString();
+    const chatId = (msg.chatId?._id || msg.chatId)?.toString();
 
-    let target = io.to(msg.chatId);
-    if (receiverId) target = target.to(`user_${receiverId}`);
+    console.log(`[Socket] sendPrivateMessage from ${senderId} to ${receiverId} in chat ${chatId}`);
 
-    target.emit("receivePrivateMessage", msg);
+    // 1. Emit to the private chat room
+    if (chatId) {
+      io.to(chatId).emit("receivePrivateMessage", msg);
+    }
+
+    // 2. ALSO emit directly to user rooms to guarantee real-time delivery even if room wasn't pre-joined
+    if (receiverId) {
+      io.to(`user_${receiverId}`).emit("receivePrivateMessage", msg);
+    }
+    if (senderId) {
+      io.to(`user_${senderId}`).emit("receivePrivateMessage", msg);
+    }
   });
 
   socket.on("privateMessageUpdated", (msg) => {
-    const receiverId = msg.receiver?._id || msg.receiver;
+    if (!msg) return;
+    const receiverId = (msg.receiver?._id || msg.receiver)?.toString();
+    const senderId = (msg.sender?._id || msg.sender)?.toString();
+    const chatId = (msg.chatId?._id || msg.chatId)?.toString();
 
-    let target = io.to(msg.chatId);
-    if (receiverId) target = target.to(`user_${receiverId}`);
-
-    target.emit("privateMessageUpdated", msg);
+    if (chatId) io.to(chatId).emit("privateMessageUpdated", msg);
+    if (receiverId) io.to(`user_${receiverId}`).emit("privateMessageUpdated", msg);
+    if (senderId) io.to(`user_${senderId}`).emit("privateMessageUpdated", msg);
   });
 
   socket.on("privateMessageDeleted", (msg) => {
-    const receiverId = msg.receiver?._id || msg.receiver;
+    if (!msg) return;
+    const receiverId = (msg.receiver?._id || msg.receiver)?.toString();
+    const senderId = (msg.sender?._id || msg.sender)?.toString();
+    const chatId = (msg.chatId?._id || msg.chatId)?.toString();
 
-    let target = io.to(msg.chatId);
-    if (receiverId) target = target.to(`user_${receiverId}`);
-
-    target.emit("privateMessageDeleted", msg);
+    if (chatId) io.to(chatId).emit("privateMessageDeleted", msg);
+    if (receiverId) io.to(`user_${receiverId}`).emit("privateMessageDeleted", msg);
+    if (senderId) io.to(`user_${senderId}`).emit("privateMessageDeleted", msg);
   });
 
   socket.on("privateMessagePinned", (data) => {
+    if (!data) return;
     const msg = data.message;
-    const receiverId = msg?.receiver?._id || msg?.receiver;
+    const receiverId = (msg?.receiver?._id || msg?.receiver)?.toString();
+    const senderId = (msg?.sender?._id || msg?.sender)?.toString();
+    const chatId = (data.chatId?._id || data.chatId)?.toString();
 
-    let target = io.to(data.chatId);
-    if (receiverId) target = target.to(`user_${receiverId}`);
-
-    target.emit("privateMessagePinned", data);
+    if (chatId) io.to(chatId).emit("privateMessagePinned", data);
+    if (receiverId) io.to(`user_${receiverId}`).emit("privateMessagePinned", data);
+    if (senderId) io.to(`user_${senderId}`).emit("privateMessagePinned", data);
   });
 
   socket.on("iceCandidate", ({ toUserId, signalData }) => {
-    const room = io.sockets.adapter.rooms.get(`user_${toUserId}`);
-    console.log("  RELAYING ICE CANDIDATE → to:", `user_${toUserId}`, "| sockets in room:", room ? room.size : 0, "| from socket:", socket.id);
-    io.to(`user_${toUserId}`).emit("iceCandidate", { signalData });
+    if (!toUserId) return;
+    const uid = toUserId.toString();
+    const room = io.sockets.adapter.rooms.get(`user_${uid}`);
+    console.log("  RELAYING ICE CANDIDATE → to:", `user_${uid}`, "| sockets in room:", room ? room.size : 0, "| from socket:", socket.id);
+    io.to(`user_${uid}`).emit("iceCandidate", { signalData });
   });
 
   socket.on("typingPrivate", ({ chatId, senderId, receiverId, userName }) => {
-    let target = socket.to(chatId);
-    if (receiverId) target = target.to(`user_${receiverId}`);
-
-    target.emit("userTypingPrivate", { chatId, senderId, receiverId, userName });
+    const cId = chatId?.toString();
+    const rId = receiverId?.toString();
+    if (cId) socket.to(cId).emit("userTypingPrivate", { chatId: cId, senderId, receiverId: rId, userName });
+    if (rId) socket.to(`user_${rId}`).emit("userTypingPrivate", { chatId: cId, senderId, receiverId: rId, userName });
   });
 
   socket.on("stopTypingPrivate", ({ chatId, senderId, receiverId }) => {
-    let target = socket.to(chatId);
-    if (receiverId) target = target.to(`user_${receiverId}`);
-
-    target.emit("userStopTypingPrivate", { chatId, senderId, receiverId });
+    const cId = chatId?.toString();
+    const rId = receiverId?.toString();
+    if (cId) socket.to(cId).emit("userStopTypingPrivate", { chatId: cId, senderId, receiverId: rId });
+    if (rId) socket.to(`user_${rId}`).emit("userStopTypingPrivate", { chatId: cId, senderId, receiverId: rId });
   });
 
   socket.on("markPrivateMessageSeen", async ({ chatId, messageId, seenBy }) => {
@@ -213,11 +268,14 @@ io.on("connection", (socket) => {
         seenAt: new Date(),
       });
 
-      io.to(chatId).emit("privateMessagesSeen", {
-        chatId,
-        seenBy,
-        messageIds: [messageId],
-      });
+      const cid = chatId?.toString();
+      if (cid) {
+        io.to(cid).emit("privateMessagesSeen", {
+          chatId: cid,
+          seenBy,
+          messageIds: [messageId],
+        });
+      }
     } catch (err) {
       console.log(err);
     }

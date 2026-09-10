@@ -575,7 +575,62 @@ useEffect(() => {
     };
   }, []);
 
+  // ============== REAL-TIME: auto-add sender/group to active sidebar list on incoming message ==============
+  useEffect(() => {
+    const handleSidebarPrivateMsg = (msg) => {
+      if (!msg) return;
+      const currentUserId = user?._id?.toString();
+      const senderId = (msg.sender?._id || msg.sender)?.toString();
+      const receiverId = (msg.receiver?._id || msg.receiver)?.toString();
+      const otherId = senderId === currentUserId ? receiverId : senderId;
+      if (!otherId) return;
 
+      if (activeTabRef.current === "chats") {
+        setListResults((prev) => {
+          const exists = prev.some((u) => u._id.toString() === otherId);
+          if (!exists) {
+            const foundUser =
+              allUsers.find((u) => u._id.toString() === otherId) ||
+              (typeof msg.sender === "object" && msg.sender?._id?.toString() === otherId ? msg.sender : null) ||
+              (typeof msg.receiver === "object" && msg.receiver?._id?.toString() === otherId ? msg.receiver : null);
+            if (foundUser) {
+              return [foundUser, ...prev];
+            }
+          }
+          return [...prev];
+        });
+      }
+    };
+
+    const handleSidebarGroupMsg = (msg) => {
+      if (!msg) return;
+      const gId = (msg.group?._id || msg.group || msg.groupId)?.toString();
+      if (!gId) return;
+
+      if (activeTabRef.current === "groups") {
+        setListResults((prev) => {
+          const exists = prev.some((g) => g._id.toString() === gId);
+          if (!exists) {
+            const foundGroup =
+              groups.find((g) => g._id.toString() === gId) ||
+              (typeof msg.group === "object" && msg.group?._id?.toString() === gId ? msg.group : null);
+            if (foundGroup) {
+              return [foundGroup, ...prev];
+            }
+          }
+          return [...prev];
+        });
+      }
+    };
+
+    socket.on("receivePrivateMessage", handleSidebarPrivateMsg);
+    socket.on("receiveMessage", handleSidebarGroupMsg);
+
+    return () => {
+      socket.off("receivePrivateMessage", handleSidebarPrivateMsg);
+      socket.off("receiveMessage", handleSidebarGroupMsg);
+    };
+  }, [user?._id, allUsers, groups]);
 
   const handleLoadMore = () => {
     if (loadMoreLoading || !hasMore) return;
@@ -628,8 +683,12 @@ useEffect(() => {
       if (isAPinned && !isBPinned) return -1;
       if (!isAPinned && isBPinned) return 1;
 
-      const ta = userLastActivity[a._id] ?? 0;
-      const tb = userLastActivity[b._id] ?? 0;
+      const ta =
+        userLastActivity[a._id] ??
+        new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const tb =
+        userLastActivity[b._id] ??
+        new Date(b.updatedAt || b.createdAt || 0).getTime();
       return tb - ta;
     });
   }, [activeTab, listResults, isSearchMode, userLastActivity, pinnedChats]);
