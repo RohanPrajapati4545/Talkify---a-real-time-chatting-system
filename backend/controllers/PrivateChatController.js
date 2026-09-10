@@ -192,23 +192,23 @@ const getCallLogs = async (req, res) => {
 
 
 const sendPrivateMessage = async (req, res) => {
-
-
   try {
     const { chatId, receiverId, message, replyTo } = req.body;
 
-    const sender = await User.findById(req.user.id);
-    const receiver = await User.findById(receiverId);
+    const [sender, receiver] = await Promise.all([
+      User.findById(req.user.id).select("blockedUsers"),
+      User.findById(receiverId).select("blockedUsers"),
+    ]);
 
     if (!receiver) {
       return res.status(404).json({ message: "Receiver not found" });
     }
 
-    const senderBlockedReceiver = sender.blockedUsers.some(
+    const senderBlockedReceiver = sender?.blockedUsers?.some(
       (id) => id.toString() === receiverId
     );
 
-    const receiverBlockedSender = receiver.blockedUsers.some(
+    const receiverBlockedSender = receiver?.blockedUsers?.some(
       (id) => id.toString() === req.user.id
     );
 
@@ -223,35 +223,37 @@ const sendPrivateMessage = async (req, res) => {
         message: "You cannot message this user",
       });
     }
-  
-console.log("req.file:", req.file);
-let media = "";
-let mediaType = "";
 
-if (req.file) {
-  media = req.file.path;
+    let media = "";
+    let mediaType = "";
 
-  if (req.body.isVoice === "true") {
-    mediaType = "audio";                            
-  } else if (req.file.mimetype.startsWith("image")) {
-    mediaType = "image";
-  } else if (req.file.mimetype.startsWith("video")) {
-    mediaType = "video";
-  } else if (req.file.mimetype.startsWith("audio")) {
-    mediaType = "audio";
-  }
-}
-const msg = await PrivateMessage.create({
-  chatId,
-  sender: req.user.id,
-  receiver: receiverId,
-  message: message || "",
-  media,
-  mediaType,         
-  replyTo: replyTo || null
-});
+    if (req.file) {
+      media = req.file.path;
 
-    await PrivateChat.findByIdAndUpdate(chatId, { updatedAt: new Date() });
+      if (req.body.isVoice === "true") {
+        mediaType = "audio";
+      } else if (req.file.mimetype.startsWith("image")) {
+        mediaType = "image";
+      } else if (req.file.mimetype.startsWith("video")) {
+        mediaType = "video";
+      } else if (req.file.mimetype.startsWith("audio")) {
+        mediaType = "audio";
+      }
+    }
+
+    const msg = await PrivateMessage.create({
+      chatId,
+      sender: req.user.id,
+      receiver: receiverId,
+      message: message || "",
+      media,
+      mediaType,
+      replyTo: replyTo || null,
+    });
+
+    if (chatId) {
+      PrivateChat.findByIdAndUpdate(chatId, { updatedAt: new Date() }).exec();
+    }
 
     const populated = await PrivateMessage.findById(msg._id)
       .populate("sender", "name image")
@@ -260,13 +262,23 @@ const msg = await PrivateMessage.create({
         path: "replyTo",
         populate: {
           path: "sender",
-          select: "name image"
-        }
+          select: "name image",
+        },
       });
+
+    // Instant direct socket broadcast to receiver room and chat room
+    const io = req.app.get("io");
+    if (io) {
+      const targetRooms = [];
+      if (chatId) targetRooms.push(chatId.toString());
+      if (receiverId) targetRooms.push(`user_${receiverId.toString()}`);
+      if (req.user.id) targetRooms.push(`user_${req.user.id.toString()}`);
+      io.to(targetRooms).emit("receivePrivateMessage", populated);
+    }
 
     res.status(201).json(populated);
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(500).json({ message: "Error sending private message" });
   }
 };

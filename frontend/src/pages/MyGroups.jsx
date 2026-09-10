@@ -2261,18 +2261,68 @@ const handleLoadOlderMessages = () => {
   }
 }, [messages, selectedGroup, groupCallLogs]);
 
- useEffect(() => {
-  const container = privateMessagesRef.current;
-  if (!container) return;
+  useEffect(() => {
+    const container = privateMessagesRef.current;
+    if (!container) return;
 
-  if (privateMessagesScrollAnchorRef.current) {
-    const { prevScrollHeight, prevScrollTop } = privateMessagesScrollAnchorRef.current;
-    container.scrollTop = container.scrollHeight - prevScrollHeight + prevScrollTop;
-    privateMessagesScrollAnchorRef.current = null;
-  } else {
-    container.scrollTop = container.scrollHeight;
-  }
-}, [privateMessages, selectedUser, privateCallLogs]);
+    if (privateMessagesScrollAnchorRef.current) {
+      const { prevScrollHeight, prevScrollTop } = privateMessagesScrollAnchorRef.current;
+      container.scrollTop = container.scrollHeight - prevScrollHeight + prevScrollTop;
+      privateMessagesScrollAnchorRef.current = null;
+    } else {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [privateMessages, selectedUser, privateCallLogs]);
+
+  const scrollToBottom = useCallback((smooth = false) => {
+    const pContainer = privateMessagesRef.current;
+    if (pContainer) {
+      if (smooth) {
+        pContainer.scrollTo({ top: pContainer.scrollHeight, behavior: "smooth" });
+      } else {
+        pContainer.scrollTop = pContainer.scrollHeight;
+      }
+    }
+    const gContainer = messagesContainerRef.current;
+    if (gContainer) {
+      if (smooth) {
+        gContainer.scrollTo({ top: gContainer.scrollHeight, behavior: "smooth" });
+      } else {
+        gContainer.scrollTop = gContainer.scrollHeight;
+      }
+    }
+  }, []);
+
+  const handleInputFocus = useCallback(() => {
+    scrollToBottom(false);
+    setTimeout(() => scrollToBottom(false), 80);
+    setTimeout(() => scrollToBottom(true), 250);
+    setTimeout(() => scrollToBottom(true), 450);
+  }, [scrollToBottom]);
+
+  // Keep recent messages in view when mobile keyboard opens / viewport resizes
+  useEffect(() => {
+    if (!chatOpen) return;
+
+    const handleViewportResize = () => {
+      scrollToBottom(false);
+      setTimeout(() => scrollToBottom(false), 100);
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleViewportResize);
+      window.visualViewport.addEventListener("scroll", handleViewportResize);
+    }
+    window.addEventListener("resize", handleViewportResize);
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", handleViewportResize);
+        window.visualViewport.removeEventListener("scroll", handleViewportResize);
+      }
+      window.removeEventListener("resize", handleViewportResize);
+    };
+  }, [chatOpen, scrollToBottom]);
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -3318,14 +3368,6 @@ useEffect(() => {
                         })
                       )}
 
-                      {isPrivateUserTyping && (
-                        <div className="cv-typing-indicator-bubble">
-                          <span className="cv-typing-dot"></span>
-                          <span className="cv-typing-dot"></span>
-                          <span className="cv-typing-dot"></span>
-                        </div>
-                      )}
-
                     </div>
 
                     {replyingTo && (
@@ -3443,6 +3485,8 @@ useEffect(() => {
                           placeholder="Write a message…"
                           value={message}
                           onChange={(e) => handlePrivateTyping(e.target.value)}
+                          onFocus={handleInputFocus}
+                          onClick={handleInputFocus}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") handleSend();
                           }}
@@ -4042,17 +4086,6 @@ useEffect(() => {
 
                     })}
 
-                    {isGroupTyping && (
-                      <div className="cv-typing-indicator-bubble">
-                        <span className="cv-typing-dot"></span>
-                        <span className="cv-typing-dot"></span>
-                        <span className="cv-typing-dot"></span>
-                        <span className="cv-typing-names">
-                          {currentGroupTypingNames.join(", ")} {currentGroupTypingNames.length > 1 ? "are" : "is"} typing…
-                        </span>
-                      </div>
-                    )}
-
                     <div ref={messagesEndRef}></div>
 
                   </div>
@@ -4166,6 +4199,8 @@ useEffect(() => {
                       placeholder="Write a message…"
                       value={message}
                       onChange={(e) => handleGroupTyping(e.target.value)}
+                      onFocus={handleInputFocus}
+                      onClick={handleInputFocus}
                       onKeyDown={handleKeyPress}
                     />
 

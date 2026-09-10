@@ -109,22 +109,22 @@ const sendMessage = async (req, res) => {
   try {
     const { groupId, message, replyTo } = req.body;
 
-   let media = "";
-let mediaType = "";
+    let media = "";
+    let mediaType = "";
 
-if (req.file) {
-  media = req.file.path;
+    if (req.file) {
+      media = req.file.path;
 
-  if (req.body.isVoice === "true") {
-    mediaType = "audio";                       
-  } else if (req.file.mimetype.startsWith("image")) {
-    mediaType = "image";
-  } else if (req.file.mimetype.startsWith("video")) {
-    mediaType = "video";
-  } else if (req.file.mimetype.startsWith("audio")) {
-    mediaType = "audio";
-  }
-}
+      if (req.body.isVoice === "true") {
+        mediaType = "audio";
+      } else if (req.file.mimetype.startsWith("image")) {
+        mediaType = "image";
+      } else if (req.file.mimetype.startsWith("video")) {
+        mediaType = "video";
+      } else if (req.file.mimetype.startsWith("audio")) {
+        mediaType = "audio";
+      }
+    }
 
     if (!message && !media) {
       return res.status(400).json({
@@ -138,11 +138,12 @@ if (req.file) {
       message,
       media,
       mediaType,
-      replyTo: replyTo || null
+      replyTo: replyTo || null,
     });
 
-
-    await GroupSchema.findByIdAndUpdate(groupId, { updatedAt: new Date() });
+    if (groupId) {
+      GroupSchema.findByIdAndUpdate(groupId, { updatedAt: new Date() }).exec();
+    }
 
     const populatedMsg = await Message.findById(msg._id)
       .populate("sender", "name image")
@@ -150,9 +151,14 @@ if (req.file) {
         path: "replyTo",
         populate: {
           path: "sender",
-          select: "name image"
-        }
+          select: "name image",
+        },
       });
+
+    const io = req.app.get("io");
+    if (io && groupId) {
+      io.to(groupId.toString()).emit("receiveMessage", populatedMsg);
+    }
 
     res.status(201).json(populatedMsg);
   } catch (err) {

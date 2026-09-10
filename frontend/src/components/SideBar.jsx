@@ -818,7 +818,6 @@ useEffect(() => {
       } else {
         await fetchList(debouncedTerm, 1, false);
       }
-      toast.info("Refreshed", { autoClose: 1000, hideProgressBar: true });
     } catch (err) {
       console.error("Refresh failed:", err);
     } finally {
@@ -844,6 +843,10 @@ useEffect(() => {
     }
 
     if (type === "group") {
+      if (searchTerm) {
+        setSearchTerm("");
+        setDebouncedTerm("");
+      }
       if (onSelectGroup) {
         onSelectGroup(item);
       } else {
@@ -854,6 +857,10 @@ useEffect(() => {
         setSelectedUser?.(null);
       }
     } else if (type === "user") {
+      if (searchTerm) {
+        setSearchTerm("");
+        setDebouncedTerm("");
+      }
       if (openPrivateChat) {
         openPrivateChat(item);
       }
